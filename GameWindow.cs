@@ -4,8 +4,8 @@ namespace TheAdventure;
 
 public unsafe class GameWindow
 {
-    private IntPtr _window;
-    private Sdl _sdl;
+    private readonly IntPtr _window;
+    private readonly Sdl _sdl;
 
     public GameWindow(Sdl sdl)
     {

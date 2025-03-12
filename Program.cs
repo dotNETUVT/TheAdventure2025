@@ -25,6 +25,8 @@ public static class Program
         var gameRenderer = new GameRenderer(sdl, gameWindow, gameLogic);
         var inputLogic = new InputLogic(sdl);
 
+        gameLogic.InitializeGame(gameRenderer);
+
         bool quit = false;
         while (!quit)
         {
@@ -39,10 +41,10 @@ public static class Program
 
             #endregion
 
-            // game.render(renderer, RenderEvent{ elapsed, framesRenderedCounter++ });
             gameRenderer.Render();
 
             ++framesRenderedCounter;
+            System.Threading.Thread.Sleep(TimeSpan.FromSeconds(0.41666666666666666666666666666667));
         }
 
         gameWindow.Destroy();
