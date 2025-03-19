@@ -5,16 +5,22 @@ namespace TheAdventure;
 public unsafe class InputLogic
 {
     private Sdl _sdl;
+    private GameLogic _gameLogic;
 
-    public InputLogic(Sdl sdl)
+    public InputLogic(Sdl sdl, GameLogic gameLogic)
     {
         _sdl = sdl;
+        _gameLogic = gameLogic;
     }
 
     public bool ProcessInput()
     {
         ReadOnlySpan<byte> _keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
         Span<byte> mouseButtonStates = stackalloc byte[(int)MouseButton.Count];
+        
+        var mouseX = 0;
+        var mouseY = 0;
+        
         Event ev = new Event();
         while (_sdl.PollEvent(ref ev) != 0)
         {
@@ -97,6 +103,8 @@ public unsafe class InputLogic
                 }
                 case (uint)EventType.Mousebuttondown:
                 {
+                    mouseX = ev.Motion.X;
+                    mouseY = ev.Motion.Y;
                     mouseButtonStates[ev.Button.Button] = 1;
                     break;
                 }
@@ -129,7 +137,11 @@ public unsafe class InputLogic
                 }
             }
         }
-
+        
+        if (mouseButtonStates[(byte)MouseButton.Primary] == 1){
+            _gameLogic.AddBomb(mouseX, mouseY);
+        }
+        
         return false;
     }
 }

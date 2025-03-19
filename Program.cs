@@ -23,9 +23,9 @@ public static class Program
         var gameWindow = new GameWindow(sdl);
         var gameLogic = new GameLogic();
         var gameRenderer = new GameRenderer(sdl, gameWindow, gameLogic);
-        var inputLogic = new InputLogic(sdl);
+        var inputLogic = new InputLogic(sdl, gameLogic);
 
-        gameLogic.InitializeGame(gameRenderer);
+        gameLogic.InitializeGame();
 
         bool quit = false;
         while (!quit)
@@ -44,7 +44,7 @@ public static class Program
             gameRenderer.Render();
 
             ++framesRenderedCounter;
-            System.Threading.Thread.Sleep(TimeSpan.FromSeconds(0.41666666666666666666666666666667));
+            System.Threading.Thread.Sleep(50);
         }
 
         gameWindow.Destroy();

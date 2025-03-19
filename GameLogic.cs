@@ -1,44 +1,53 @@
 using Silk.NET.Maths;
+using TheAdventure.Models;
 
 namespace TheAdventure;
 
 public class GameLogic
 {
-    private readonly List<GameObject> _gameObjects = new();
+    private readonly Dictionary<int, GameObject> _gameObjects = new();
+    
+    private int _bombIds = 100;
 
-    private int _frameCount;
-
-    public void InitializeGame(GameRenderer gameRenderer)
+    public void InitializeGame()
     {
-        var textureId = gameRenderer.LoadTexture("image.png", out var textureInfo);
-        var sampleRenderableObject = new RenderableGameObject(textureId,
-            new Rectangle<int>(0, 0, textureInfo.Width, textureInfo.Height),
-            new Rectangle<int>(0, 0, textureInfo.Width, textureInfo.Height), textureInfo);
-        _gameObjects.Add(sampleRenderableObject);
     }
 
     public void ProcessFrame()
     {
-        var renderableObject = (RenderableGameObject)_gameObjects.First();
-        var i = _frameCount % 10;
-        var j = _frameCount / 10;
-        var cellWidth = renderableObject.TextureInformation.Width / 10;
-        var cellHeight = renderableObject.TextureInformation.Height / 10;
-        var x = i * cellWidth;
-        var y = j * cellHeight;
-        Rectangle<int> srcDest = new Rectangle<int>(x, y, cellWidth, cellHeight);
-        renderableObject.TextureSource = srcDest;
-        renderableObject.TextureDestination = new Rectangle<int>(0, 0, cellWidth, cellHeight);
-        ++_frameCount;
-        if (_frameCount == 100)
+    }
+
+    public void RenderAllObjects(int timeSinceLastFrame, GameRenderer renderer)
+    {
+        List<int> itemsToRemove = new List<int>();
+        foreach (var gameObject in GetRenderables())
         {
-            _frameCount = 0;
+            if (gameObject.Update(timeSinceLastFrame))
+            {
+                gameObject.Render(renderer);
+            }
+            else
+            {
+                itemsToRemove.Add(gameObject.Id);
+            }
         }
+
+        foreach (var item in itemsToRemove)
+        {
+            _gameObjects.Remove(item);
+        }
+    }
+
+    public void AddBomb(int x, int y)
+    {
+        AnimatedGameObject bomb = new AnimatedGameObject("BombExploding.png", 2, _bombIds, 13, 13, 1, x, y);
+        _gameObjects.Add(bomb.Id, bomb);
+        ++_bombIds;
     }
 
     public IEnumerable<RenderableGameObject> GetRenderables()
     {
-        foreach (var gameObject in _gameObjects)
+        foreach (var gameObject in _gameObjects.Values)
         {
             if (gameObject is RenderableGameObject renderableGameObject)
             {
