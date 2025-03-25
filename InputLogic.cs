@@ -7,6 +7,9 @@ public unsafe class InputLogic
     private Sdl _sdl;
     private GameLogic _gameLogic;
 
+    private DateTimeOffset _lastBombPlacedTime = DateTimeOffset.MinValue;
+    private const int BOMB_PLACEMENT_COOLDOWN_MS = 500;
+
     public InputLogic(Sdl sdl, GameLogic gameLogic)
     {
         _sdl = sdl;
@@ -142,7 +145,12 @@ public unsafe class InputLogic
 
         if (mouseButtonStates[(byte)MouseButton.Primary] == 1)
         {
-            _gameLogic.AddBomb(mouseX, mouseY);
+            var currentTime = DateTimeOffset.UtcNow;
+            if ((currentTime - _lastBombPlacedTime).TotalMilliseconds >= BOMB_PLACEMENT_COOLDOWN_MS)
+            {
+                _gameLogic.AddBomb(mouseX, mouseY);
+                _lastBombPlacedTime = currentTime;
+            }
         }
 
         return false;
