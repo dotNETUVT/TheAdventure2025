@@ -16,7 +16,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Content Include="BombExploding.png">
+      <Content Include="Assets\**\*">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </Content>
     </ItemGroup>

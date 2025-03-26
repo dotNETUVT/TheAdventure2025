@@ -1,3 +1,4 @@
+using Silk.NET.Maths;
 using Silk.NET.SDL;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
@@ -55,10 +56,20 @@ public unsafe partial class GameRenderer
             timeSinceLastFrame = (int)now.Subtract(_lastFrameRenderedAt).TotalMilliseconds;
         }
 
+        _gameLogic.RenderTerrain(this);
         _gameLogic.RenderAllObjects(timeSinceLastFrame, this);
         _lastFrameRenderedAt = now;
 
         _sdl.RenderPresent(renderer);
+    }
+
+
+    public void RenderTexture(int textureId, Rectangle<int> src, Rectangle<int> dst)
+    {
+        if (_texturePointers.TryGetValue(textureId, out var texture))
+        {
+            _sdl.RenderCopy((Renderer*)_renderer, (Texture*)texture, in src, in dst);
+        }
     }
 }
 
