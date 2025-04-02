@@ -16,6 +16,8 @@ public unsafe partial class GameRenderer
     private readonly Dictionary<int, TextureData> _textureData;
     private int _index = 0;
 
+    private readonly GameCamera _camera = new();
+
     private static GameRenderer? _instance;
     private DateTimeOffset _lastFrameRenderedAt = DateTimeOffset.MinValue;
 
@@ -28,6 +30,13 @@ public unsafe partial class GameRenderer
         _textureData = new();
         _texturePointers = new();
 
+        _camera.X = 0;
+        _camera.Y = 0;
+
+        var windowSize = gameWindow.Size;
+        _camera.Width = windowSize.Width;
+        _camera.Height = windowSize.Height;
+
         _instance = this;
     }
 
@@ -36,7 +45,7 @@ public unsafe partial class GameRenderer
         if (_texturePointers.TryGetValue(gameObject.TextureId, out var imageTexture))
         {
             var textureSrc = gameObject.TextureSource;
-            var textureDest = gameObject.TextureDestination;
+            var textureDest = _camera.ToScreenCoordinates(gameObject.TextureDestination);
             var rotCenter = gameObject.TextureRotationCenter;
             _sdl.RenderCopyEx((Renderer*)_renderer, (Texture*)imageTexture, in textureSrc, in textureDest,
                 gameObject.TextureRotation, in rotCenter, RendererFlip.None);
@@ -46,6 +55,10 @@ public unsafe partial class GameRenderer
     public void Render()
     {
         var renderer = (Renderer*)_renderer;
+
+        var playerPos = _gameLogic.GetPlayerPosition();
+        _camera.X = playerPos.X;
+        _camera.Y = playerPos.Y;
 
         _sdl.RenderClear(renderer);
 
@@ -63,12 +76,12 @@ public unsafe partial class GameRenderer
         _sdl.RenderPresent(renderer);
     }
 
-
     public void RenderTexture(int textureId, Rectangle<int> src, Rectangle<int> dst)
     {
         if (_texturePointers.TryGetValue(textureId, out var texture))
         {
-            _sdl.RenderCopy((Renderer*)_renderer, (Texture*)texture, in src, in dst);
+            var translatedDst = _camera.ToScreenCoordinates(dst);
+            _sdl.RenderCopy((Renderer*)_renderer, (Texture*)texture, in src, in translatedDst);
         }
     }
 }
@@ -102,5 +115,16 @@ public unsafe partial class GameRenderer
         _instance._texturePointers[_instance._index] = (IntPtr)imageTexture;
         _instance._textureData[_instance._index] = textureData;
         return _instance._index++;
+    }
+
+    public static (int X, int Y) ToWorldCoordinates(int X, int Y)
+    {
+        if (_instance == null)
+        {
+            throw new InvalidOperationException("GameRenderer instance is not initialized.");
+        }
+
+        var worldCoords = _instance._camera.ToWorldCoordinates(new(X, Y));
+        return (worldCoords.X, worldCoords.Y);
     }
 }

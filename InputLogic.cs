@@ -7,6 +7,8 @@ public unsafe class InputLogic
     private Sdl _sdl;
     private GameLogic _gameLogic;
 
+    private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
+
     public InputLogic(Sdl sdl, GameLogic gameLogic)
     {
         _sdl = sdl;
@@ -15,12 +17,14 @@ public unsafe class InputLogic
 
     public bool ProcessInput()
     {
-        ReadOnlySpan<byte> _keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
+        var currentTime = DateTimeOffset.Now;
+
+        ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
         Span<byte> mouseButtonStates = stackalloc byte[(int)MouseButton.Count];
-        
+
         var mouseX = 0;
         var mouseY = 0;
-        
+
         Event ev = new Event();
         while (_sdl.PollEvent(ref ev) != 0)
         {
@@ -137,11 +141,43 @@ public unsafe class InputLogic
                 }
             }
         }
-        
-        if (mouseButtonStates[(byte)MouseButton.Primary] == 1){
-            _gameLogic.AddBomb(mouseX, mouseY);
+
+        var timeSinceLastFrame = (int)currentTime.Subtract(_lastUpdate).TotalMilliseconds;
+        _lastUpdate = currentTime;
+
+        var up = 0.0;
+        var down = 0.0;
+        var left = 0.0;
+        var right = 0.0;
+
+        if (keyboardState[(int)KeyCode.Up] == 1)
+        {
+            up = 1.0;
         }
-        
+
+        if (keyboardState[(int)KeyCode.Down] == 1)
+        {
+            down = 1.0;
+        }
+
+        if (keyboardState[(int)KeyCode.Left] == 1)
+        {
+            left = 1.0;
+        }
+
+        if (keyboardState[(int)KeyCode.Right] == 1)
+        {
+            right = 1.0;
+        }
+
+        _gameLogic.UpdatePlayerPosition(up, down, left, right, timeSinceLastFrame);
+
+        if (mouseButtonStates[(byte)MouseButton.Primary] == 1)
+        {
+            var worldCoords = GameRenderer.ToWorldCoordinates(mouseX, mouseY);
+            _gameLogic.AddBomb(worldCoords.X, worldCoords.Y);
+        }
+
         return false;
     }
 }
