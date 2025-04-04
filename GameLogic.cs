@@ -10,12 +10,16 @@ public class GameLogic
     private readonly Dictionary<int, GameObject> _gameObjects = new();
     private readonly Dictionary<string, TileSet> _loadedTileSets = new();
     private readonly Dictionary<int, Tile> _tileIdMap = new();
+
     private Level _currentLevel = new();
+    private PlayerObject? _player;
 
     private int _bombIds = 100;
 
     public void InitializeGame()
     {
+        _player = new(1000);
+
         var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
         var level = JsonSerializer.Deserialize<Level>(levelContent);
         if (level == null)
@@ -67,11 +71,29 @@ public class GameLogic
         {
             _gameObjects.Remove(item);
         }
+
+        _player?.Render(renderer);
+    }
+
+    public void UpdatePlayerPosition(double up, double down, double left, double right, int timeSinceLastUpdateInMs)
+    {
+        _player?.UpdatePosition(up, down, left, right, timeSinceLastUpdateInMs);
+    }
+
+    public (int X, int Y) GetPlayerPosition()
+    {
+        if (_player == null)
+        {
+            return (0, 0);
+        }
+
+        return (_player.X, _player.Y);
     }
 
     public void AddBomb(int x, int y)
     {
-        AnimatedGameObject bomb = new AnimatedGameObject(Path.Combine("Assets", "BombExploding.png"), 2, _bombIds, 13, 13, 1, x, y);
+        AnimatedGameObject bomb =
+            new AnimatedGameObject(Path.Combine("Assets", "BombExploding.png"), 2, _bombIds, 13, 13, 1, x, y);
         _gameObjects.Add(bomb.Id, bomb);
         ++_bombIds;
     }
