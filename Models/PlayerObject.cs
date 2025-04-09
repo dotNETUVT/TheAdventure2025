@@ -14,9 +14,9 @@ public class PlayerObject : GameObject
 
     private const int Speed = 128; // pixels per second
 
-    public PlayerObject(int id) : base(id)
+    public PlayerObject(GameRenderer renderer)
     {
-        _textureId = GameRenderer.LoadTexture(Path.Combine("Assets", "player.png"), out _);
+        _textureId = renderer.LoadTexture(Path.Combine("Assets", "player.png"), out _);
         if (_textureId < 0)
         {
             throw new Exception("Failed to load player texture");

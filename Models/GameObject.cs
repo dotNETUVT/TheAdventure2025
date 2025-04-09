@@ -2,10 +2,12 @@ namespace TheAdventure.Models;
 
 public class GameObject
 {
-    public int Id { get; }
+    public int Id { get; private set; }
     
-    public GameObject(int id)
+    private static int _nextId = -1;
+    
+    public GameObject()
     {
-        Id = id;
+        Id = Interlocked.Increment(ref _nextId);
     }
 }
