@@ -3,128 +3,111 @@ using Silk.NET.SDL;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using TheAdventure.Models;
+using Point = Silk.NET.SDL.Point;
 
 namespace TheAdventure;
 
-public unsafe partial class GameRenderer
+public unsafe class GameRenderer
 {
-    private readonly Sdl _sdl;
-    private readonly IntPtr _renderer;
-    private readonly GameLogic _gameLogic;
+    private Sdl _sdl;
+    private Renderer* _renderer;
+    private GameWindow _window;
+    private GameCamera _camera;
 
-    private readonly Dictionary<int, IntPtr> _texturePointers;
-    private readonly Dictionary<int, TextureData> _textureData;
-    private int _index = 0;
+    private Dictionary<int, IntPtr> _texturePointers = new();
+    private Dictionary<int, TextureData> _textureData = new();
+    private int _textureId;
 
-    private readonly GameCamera _camera = new();
-
-    private static GameRenderer? _instance;
-    private DateTimeOffset _lastFrameRenderedAt = DateTimeOffset.MinValue;
-
-    public GameRenderer(Sdl sdl, GameWindow gameWindow, GameLogic gameLogic)
+    public GameRenderer(Sdl sdl, GameWindow window)
     {
         _sdl = sdl;
-        _renderer = gameWindow.CreateRenderer();
-        _gameLogic = gameLogic;
-
-        _textureData = new();
-        _texturePointers = new();
-
-        _camera.X = 0;
-        _camera.Y = 0;
-
-        var windowSize = gameWindow.Size;
-        _camera.Width = windowSize.Width;
-        _camera.Height = windowSize.Height;
-
-        _instance = this;
+        
+        _renderer = (Renderer*)window.CreateRenderer();
+        _sdl.SetRenderDrawBlendMode(_renderer, BlendMode.Blend);
+        
+        _window = window;
+        var windowSize = window.Size;
+        _camera = new GameCamera(windowSize.Width, windowSize.Height);
     }
 
-    public void RenderGameObject(RenderableGameObject gameObject)
+    public void SetWorldBounds(Rectangle<int> bounds)
     {
-        if (_texturePointers.TryGetValue(gameObject.TextureId, out var imageTexture))
+        _camera.SetWorldBounds(bounds);
+    }
+
+    public void CameraLookAt(int x, int y)
+    {
+        _camera.LookAt(x, y);
+    }
+
+    public int LoadTexture(string fileName, out TextureData textureInfo)
+    {
+        using (var fStream = new FileStream(fileName, FileMode.Open))
         {
-            var textureSrc = gameObject.TextureSource;
-            var textureDest = _camera.ToScreenCoordinates(gameObject.TextureDestination);
-            var rotCenter = gameObject.TextureRotationCenter;
-            _sdl.RenderCopyEx((Renderer*)_renderer, (Texture*)imageTexture, in textureSrc, in textureDest,
-                gameObject.TextureRotation, in rotCenter, RendererFlip.None);
+            var image = Image.Load<Rgba32>(fStream);
+            textureInfo = new TextureData()
+            {
+                Width = image.Width,
+                Height = image.Height
+            };
+            var imageRAWData = new byte[textureInfo.Width * textureInfo.Height * 4];
+            image.CopyPixelDataTo(imageRAWData.AsSpan());
+            fixed (byte* data = imageRAWData)
+            {
+                var imageSurface = _sdl.CreateRGBSurfaceWithFormatFrom(data, textureInfo.Width,
+                    textureInfo.Height, 8, textureInfo.Width * 4, (uint)PixelFormatEnum.Rgba32);
+                if (imageSurface == null)
+                {
+                    throw new Exception("Failed to create surface from image data.");
+                }
+                
+                var imageTexture = _sdl.CreateTextureFromSurface(_renderer, imageSurface);
+                if (imageTexture == null)
+                {
+                    _sdl.FreeSurface(imageSurface);
+                    throw new Exception("Failed to create texture from surface.");
+                }
+                
+                _sdl.FreeSurface(imageSurface);
+                
+                _textureData[_textureId] = textureInfo;
+                _texturePointers[_textureId] = (IntPtr)imageTexture;
+            }
         }
+
+        return _textureId++;
     }
 
-    public void Render()
+    public void RenderTexture(int textureId, Rectangle<int> src, Rectangle<int> dst,
+        RendererFlip flip = RendererFlip.None, double angle = 0.0, Point center = default)
     {
-        var renderer = (Renderer*)_renderer;
-
-        var playerPos = _gameLogic.GetPlayerPosition();
-        _camera.X = playerPos.X;
-        _camera.Y = playerPos.Y;
-
-        _sdl.RenderClear(renderer);
-
-        var timeSinceLastFrame = 0;
-        var now = DateTimeOffset.UtcNow;
-        if (_lastFrameRenderedAt > DateTimeOffset.MinValue)
-        {
-            timeSinceLastFrame = (int)now.Subtract(_lastFrameRenderedAt).TotalMilliseconds;
-        }
-
-        _gameLogic.RenderTerrain(this);
-        _gameLogic.RenderAllObjects(timeSinceLastFrame, this);
-        _lastFrameRenderedAt = now;
-
-        _sdl.RenderPresent(renderer);
-    }
-
-    public void RenderTexture(int textureId, Rectangle<int> src, Rectangle<int> dst)
-    {
-        if (_texturePointers.TryGetValue(textureId, out var texture))
+        if (_texturePointers.TryGetValue(textureId, out var imageTexture))
         {
             var translatedDst = _camera.ToScreenCoordinates(dst);
-            _sdl.RenderCopy((Renderer*)_renderer, (Texture*)texture, in src, in translatedDst);
+            _sdl.RenderCopyEx(_renderer, (Texture*)imageTexture, in src,
+                in translatedDst,
+                angle,
+                in center, flip);
         }
     }
-}
 
-public unsafe partial class GameRenderer
-{
-    public static int LoadTexture(string fileName, out TextureData textureData)
+    public Vector2D<int> ToWorldCoordinates(int x, int y)
     {
-        using var fStream = new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.Read);
-
-        var image = Image.Load<Rgba32>(fStream);
-        textureData = new TextureData()
-        {
-            Width = image.Width,
-            Height = image.Height,
-        };
-        var imageRawData = new byte[textureData.Width * textureData.Height * 4];
-        image.CopyPixelDataTo(imageRawData.AsSpan());
-        Texture* imageTexture = null;
-        fixed (byte* data = imageRawData)
-        {
-            var imageSurface = _instance!._sdl.CreateRGBSurfaceWithFormatFrom(data, textureData.Width,
-                textureData.Height, 8,
-                textureData.Width * 4, (uint)PixelFormatEnum.Rgba32);
-            imageTexture = _instance._sdl.CreateTextureFromSurface((Renderer*)_instance._renderer, imageSurface);
-            _instance._sdl.FreeSurface(imageSurface);
-        }
-
-        if (imageTexture == null) return -1;
-
-        _instance._texturePointers[_instance._index] = (IntPtr)imageTexture;
-        _instance._textureData[_instance._index] = textureData;
-        return _instance._index++;
+        return _camera.ToWorldCoordinates(new Vector2D<int>(x, y));
     }
 
-    public static (int X, int Y) ToWorldCoordinates(int X, int Y)
+    public void SetDrawColor(byte r, byte g, byte b, byte a)
     {
-        if (_instance == null)
-        {
-            throw new InvalidOperationException("GameRenderer instance is not initialized.");
-        }
+        _sdl.SetRenderDrawColor(_renderer, r, g, b, a);
+    }
 
-        var worldCoords = _instance._camera.ToWorldCoordinates(new(X, Y));
-        return (worldCoords.X, worldCoords.Y);
+    public void ClearScreen()
+    {
+        _sdl.RenderClear(_renderer);
+    }
+
+    public void PresentFrame()
+    {
+        _sdl.RenderPresent(_renderer);
     }
 }

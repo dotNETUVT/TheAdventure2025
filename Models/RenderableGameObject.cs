@@ -12,10 +12,9 @@ public class RenderableGameObject : GameObject
     public Rectangle<int> TextureDestination { get; set; }
     public TextureData TextureInformation { get; }
 
-    public RenderableGameObject(string fileName, int id) :
-        base(id)
+    public RenderableGameObject(string fileName, GameRenderer renderer)
     {
-        TextureId = GameRenderer.LoadTexture(fileName, out var textureData);
+        TextureId = renderer.LoadTexture(fileName, out var textureData);
         TextureInformation = textureData;
         TextureSource = new Rectangle<int>(0, 0, textureData.Width, textureData.Height);
         TextureDestination = new Rectangle<int>(0, 0, textureData.Width, textureData.Height);
@@ -23,10 +22,10 @@ public class RenderableGameObject : GameObject
 
     public virtual void Render(GameRenderer renderer)
     {
-        renderer.RenderGameObject(this);
+        renderer.RenderTexture(TextureId, TextureSource, TextureDestination);
     }
 
-    public virtual bool Update(int timeSinceLastFrame)
+    public virtual bool Update(double secsSinceLastFrame)
     {
         return true;
     }

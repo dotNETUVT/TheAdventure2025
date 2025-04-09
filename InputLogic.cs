@@ -174,8 +174,7 @@ public unsafe class InputLogic
 
         if (mouseButtonStates[(byte)MouseButton.Primary] == 1)
         {
-            var worldCoords = GameRenderer.ToWorldCoordinates(mouseX, mouseY);
-            _gameLogic.AddBomb(worldCoords.X, worldCoords.Y);
+            _gameLogic.AddBomb(mouseX, mouseY);
         }
 
         return false;

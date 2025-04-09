@@ -1,5 +1,5 @@
-﻿using System.Diagnostics;
-using Silk.NET.SDL;
+﻿using Silk.NET.SDL;
+using Thread = System.Threading.Thread;
 
 namespace TheAdventure;
 
@@ -8,9 +8,6 @@ public static class Program
     public static void Main()
     {
         var sdl = new Sdl(new SdlContext());
-
-        ulong framesRenderedCounter = 0;
-        var timer = new Stopwatch();
 
         var sdlInitResult = sdl.Init(Sdl.InitVideo | Sdl.InitAudio | Sdl.InitEvents | Sdl.InitTimer |
                                      Sdl.InitGamecontroller |
@@ -21,8 +18,8 @@ public static class Program
         }
 
         var gameWindow = new GameWindow(sdl);
-        var gameLogic = new GameLogic();
-        var gameRenderer = new GameRenderer(sdl, gameWindow, gameLogic);
+        var gameRenderer = new GameRenderer(sdl, gameWindow);
+        var gameLogic = new GameLogic(gameRenderer);
         var inputLogic = new InputLogic(sdl, gameLogic);
 
         gameLogic.InitializeGame();
@@ -32,19 +29,11 @@ public static class Program
         {
             quit = inputLogic.ProcessInput();
             if (quit) break;
+
             gameLogic.ProcessFrame();
-
-            #region Frame Timer
-
-            var elapsed = timer.Elapsed;
-            timer.Restart();
-
-            #endregion
-
-            gameRenderer.Render();
-
-            ++framesRenderedCounter;
-            System.Threading.Thread.Sleep(50);
+            gameLogic.RenderFrame();
+            
+            Thread.Sleep(13);
         }
 
         gameWindow.Destroy();
