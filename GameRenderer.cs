@@ -16,7 +16,7 @@ public unsafe partial class GameRenderer
     private readonly Dictionary<int, TextureData> _textureData;
     private int _index = 0;
 
-    private readonly GameCamera _camera = new();
+    private readonly GameCamera _camera;
 
     private static GameRenderer? _instance;
     private DateTimeOffset _lastFrameRenderedAt = DateTimeOffset.MinValue;
@@ -30,14 +30,18 @@ public unsafe partial class GameRenderer
         _textureData = new();
         _texturePointers = new();
 
-        _camera.X = 0;
-        _camera.Y = 0;
 
         var windowSize = gameWindow.Size;
-        _camera.Width = windowSize.Width;
-        _camera.Height = windowSize.Height;
+        _camera = new(windowSize.Width, windowSize.Height);
 
         _instance = this;
+    }
+    
+
+    
+    public void CameraLookAt(int x, int y)
+    {
+        _camera.LookAt(x, y);
     }
 
     public void RenderGameObject(RenderableGameObject gameObject)
@@ -57,8 +61,7 @@ public unsafe partial class GameRenderer
         var renderer = (Renderer*)_renderer;
 
         var playerPos = _gameLogic.GetPlayerPosition();
-        _camera.X = playerPos.X;
-        _camera.Y = playerPos.Y;
+        _camera.LookAt(playerPos.X, playerPos.Y);
 
         _sdl.RenderClear(renderer);
 
@@ -115,6 +118,11 @@ public unsafe partial class GameRenderer
         _instance._texturePointers[_instance._index] = (IntPtr)imageTexture;
         _instance._textureData[_instance._index] = textureData;
         return _instance._index++;
+    }
+    
+    public static void SetWorldBounds(Rectangle<int> bounds)
+    {
+        _instance!._camera.SetWorldBounds(bounds);
     }
 
     public static (int X, int Y) ToWorldCoordinates(int X, int Y)

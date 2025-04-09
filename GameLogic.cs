@@ -46,6 +46,9 @@ public class GameLogic
         }
 
         _currentLevel = level;
+        
+        GameRenderer.SetWorldBounds(new Rectangle<int>(0, 0, _currentLevel.Width.Value * _currentLevel.TileWidth.Value,
+            _currentLevel.Height.Value * _currentLevel.TileHeight.Value));
     }
 
     public void ProcessFrame()
