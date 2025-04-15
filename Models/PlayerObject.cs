@@ -7,12 +7,15 @@ public class PlayerObject : GameObject
     public int X { get; set; } = 100;
     public int Y { get; set; } = 100;
 
-    private Rectangle<int> _source = new(0, 0, 48, 48);
-    private Rectangle<int> _target = new(0, 0, 48, 48);
+    private const int SpriteWidth = 96;
+    private const int SpriteHeight = 96;
+
+    private readonly Rectangle<int> _source = new(0, 0, 48, 48);
+    private Rectangle<int> _target = new(0, 0, SpriteWidth, SpriteHeight);
 
     private readonly int _textureId;
 
-    private const int Speed = 128; // pixels per second
+    private const int Speed = 128;
 
     public PlayerObject(GameRenderer renderer)
     {
@@ -44,6 +47,6 @@ public class PlayerObject : GameObject
 
     private void UpdateTarget()
     {
-        _target = new(X + 24, Y - 42, 48, 48);
+        _target = new Rectangle<int>(X - SpriteWidth / 2, Y - SpriteHeight / 2, SpriteWidth, SpriteHeight);
     }
 }

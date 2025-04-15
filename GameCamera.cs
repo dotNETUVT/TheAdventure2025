@@ -2,64 +2,53 @@ using Silk.NET.Maths;
 
 namespace TheAdventure;
 
-public class GameCamera
+public class GameCamera(int width, int height)
 {
-    private int _x;
-    private int _y;
     private Rectangle<int> _worldBounds = new();
 
-    public int X => _x;
-    public int Y => _y;
+    private int X { get; set; }
 
-    public readonly int Width;
-    public readonly int Height;
-    
-    public GameCamera(int width, int height)
-    {
-        Width = width;
-        Height = height;
-    }
-    
+    private int Y { get; set; }
+
     public void SetWorldBounds(Rectangle<int> bounds)
     {
-        var marginLeft = Width / 2;
-        var marginTop = Height / 2;
-        
-        if (marginLeft * 2 > bounds.Size.X)
+        var halfWidth = width / 2;
+        var halfHeight = height / 2;
+
+
+        var minX = halfWidth;
+        var minY = halfHeight;
+        var maxX = bounds.Size.X - halfWidth;
+        var maxY = bounds.Size.Y - halfHeight;
+
+        if (minX > maxX)
         {
-            marginLeft = 48;
+            minX = maxX = bounds.Size.X / 2;
         }
-        
-        if (marginTop * 2 > bounds.Size.Y)
+
+        if (minY > maxY)
         {
-            marginTop = 48;
+            minY = maxY = bounds.Size.Y / 2;
         }
-        
-        _worldBounds = new Rectangle<int>(marginLeft, marginTop, bounds.Size.X - marginLeft * 2,
-            bounds.Size.Y - marginTop * 2);
-        _x = marginLeft;
-        _y = marginTop;
+
+        _worldBounds = new Rectangle<int>(minX, minY, maxX - minX, maxY - minY);
+        X = minX;
+        Y = minY;
     }
-    
+
     public void LookAt(int x, int y)
     {
-        if (_worldBounds.Contains(new Vector2D<int>(_x, y)))
-        {
-            _y = y;
-        }
-        if (_worldBounds.Contains(new Vector2D<int>(x, _y)))
-        {
-            _x = x;
-        }
+        X = Math.Clamp(x, _worldBounds.Origin.X, _worldBounds.Origin.X + _worldBounds.Size.X);
+        Y = Math.Clamp(y, _worldBounds.Origin.Y, _worldBounds.Origin.Y + _worldBounds.Size.Y);
     }
 
     public Rectangle<int> ToScreenCoordinates(Rectangle<int> rect)
     {
-        return rect.GetTranslated(new Vector2D<int>(Width / 2 - X, Height / 2 - Y));
+        return rect.GetTranslated(new Vector2D<int>(width / 2 - X, height / 2 - Y));
     }
 
     public Vector2D<int> ToWorldCoordinates(Vector2D<int> point)
     {
-        return point - new Vector2D<int>(Width / 2 - X, Height / 2 - Y);
+        return point - new Vector2D<int>(width / 2 - X, height / 2 - Y);
     }
 }

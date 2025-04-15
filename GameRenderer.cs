@@ -9,22 +9,22 @@ namespace TheAdventure;
 
 public unsafe class GameRenderer
 {
-    private Sdl _sdl;
-    private Renderer* _renderer;
+    private readonly Sdl _sdl;
+    private readonly Renderer* _renderer;
     private GameWindow _window;
-    private GameCamera _camera;
+    private readonly GameCamera _camera;
 
-    private Dictionary<int, IntPtr> _texturePointers = new();
-    private Dictionary<int, TextureData> _textureData = new();
+    private readonly Dictionary<int, IntPtr> _texturePointers = new();
+    private readonly Dictionary<int, TextureData> _textureData = new();
     private int _textureId;
 
     public GameRenderer(Sdl sdl, GameWindow window)
     {
         _sdl = sdl;
-        
+
         _renderer = (Renderer*)window.CreateRenderer();
         _sdl.SetRenderDrawBlendMode(_renderer, BlendMode.Blend);
-        
+
         _window = window;
         var windowSize = window.Size;
         _camera = new GameCamera(windowSize.Width, windowSize.Height);
@@ -60,16 +60,16 @@ public unsafe class GameRenderer
                 {
                     throw new Exception("Failed to create surface from image data.");
                 }
-                
+
                 var imageTexture = _sdl.CreateTextureFromSurface(_renderer, imageSurface);
                 if (imageTexture == null)
                 {
                     _sdl.FreeSurface(imageSurface);
                     throw new Exception("Failed to create texture from surface.");
                 }
-                
+
                 _sdl.FreeSurface(imageSurface);
-                
+
                 _textureData[_textureId] = textureInfo;
                 _texturePointers[_textureId] = (IntPtr)imageTexture;
             }
@@ -81,14 +81,14 @@ public unsafe class GameRenderer
     public void RenderTexture(int textureId, Rectangle<int> src, Rectangle<int> dst,
         RendererFlip flip = RendererFlip.None, double angle = 0.0, Point center = default)
     {
-        if (_texturePointers.TryGetValue(textureId, out var imageTexture))
-        {
-            var translatedDst = _camera.ToScreenCoordinates(dst);
-            _sdl.RenderCopyEx(_renderer, (Texture*)imageTexture, in src,
-                in translatedDst,
-                angle,
-                in center, flip);
-        }
+        if (!_texturePointers.TryGetValue(textureId, out var imageTexture)) return;
+        
+        var translatedDst = _camera.ToScreenCoordinates(dst);
+        
+        _sdl.RenderCopyEx(_renderer, (Texture*)imageTexture, in src,
+            in translatedDst,
+            angle,
+            in center, flip);
     }
 
     public Vector2D<int> ToWorldCoordinates(int x, int y)
