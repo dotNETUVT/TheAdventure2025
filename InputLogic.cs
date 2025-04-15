@@ -174,11 +174,6 @@ public unsafe class InputLogic
 
         _gameLogic.UpdatePlayerPosition(up, down, left, right, timeSinceLastFrame, runKey);
 
-        if (mouseButtonStates[(byte)MouseButton.Primary] == 1)
-        {
-            _gameLogic.AddBomb(mouseX, mouseY);
-        }
-
         return false;
     }
 }

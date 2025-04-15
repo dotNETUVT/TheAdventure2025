@@ -14,8 +14,14 @@ public class GameLogic(GameRenderer renderer)
     private Level _currentLevel = new();
     private PlayerObject? _player;
 
-    private int _bombIds = 100;
+    private int _bombIds = 0;
+
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
+
+    // Timer to control automatic bomb spawning.
+    private DateTimeOffset _lastBombSpawn = DateTimeOffset.Now;
+
+    private readonly Random _random = new Random();
 
     public void InitializeGame()
     {
@@ -66,6 +72,22 @@ public class GameLogic(GameRenderer renderer)
 
     public void ProcessFrame()
     {
+        const int timeDistanceBetweenBombs = 2000;
+        var currentTime = DateTimeOffset.Now;
+        if ((currentTime - _lastBombSpawn).TotalMilliseconds < timeDistanceBetweenBombs)
+            return;
+        
+        AddBomb();
+        
+        for (var i = 0; i < 10; i++)
+        {
+            if (_bombIds > 10 * i)
+            {
+                AddBomb(i * 2);
+            }
+        }
+
+        _lastBombSpawn = currentTime;
     }
 
     public void RenderFrame()
@@ -114,12 +136,30 @@ public class GameLogic(GameRenderer renderer)
         _player?.UpdatePosition(up, down, left, right, timeSinceLastUpdateInMs, runKey);
     }
 
-    public void AddBomb(int screenX, int screenY)
+    // Automatically spawns a bomb at a random position within an X-tile radius around the player.
+    // If there is no X received as param the default is 2
+    private void AddBomb(int maxTilesRadius = 2)
     {
-        var worldCoords = renderer.ToWorldCoordinates(screenX, screenY);
-        var bomb =
-            new AnimatedGameObject(Path.Combine("Assets", "BombExploding.png"), renderer, 2, 13, 13, 1,
-                worldCoords.X, worldCoords.Y);
+        if (_player == null)
+        {
+            return;
+        }
+
+        const int tileSize = 24;
+        var angle = _random.NextDouble() * 2 * Math.PI;
+        var distanceInTiles = maxTilesRadius * Math.Sqrt(_random.NextDouble());
+        var offsetX = (int)(distanceInTiles * Math.Cos(angle) * tileSize);
+        var offsetY = (int)(distanceInTiles * Math.Sin(angle) * tileSize);
+
+        var bombX = _player.X + offsetX;
+        var bombY = _player.Y + offsetY;
+
+        var bomb = new AnimatedGameObject(
+            Path.Combine("Assets", "BombExploding.png"),
+            renderer,
+            1, 13, 13, 1,
+            bombX, bombY
+        );
         _gameObjects.Add(bomb.Id, bomb);
         ++_bombIds;
     }
