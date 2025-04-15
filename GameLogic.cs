@@ -108,9 +108,10 @@ public class GameLogic(GameRenderer renderer)
         _player?.Render(renderer);
     }
 
-    public void UpdatePlayerPosition(double up, double down, double left, double right, int timeSinceLastUpdateInMs)
+    public void UpdatePlayerPosition(double up, double down, double left, double right, int timeSinceLastUpdateInMs,
+        bool runKey)
     {
-        _player?.UpdatePosition(up, down, left, right, timeSinceLastUpdateInMs);
+        _player?.UpdatePosition(up, down, left, right, timeSinceLastUpdateInMs, runKey);
     }
 
     public void AddBomb(int screenX, int screenY)

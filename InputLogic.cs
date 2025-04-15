@@ -170,7 +170,9 @@ public unsafe class InputLogic
             right = 1.0;
         }
 
-        _gameLogic.UpdatePlayerPosition(up, down, left, right, timeSinceLastFrame);
+        var runKey = keyboardState[(int)KeyCode.Q] == 1;
+
+        _gameLogic.UpdatePlayerPosition(up, down, left, right, timeSinceLastFrame, runKey);
 
         if (mouseButtonStates[(byte)MouseButton.Primary] == 1)
         {
