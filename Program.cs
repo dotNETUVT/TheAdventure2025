@@ -19,9 +19,9 @@ public static class Program
 
         using (var gameWindow = new GameWindow(sdl))
         {
+            var input = new Input(sdl);
             var gameRenderer = new GameRenderer(sdl, gameWindow);
-            var engine = new Engine(gameRenderer);
-            var input = new Input(sdl, engine);
+            var engine = new Engine(gameRenderer, input);
 
             engine.SetupWorld();
 

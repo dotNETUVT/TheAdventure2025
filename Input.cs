@@ -5,26 +5,40 @@ namespace TheAdventure;
 public unsafe class Input
 {
     private readonly Sdl _sdl;
-    private readonly Engine _engine;
-
-    private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
-
-    public Input(Sdl sdl, Engine engine)
+    
+    public EventHandler<(int x, int y)>? OnMouseClick;
+    
+    public Input(Sdl sdl)
     {
         _sdl = sdl;
-        _engine = engine;
+    }
+    
+    public bool IsLeftPressed()
+    {
+        ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
+        return keyboardState[(int)KeyCode.Left] == 1;
+    }
+        
+    public bool IsRightPressed()
+    {
+        ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
+        return keyboardState[(int)KeyCode.Right] == 1;
+    }
+        
+    public bool IsUpPressed()
+    {
+        ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
+        return keyboardState[(int)KeyCode.Up] == 1;
+    }
+        
+    public bool IsDownPressed()
+    {
+        ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
+        return keyboardState[(int)KeyCode.Down] == 1;
     }
 
     public bool ProcessInput()
     {
-        var currentTime = DateTimeOffset.Now;
-
-        ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
-        Span<byte> mouseButtonStates = stackalloc byte[(int)MouseButton.Count];
-
-        var mouseX = 0;
-        var mouseY = 0;
-
         Event ev = new Event();
         while (_sdl.PollEvent(ref ev) != 0)
         {
@@ -102,26 +116,25 @@ public unsafe class Input
 
                 case (uint)EventType.Fingerdown:
                 {
-                    mouseButtonStates[(byte)MouseButton.Primary] = 1;
                     break;
                 }
                 case (uint)EventType.Mousebuttondown:
                 {
-                    mouseX = ev.Motion.X;
-                    mouseY = ev.Motion.Y;
-                    mouseButtonStates[ev.Button.Button] = 1;
+                    if (ev.Button.Button == (byte)MouseButton.Primary)
+                    {
+                        OnMouseClick?.Invoke(this, (ev.Button.X, ev.Button.Y));
+                    }
+                    
                     break;
                 }
 
                 case (uint)EventType.Fingerup:
                 {
-                    mouseButtonStates[(byte)MouseButton.Primary] = 0;
                     break;
                 }
 
                 case (uint)EventType.Mousebuttonup:
                 {
-                    mouseButtonStates[ev.Button.Button] = 0;
                     break;
                 }
 
@@ -140,41 +153,6 @@ public unsafe class Input
                     break;
                 }
             }
-        }
-
-        var timeSinceLastFrame = (int)currentTime.Subtract(_lastUpdate).TotalMilliseconds;
-        _lastUpdate = currentTime;
-
-        var up = 0.0;
-        var down = 0.0;
-        var left = 0.0;
-        var right = 0.0;
-
-        if (keyboardState[(int)KeyCode.Up] == 1)
-        {
-            up = 1.0;
-        }
-
-        if (keyboardState[(int)KeyCode.Down] == 1)
-        {
-            down = 1.0;
-        }
-
-        if (keyboardState[(int)KeyCode.Left] == 1)
-        {
-            left = 1.0;
-        }
-
-        if (keyboardState[(int)KeyCode.Right] == 1)
-        {
-            right = 1.0;
-        }
-
-        _engine.UpdatePlayerPosition(up, down, left, right, timeSinceLastFrame);
-
-        if (mouseButtonStates[(byte)MouseButton.Primary] == 1)
-        {
-            _engine.AddBomb(mouseX, mouseY);
         }
 
         return false;

@@ -8,6 +8,7 @@ namespace TheAdventure;
 public class Engine
 {
     private readonly GameRenderer _renderer;
+    private readonly Input _input;
 
     private readonly Dictionary<int, GameObject> _gameObjects = new();
     private readonly Dictionary<string, TileSet> _loadedTileSets = new();
@@ -18,9 +19,12 @@ public class Engine
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
 
-    public Engine(GameRenderer renderer)
+    public Engine(GameRenderer renderer, Input input)
     {
         _renderer = renderer;
+        _input = input;
+        
+        _input.OnMouseClick += (_, coords) => AddBomb(coords.x, coords.y);
     }
 
     public void SetupWorld()
@@ -70,62 +74,39 @@ public class Engine
 
     public void ProcessFrame()
     {
+        var currentTime = DateTimeOffset.Now;
+        var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
+        _lastUpdate = currentTime;
+        
+        double up = _input.IsUpPressed() ? 1.0 : 0.0;
+        double down = _input.IsDownPressed() ? 1.0 : 0.0;
+        double left = _input.IsLeftPressed() ? 1.0 : 0.0;
+        double right = _input.IsRightPressed() ? 1.0 : 0.0;
+        
+        _player?.UpdatePosition(up, down, left, right, (int)msSinceLastFrame);
     }
 
     public void RenderFrame()
     {
-        var currentTime = DateTimeOffset.Now;
-        var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
-        _lastUpdate = currentTime;
-
         _renderer.SetDrawColor(0, 0, 0, 255);
         _renderer.ClearScreen();
 
         _renderer.CameraLookAt(_player!.X, _player!.Y);
 
         RenderTerrain();
-        RenderAllObjects(msSinceLastFrame);
+        RenderAllObjects();
 
         _renderer.PresentFrame();
     }
 
-    public void RenderAllObjects(double msSinceLastFrame)
+    public void RenderAllObjects()
     {
-        List<int> itemsToRemove = new List<int>();
         foreach (var gameObject in GetRenderables())
         {
             gameObject.Render(_renderer);
         }
 
-        foreach (var item in itemsToRemove)
-        {
-            _gameObjects.Remove(item);
-        }
-
         _player?.Render(_renderer);
-    }
-
-    public void UpdatePlayerPosition(double up, double down, double left, double right, int timeSinceLastUpdateInMs)
-    {
-        _player?.UpdatePosition(up, down, left, right, timeSinceLastUpdateInMs);
-    }
-
-    public void AddBomb(int screenX, int screenY)
-    {
-        var worldCoords = _renderer.ToWorldCoordinates(screenX, screenY);
-
-        SpriteSheet spriteSheet = new(_renderer, Path.Combine("Assets", "BombExploding.png"), 1, 13, 32, 64, (16, 48));
-        spriteSheet.Animations["Explode"] = new SpriteSheet.Animation
-        {
-            StartFrame = (0, 0),
-            EndFrame = (0, 12),
-            DurationMs = 2000,
-            Loop = false
-        };
-        spriteSheet.ActivateAnimation("Explode");
-
-        RenderableGameObject bomb = new(spriteSheet, (worldCoords.X, worldCoords.Y));
-        _gameObjects.Add(bomb.Id, bomb);
     }
 
     public void RenderTerrain()
@@ -170,5 +151,23 @@ public class Engine
                 yield return renderableGameObject;
             }
         }
+    }
+    
+    private void AddBomb(int screenX, int screenY)
+    {
+        var worldCoords = _renderer.ToWorldCoordinates(screenX, screenY);
+
+        SpriteSheet spriteSheet = new(_renderer, Path.Combine("Assets", "BombExploding.png"), 1, 13, 32, 64, (16, 48));
+        spriteSheet.Animations["Explode"] = new SpriteSheet.Animation
+        {
+            StartFrame = (0, 0),
+            EndFrame = (0, 12),
+            DurationMs = 2000,
+            Loop = false
+        };
+        spriteSheet.ActivateAnimation("Explode");
+
+        RenderableGameObject bomb = new(spriteSheet, (worldCoords.X, worldCoords.Y));
+        _gameObjects.Add(bomb.Id, bomb);
     }
 }
