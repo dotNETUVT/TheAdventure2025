@@ -14,6 +14,12 @@ public class Engine
     private readonly Dictionary<string, TileSet> _loadedTileSets = new();
     private readonly Dictionary<int, Tile> _tileIdMap = new();
 
+    // --- new fields -----------------------------------------------
+    private readonly List<EnemyObject> _enemies = new();
+    private readonly List<Bomb> _bombs = new();
+    private bool _gameOver;
+    // --- end new fields -------------------------------------------
+
     private Level _currentLevel = new();
     private PlayerObject? _player;
 
@@ -70,10 +76,25 @@ public class Engine
             level.Height.Value * level.TileHeight.Value));
 
         _currentLevel = level;
+
+        // --- spawn a single patrolling enemy -------------------------------
+        SpriteSheet enemySheet = new(_renderer, Path.Combine("Assets", "player.png"),
+                                 1, 1, 48, 48, (24, 24)); // reuse player sprite to save disk space
+
+        var waypoints = new List<(int,int)>
+        {
+            (300, 100), (500, 100), (500, 200), (300, 200)
+        };
+
+        var enemy = new EnemyObject(enemySheet, waypoints, waypoints[0]);
+        _enemies.Add(enemy);
+        _gameObjects.Add(enemy.Id, enemy);   // so it renders
     }
 
     public void ProcessFrame()
     {
+        if (_gameOver) return;
+
         var currentTime = DateTimeOffset.Now;
         var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
         _lastUpdate = currentTime;
@@ -84,7 +105,58 @@ public class Engine
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
 
         _player?.UpdatePosition(up, down, left, right, (int)msSinceLastFrame);
+
+        HandleBombs();
+
+        foreach (var enemy in _enemies.ToArray())
+        {
+            bool caught = enemy.Update((int)msSinceLastFrame, _player!.X, _player.Y);
+            if (caught)
+            {
+                Console.WriteLine("💀  Player was caught! Game over.");
+                _gameOver = true;
+            }
+        }
     }
+
+    private void HandleBombs()
+    {
+        const int  radius          = 80;          // pixels
+        const double earlyBurstSec = 1.0;         // explodes 1 second *before* TTL ends
+
+        foreach (var bomb in _bombs.ToArray())
+        {
+            // time elapsed
+            double elapsed = (DateTimeOffset.Now - bomb.SpawnTime).TotalSeconds;
+            double explodeAt = bomb.Ttl - earlyBurstSec;
+
+            // detonate once when elapsed passes explodeAt
+            if (!bomb.Detonated && elapsed >= explodeAt)
+            {
+                bomb.Detonated = true;
+
+                foreach (var enemy in _enemies.ToArray())
+                {
+                    double dx = enemy.Position.X - bomb.Position.X;
+                    double dy = enemy.Position.Y - bomb.Position.Y;
+                    if (Math.Sqrt(dx * dx + dy * dy) <= radius)
+                    {
+                        enemy.Kill();
+                        _enemies.Remove(enemy);
+                        Console.WriteLine("🔥  Enemy destroyed by bomb!");
+                    }
+                }
+            }
+
+            // clean‑up sprite object after full TTL
+            if (bomb.IsExpired)
+            {
+                _gameObjects.Remove(bomb.Id);
+                _bombs.Remove(bomb);
+            }
+        }
+    }
+
 
     public void RenderFrame()
     {
@@ -177,7 +249,8 @@ public class Engine
         };
         spriteSheet.ActivateAnimation("Explode");
 
-        TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
+        Bomb bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y)); // <- Bomb, not TemporaryGameObject
         _gameObjects.Add(bomb.Id, bomb);
+        _bombs.Add(bomb);
     }
 }
