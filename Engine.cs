@@ -5,7 +5,7 @@ using TheAdventure.Models.Data;
 
 namespace TheAdventure;
 
-public class GameLogic
+public class Engine
 {
     private readonly GameRenderer _renderer;
 
@@ -18,7 +18,7 @@ public class GameLogic
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
 
-    public GameLogic(GameRenderer renderer)
+    public Engine(GameRenderer renderer)
     {
         _renderer = renderer;
     }

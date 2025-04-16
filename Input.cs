@@ -2,17 +2,17 @@ using Silk.NET.SDL;
 
 namespace TheAdventure;
 
-public unsafe class InputLogic
+public unsafe class Input
 {
-    private Sdl _sdl;
-    private GameLogic _gameLogic;
+    private readonly Sdl _sdl;
+    private readonly Engine _engine;
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
 
-    public InputLogic(Sdl sdl, GameLogic gameLogic)
+    public Input(Sdl sdl, Engine engine)
     {
         _sdl = sdl;
-        _gameLogic = gameLogic;
+        _engine = engine;
     }
 
     public bool ProcessInput()
@@ -170,11 +170,11 @@ public unsafe class InputLogic
             right = 1.0;
         }
 
-        _gameLogic.UpdatePlayerPosition(up, down, left, right, timeSinceLastFrame);
+        _engine.UpdatePlayerPosition(up, down, left, right, timeSinceLastFrame);
 
         if (mouseButtonStates[(byte)MouseButton.Primary] == 1)
         {
-            _gameLogic.AddBomb(mouseX, mouseY);
+            _engine.AddBomb(mouseX, mouseY);
         }
 
         return false;

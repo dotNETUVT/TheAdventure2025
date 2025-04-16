@@ -19,19 +19,19 @@ public static class Program
 
         var gameWindow = new GameWindow(sdl);
         var gameRenderer = new GameRenderer(sdl, gameWindow);
-        var gameLogic = new GameLogic(gameRenderer);
-        var inputLogic = new InputLogic(sdl, gameLogic);
+        var engine = new Engine(gameRenderer);
+        var input = new Input(sdl, engine);
 
-        gameLogic.InitializeGame();
+        engine.InitializeGame();
 
         bool quit = false;
         while (!quit)
         {
-            quit = inputLogic.ProcessInput();
+            quit = input.ProcessInput();
             if (quit) break;
 
-            gameLogic.ProcessFrame();
-            gameLogic.RenderFrame();
+            engine.ProcessFrame();
+            engine.RenderFrame();
             
             Thread.Sleep(13);
         }

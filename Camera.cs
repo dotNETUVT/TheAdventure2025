@@ -2,7 +2,7 @@ using Silk.NET.Maths;
 
 namespace TheAdventure;
 
-public class GameCamera
+public class Camera
 {
     private int _x;
     private int _y;
@@ -14,7 +14,7 @@ public class GameCamera
     public readonly int Width;
     public readonly int Height;
     
-    public GameCamera(int width, int height)
+    public Camera(int width, int height)
     {
         Width = width;
         Height = height;

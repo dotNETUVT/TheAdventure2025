@@ -12,7 +12,7 @@ public unsafe class GameRenderer
     private Sdl _sdl;
     private Renderer* _renderer;
     private GameWindow _window;
-    private GameCamera _camera;
+    private Camera _camera;
 
     private Dictionary<int, IntPtr> _texturePointers = new();
     private Dictionary<int, TextureData> _textureData = new();
@@ -27,7 +27,7 @@ public unsafe class GameRenderer
         
         _window = window;
         var windowSize = window.Size;
-        _camera = new GameCamera(windowSize.Width, windowSize.Height);
+        _camera = new Camera(windowSize.Width, windowSize.Height);
     }
 
     public void SetWorldBounds(Rectangle<int> bounds)
