@@ -23,7 +23,7 @@ public class Engine
     {
         _renderer = renderer;
         _input = input;
-        
+
         _input.OnMouseClick += (_, coords) => AddBomb(coords.x, coords.y);
     }
 
@@ -77,12 +77,12 @@ public class Engine
         var currentTime = DateTimeOffset.Now;
         var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
         _lastUpdate = currentTime;
-        
+
         double up = _input.IsUpPressed() ? 1.0 : 0.0;
         double down = _input.IsDownPressed() ? 1.0 : 0.0;
         double left = _input.IsLeftPressed() ? 1.0 : 0.0;
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
-        
+
         _player?.UpdatePosition(up, down, left, right, (int)msSinceLastFrame);
     }
 
@@ -101,9 +101,19 @@ public class Engine
 
     public void RenderAllObjects()
     {
+        var toRemove = new List<int>();
         foreach (var gameObject in GetRenderables())
         {
             gameObject.Render(_renderer);
+            if (gameObject is TemporaryGameObject { IsExpired: true } tempGameObject)
+            {
+                toRemove.Add(tempGameObject.Id);
+            }
+        }
+
+        foreach (var id in toRemove)
+        {
+            _gameObjects.Remove(id);
         }
 
         _player?.Render(_renderer);
@@ -152,7 +162,7 @@ public class Engine
             }
         }
     }
-    
+
     private void AddBomb(int screenX, int screenY)
     {
         var worldCoords = _renderer.ToWorldCoordinates(screenX, screenY);
@@ -167,7 +177,7 @@ public class Engine
         };
         spriteSheet.ActivateAnimation("Explode");
 
-        RenderableGameObject bomb = new(spriteSheet, (worldCoords.X, worldCoords.Y));
+        TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
         _gameObjects.Add(bomb.Id, bomb);
     }
 }
