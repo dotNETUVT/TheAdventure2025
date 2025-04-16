@@ -23,7 +23,7 @@ public class Engine
         _renderer = renderer;
     }
 
-    public void InitializeGame()
+    public void SetupWorld()
     {
         _player = new(_renderer);
 

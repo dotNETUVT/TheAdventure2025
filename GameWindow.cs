@@ -2,7 +2,7 @@ using Silk.NET.SDL;
 
 namespace TheAdventure;
 
-public unsafe class GameWindow
+public unsafe class GameWindow : IDisposable
 {
     public (int Width, int Height) Size
     {
@@ -16,7 +16,7 @@ public unsafe class GameWindow
         }
     }
 
-    private readonly IntPtr _window;
+    private IntPtr _window;
     private readonly Sdl _sdl;
 
     public GameWindow(Sdl sdl)
@@ -56,8 +56,23 @@ public unsafe class GameWindow
         return renderer;
     }
 
-    public void Destroy()
+    private void ReleaseUnmanagedResources()
     {
-        _sdl.DestroyWindow((Window*)_window);
+        if (_window != IntPtr.Zero)
+        {
+            _sdl.DestroyWindow((Window*)_window);
+            _window = IntPtr.Zero;
+        }
+    }
+
+    public void Dispose()
+    {
+        ReleaseUnmanagedResources();
+        GC.SuppressFinalize(this);
+    }
+
+    ~GameWindow()
+    {
+        ReleaseUnmanagedResources();
     }
 }
