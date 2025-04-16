@@ -16,7 +16,6 @@ public class GameLogic
     private Level _currentLevel = new();
     private PlayerObject? _player;
 
-    private int _bombIds = 100;
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
 
     public GameLogic(GameRenderer renderer)
@@ -72,21 +71,21 @@ public class GameLogic
     public void ProcessFrame()
     {
     }
-    
+
     public void RenderFrame()
     {
         var currentTime = DateTimeOffset.Now;
         var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
         _lastUpdate = currentTime;
-        
+
         _renderer.SetDrawColor(0, 0, 0, 255);
         _renderer.ClearScreen();
-        
+
         _renderer.CameraLookAt(_player!.X, _player!.Y);
-        
+
         RenderTerrain();
         RenderAllObjects(msSinceLastFrame);
-            
+
         _renderer.PresentFrame();
     }
 
@@ -95,14 +94,7 @@ public class GameLogic
         List<int> itemsToRemove = new List<int>();
         foreach (var gameObject in GetRenderables())
         {
-            if (gameObject.Update(msSinceLastFrame))
-            {
-                gameObject.Render(_renderer);
-            }
-            else
-            {
-                itemsToRemove.Add(gameObject.Id);
-            }
+            gameObject.Render(_renderer);
         }
 
         foreach (var item in itemsToRemove)
@@ -121,11 +113,19 @@ public class GameLogic
     public void AddBomb(int screenX, int screenY)
     {
         var worldCoords = _renderer.ToWorldCoordinates(screenX, screenY);
-        AnimatedGameObject bomb =
-            new AnimatedGameObject(Path.Combine("Assets", "BombExploding.png"), _renderer, 2, 13, 13, 1,
-                worldCoords.X, worldCoords.Y);
+
+        SpriteSheet spriteSheet = new(_renderer, Path.Combine("Assets", "BombExploding.png"), 1, 13, 32, 64, (16, 48));
+        spriteSheet.Animations["Explode"] = new SpriteSheet.Animation
+        {
+            StartFrame = (0, 0),
+            EndFrame = (0, 12),
+            DurationMs = 2000,
+            Loop = false
+        };
+        spriteSheet.ActivateAnimation("Explode");
+
+        RenderableGameObject bomb = new(spriteSheet, (worldCoords.X, worldCoords.Y));
         _gameObjects.Add(bomb.Id, bomb);
-        ++_bombIds;
     }
 
     public void RenderTerrain()
