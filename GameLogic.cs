@@ -86,7 +86,10 @@ public class GameLogic
         
         RenderTerrain();
         RenderAllObjects(msSinceLastFrame);
-            
+
+        //Use the RenderStats to display the statistics
+       _renderer.RenderStats(_player);
+
         _renderer.PresentFrame();
     }
 
@@ -126,6 +129,9 @@ public class GameLogic
                 worldCoords.X, worldCoords.Y);
         _gameObjects.Add(bomb.Id, bomb);
         ++_bombIds;
+
+         // Increment bombs placed stat
+        _player?.IncrementBombsPlaced();
     }
 
     public void RenderTerrain()
@@ -171,4 +177,16 @@ public class GameLogic
             }
         }
     }
+
+    public void RestartGame()
+    {
+    _player = new PlayerObject(_renderer);
+    _player.Health = 100;  // Reset health
+    _player.Score = 0;     // Reset score
+    _bombIds = 100;        // Reset bomb counter
+    _gameObjects.Clear();  // Clear existing game objects
+
+    // Optionally reset other game states like level, time, etc.
+    }
+
 }

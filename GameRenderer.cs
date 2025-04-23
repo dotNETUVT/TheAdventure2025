@@ -1,7 +1,10 @@
 using Silk.NET.Maths;
 using Silk.NET.SDL;
 using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Processing; // For mutate
+using SixLabors.ImageSharp.Drawing.Processing; // Enables DrawText, Fill, etc.
 using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.Fonts;
 using TheAdventure.Models;
 using Point = Silk.NET.SDL.Point;
 
@@ -109,5 +112,44 @@ public unsafe class GameRenderer
     public void PresentFrame()
     {
         _sdl.RenderPresent(_renderer);
+    }
+
+    // Method to dynamically render text
+    public IntPtr RenderTextAsTexture(string text, int fontSize = 24, string fontName = "Arial", int width = 400, int height = 50)
+    {
+    var font = SystemFonts.CreateFont(fontName, fontSize, FontStyle.Regular);
+
+    using var image = new Image<Rgba32>(width, height);
+    image.Mutate(ctx =>
+    {
+        ctx.Fill(SixLabors.ImageSharp.Color.Transparent);
+        ctx.DrawText(text, font, SixLabors.ImageSharp.Color.White, new SixLabors.ImageSharp.PointF(5, 5));
+    });
+
+    var pixelData = new byte[width * height * 4];
+    image.CopyPixelDataTo(pixelData);
+
+    fixed (byte* data = pixelData)
+    {
+        var surface = _sdl.CreateRGBSurfaceWithFormatFrom(
+            data, width, height, 32, width * 4, (uint)PixelFormatEnum.Rgba32);
+
+        if (surface == null)
+            throw new Exception("Failed to create surface from rendered text.");
+
+        var texture = _sdl.CreateTextureFromSurface(_renderer, surface);
+        _sdl.FreeSurface(surface);
+
+        return (IntPtr)texture;
+    }
+    }
+
+    // Method to render the stats of the player
+    public void RenderStats(PlayerObject player)
+    {
+        string stats = $"Health: {player.Health}  Score: {player.Score}  Bombs: {player.BombsPlaced}";
+        var texture = RenderTextAsTexture(stats);
+        var dst = new Rectangle<int>(10, 10, 400, 50);
+        _sdl.RenderCopy(_renderer, (Texture*)texture, null, &dst);
     }
 }

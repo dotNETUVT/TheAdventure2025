@@ -170,6 +170,11 @@ public unsafe class InputLogic
             right = 1.0;
         }
 
+        if (keyboardState[(int)KeyCode.R] == 1)  // Check for 'R' key press
+        {
+            _gameLogic.RestartGame();
+        }
+        
         _gameLogic.UpdatePlayerPosition(up, down, left, right, timeSinceLastFrame);
 
         if (mouseButtonStates[(byte)MouseButton.Primary] == 1)

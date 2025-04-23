@@ -7,6 +7,10 @@ public class PlayerObject : GameObject
     public int X { get; set; } = 100;
     public int Y { get; set; } = 100;
 
+    public int Health { get; set; } = 100;  // health
+    public int Score { get; set; } = 0;    // score
+    public int BombsPlaced { get; set; } = 0; //bombs placed
+    
     private Rectangle<int> _source = new(0, 0, 48, 48);
     private Rectangle<int> _target = new(0, 0, 48, 48);
 
@@ -23,6 +27,29 @@ public class PlayerObject : GameObject
         }
 
         UpdateTarget();
+    }
+
+    public void IncrementBombsPlaced()
+    {
+         BombsPlaced++;
+    }
+
+    public void IncrementHealth(int amount)
+    {
+        Health += amount;
+        if (Health > 100) // Max health
+        {
+            Health = 100;
+        }
+         if (Health < 0) // Min health
+        {
+            Health = 0;
+        }
+    }
+
+    public void IncrementScore(int amount)
+    {
+        Score += amount;
     }
 
     public void UpdatePosition(double up, double down, double left, double right, int time)
