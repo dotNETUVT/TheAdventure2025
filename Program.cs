@@ -1,4 +1,5 @@
 ﻿using Silk.NET.SDL;
+using TheAdventure.Audio;
 using Thread = System.Threading.Thread;
 
 namespace TheAdventure;
@@ -7,37 +8,46 @@ public static class Program
 {
     public static void Main()
     {
+        // ------------------------------ SDL bootstrap
         var sdl = new Sdl(new SdlContext());
-
-        var sdlInitResult = sdl.Init(Sdl.InitVideo | Sdl.InitAudio | Sdl.InitEvents | Sdl.InitTimer |
-                                     Sdl.InitGamecontroller |
-                                     Sdl.InitJoystick);
-        if (sdlInitResult < 0)
+        if (sdl.Init(
+                Sdl.InitVideo | Sdl.InitAudio | Sdl.InitEvents | Sdl.InitTimer |
+                Sdl.InitGamecontroller | Sdl.InitJoystick) < 0)
         {
-            throw new InvalidOperationException("Failed to initialize SDL.");
+            throw new InvalidOperationException($"SDL init failed: {sdl.GetErrorS()}");
         }
 
-        var gameWindow = new GameWindow(sdl);
-        var gameRenderer = new GameRenderer(sdl, gameWindow);
-        var gameLogic = new GameLogic(gameRenderer);
-        var inputLogic = new InputLogic(sdl, gameLogic);
+        // ------------------------------- engine objects
+        var window   = new GameWindow(sdl);
+        var renderer = new GameRenderer(sdl, window);
+        var game     = new GameLogic(renderer);
+        var input    = new InputLogic(sdl, game);
 
-        gameLogic.InitializeGame();
+        game.InitializeGame();
 
+        // ------------------------------- audio bootstrap
+        var audioDir = Path.Combine("Assets", "Audio");
+        AudioManager.I.LoadWav("step", Path.Combine(audioDir, "footstep.wav"));
+        AudioManager.I.LoadWav("boom", Path.Combine(audioDir, "explosion.wav"));
+        AudioManager.I.LoadWav("bgm",  Path.Combine(audioDir, "bgm.wav"));
+
+        AudioManager.I.Play("bgm", 0.25f, loop: true);
+        // -------------------------------------
+
+        // --------------------------------- main loop
         bool quit = false;
         while (!quit)
         {
-            quit = inputLogic.ProcessInput();
+            quit = input.ProcessInput();
             if (quit) break;
 
-            gameLogic.ProcessFrame();
-            gameLogic.RenderFrame();
-            
-            Thread.Sleep(13);
+            game.ProcessFrame();
+            game.RenderFrame();
+
+            Thread.Sleep(13); // ≈75 FPS
         }
 
-        gameWindow.Destroy();
-
+        window.Destroy();
         sdl.Quit();
     }
 }

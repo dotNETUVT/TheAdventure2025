@@ -1,180 +1,83 @@
 using Silk.NET.SDL;
+using TheAdventure.Audio;
 
 namespace TheAdventure;
 
 public unsafe class InputLogic
 {
-    private Sdl _sdl;
-    private GameLogic _gameLogic;
+    private readonly Sdl       _sdl;
+    private readonly GameLogic _game;
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
+    private int            _stepTimer  = 300;
 
-    public InputLogic(Sdl sdl, GameLogic gameLogic)
+    public InputLogic(Sdl sdl, GameLogic game)
     {
-        _sdl = sdl;
-        _gameLogic = gameLogic;
+        _sdl  = sdl;
+        _game = game;
     }
 
+    // ------------------------------------------------ per-frame input
     public bool ProcessInput()
     {
-        var currentTime = DateTimeOffset.Now;
+        var now   = DateTimeOffset.Now;
+        int delta = (int)(now - _lastUpdate).TotalMilliseconds;
+        _lastUpdate = now;
 
-        ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
-        Span<byte> mouseButtonStates = stackalloc byte[(int)MouseButton.Count];
+        int numKeys;
+        byte* keys = _sdl.GetKeyboardState(&numKeys);
 
-        var mouseX = 0;
-        var mouseY = 0;
+        var ev = new Event();
+        byte mouseDown = 0;
+        int  mouseX = 0, mouseY = 0;
 
-        Event ev = new Event();
-        while (_sdl.PollEvent(ref ev) != 0)
+        while (_sdl.PollEvent(&ev) == 1)
         {
-            if (ev.Type == (uint)EventType.Quit)
-            {
-                return true;
-            }
+            if (ev.Type == (uint)EventType.Quit) return true;
 
             switch (ev.Type)
             {
-                case (uint)EventType.Windowevent:
-                {
-                    switch (ev.Window.Event)
-                    {
-                        case (byte)WindowEventID.Shown:
-                        case (byte)WindowEventID.Exposed:
-                        {
-                            break;
-                        }
-                        case (byte)WindowEventID.Hidden:
-                        {
-                            break;
-                        }
-                        case (byte)WindowEventID.Moved:
-                        {
-                            break;
-                        }
-                        case (byte)WindowEventID.SizeChanged:
-                        {
-                            break;
-                        }
-                        case (byte)WindowEventID.Minimized:
-                        case (byte)WindowEventID.Maximized:
-                        case (byte)WindowEventID.Restored:
-                            break;
-                        case (byte)WindowEventID.Enter:
-                        {
-                            break;
-                        }
-                        case (byte)WindowEventID.Leave:
-                        {
-                            break;
-                        }
-                        case (byte)WindowEventID.FocusGained:
-                        {
-                            break;
-                        }
-                        case (byte)WindowEventID.FocusLost:
-                        {
-                            break;
-                        }
-                        case (byte)WindowEventID.Close:
-                        {
-                            break;
-                        }
-                        case (byte)WindowEventID.TakeFocus:
-                        {
-                            _sdl.SetWindowInputFocus(_sdl.GetWindowFromID(ev.Window.WindowID));
-                            break;
-                        }
-                    }
-
-                    break;
-                }
-
-                case (uint)EventType.Fingermotion:
-                {
-                    break;
-                }
-
                 case (uint)EventType.Mousemotion:
-                {
+                    mouseX = ev.Motion.X; mouseY = ev.Motion.Y;
                     break;
-                }
 
-                case (uint)EventType.Fingerdown:
-                {
-                    mouseButtonStates[(byte)MouseButton.Primary] = 1;
-                    break;
-                }
                 case (uint)EventType.Mousebuttondown:
-                {
-                    mouseX = ev.Motion.X;
-                    mouseY = ev.Motion.Y;
-                    mouseButtonStates[ev.Button.Button] = 1;
+                    if (ev.Button.Button == (byte)MouseButton.Primary)
+                        mouseDown = 1;
+                    mouseX = ev.Button.X; mouseY = ev.Button.Y;
                     break;
-                }
-
-                case (uint)EventType.Fingerup:
-                {
-                    mouseButtonStates[(byte)MouseButton.Primary] = 0;
-                    break;
-                }
-
-                case (uint)EventType.Mousebuttonup:
-                {
-                    mouseButtonStates[ev.Button.Button] = 0;
-                    break;
-                }
-
-                case (uint)EventType.Mousewheel:
-                {
-                    break;
-                }
-
-                case (uint)EventType.Keyup:
-                {
-                    break;
-                }
-
-                case (uint)EventType.Keydown:
-                {
-                    break;
-                }
             }
         }
 
-        var timeSinceLastFrame = (int)currentTime.Subtract(_lastUpdate).TotalMilliseconds;
-        _lastUpdate = currentTime;
+        double up    = keys[(int)KeyCode.Up]    == 1 ? 1 : 0;
+        double down  = keys[(int)KeyCode.Down]  == 1 ? 1 : 0;
+        double left  = keys[(int)KeyCode.Left]  == 1 ? 1 : 0;
+        double right = keys[(int)KeyCode.Right] == 1 ? 1 : 0;
 
-        var up = 0.0;
-        var down = 0.0;
-        var left = 0.0;
-        var right = 0.0;
+        _game.UpdatePlayerPosition(up, down, left, right, delta);
 
-        if (keyboardState[(int)KeyCode.Up] == 1)
+        // ------------- foot-step SFX ----------------------------------
+        bool moving = up + down + left + right > 0;
+        if (moving)
         {
-            up = 1.0;
+            _stepTimer += delta;
+            if (_stepTimer >= 300)
+            {
+                AudioManager.I.Play("step", 1.0f);
+                _stepTimer = 0;
+            }
         }
+        else _stepTimer = 300;
 
-        if (keyboardState[(int)KeyCode.Down] == 1)
+        // ------------- bombs & boom SFX --------------------------------
+        if (mouseDown == 1)
         {
-            down = 1.0;
-        }
+            _game.AddBomb(mouseX, mouseY);
 
-        if (keyboardState[(int)KeyCode.Left] == 1)
-        {
-            left = 1.0;
-        }
-
-        if (keyboardState[(int)KeyCode.Right] == 1)
-        {
-            right = 1.0;
-        }
-
-        _gameLogic.UpdatePlayerPosition(up, down, left, right, timeSinceLastFrame);
-
-        if (mouseButtonStates[(byte)MouseButton.Primary] == 1)
-        {
-            _gameLogic.AddBomb(mouseX, mouseY);
+            System.Threading.Tasks.Task.Delay(1500).ContinueWith(_ =>
+            {
+                AudioManager.I.Play("boom", 1.2f);
+            });
         }
 
         return false;
