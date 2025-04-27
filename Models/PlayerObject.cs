@@ -12,7 +12,9 @@ public class PlayerObject : GameObject
 
     private readonly int _textureId;
 
-    private const int Speed = 128; // pixels per second
+    private const int Speed = 140; // pixels per second
+
+    public bool IsDead { get; set; } = false;
 
     public PlayerObject(GameRenderer renderer)
     {
@@ -33,6 +35,8 @@ public class PlayerObject : GameObject
         Y += (int)(pixelsToMove * down);
         X -= (int)(pixelsToMove * left);
         X += (int)(pixelsToMove * right);
+
+        
 
         UpdateTarget();
     }
