@@ -12,7 +12,7 @@ public class PlayerObject : GameObject
 
     private readonly int _textureId;
 
-    private const int Speed = 128; // pixels per second
+    private const int Speed = 140; // pixels per second
 
     public PlayerObject(GameRenderer renderer)
     {
