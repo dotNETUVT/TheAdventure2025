@@ -19,6 +19,10 @@ public class Engine
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
 
+    private Random _random = new Random();
+    private double _enemySpawnTimer = 0;
+
+
     public Engine(GameRenderer renderer, Input input)
     {
         _renderer = renderer;
@@ -84,6 +88,23 @@ public class Engine
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
 
         _player?.UpdatePosition(up, down, left, right, (int)msSinceLastFrame);
+
+        if (_player == null) return;
+
+        foreach (var obj in _gameObjects.Values)
+        {
+            if (obj is EnemyObject enemy)
+            {
+                enemy.Update(_player, (int)msSinceLastFrame);
+            }
+        }
+
+        _enemySpawnTimer += msSinceLastFrame;
+        if (_enemySpawnTimer > 3000)
+        {
+            SpawnEnemy();
+            _enemySpawnTimer = 0;
+        }
     }
 
     public void RenderFrame()
@@ -180,4 +201,38 @@ public class Engine
         TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
         _gameObjects.Add(bomb.Id, bomb);
     }
+
+    private void SpawnEnemy()
+    {
+        if (_player == null) return;
+
+        var bounds = _renderer.GetWorldBounds();
+
+        int worldLeft = bounds.Origin.X;
+        int worldTop = bounds.Origin.Y;
+        int worldRight = worldLeft + bounds.Size.X;
+        int worldBottom = worldTop + bounds.Size.Y;
+
+        int spawnX = _random.Next(worldLeft, worldRight);
+        int spawnY = _random.Next(worldTop, worldBottom);
+
+        var dx = spawnX - _player.X;
+        var dy = spawnY - _player.Y;
+        var distance = Math.Sqrt(dx * dx + dy * dy);
+
+        if (distance < 200)
+        {
+            spawnX += _random.Next(200, 400) * (_random.Next(0, 2) == 0 ? -1 : 1);
+            spawnY += _random.Next(200, 400) * (_random.Next(0, 2) == 0 ? -1 : 1);
+        }
+
+        var enemy = new EnemyObject(_renderer, spawnX, spawnY);
+
+        Console.WriteLine($"Enemy Created at Position: X={spawnX}, Y={spawnY}");
+
+        _gameObjects.Add(enemy.Id, enemy);
+    }
+
+
+
 }
