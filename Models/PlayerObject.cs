@@ -14,6 +14,8 @@ public class PlayerObject : GameObject
 
     private const int Speed = 140; // pixels per second
 
+    public bool IsDead { get; set; } = false;
+
     public PlayerObject(GameRenderer renderer)
     {
         _textureId = renderer.LoadTexture(Path.Combine("Assets", "player.png"), out _);

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Silk.NET.Input;
 using Silk.NET.Maths;
 using TheAdventure.Models;
 using TheAdventure.Models.Data;
@@ -22,6 +23,9 @@ public class Engine
     private Random _random = new Random();
     private double _enemySpawnTimer = 0;
 
+    private int? _youDiedTextureId;
+
+    public bool IsGameOver { get; private set; } = false;
 
     public Engine(GameRenderer renderer, Input input)
     {
@@ -29,6 +33,8 @@ public class Engine
         _input = input;
 
         _input.OnMouseClick += (_, coords) => AddBomb(coords.x, coords.y);
+
+        _youDiedTextureId = _renderer.LoadTexture(Path.Combine("Assets", "deathscreen.png"), out _);
     }
 
     public void SetupWorld()
@@ -97,6 +103,16 @@ public class Engine
 
     public void ProcessFrame()
     {
+        if (IsGameOver)
+        {
+            if (_input.IsRPressed())
+            {
+                RestartGame();
+            }
+
+            return;
+        }
+
         var currentTime = DateTimeOffset.Now;
         var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
         _lastUpdate = currentTime;
@@ -114,6 +130,14 @@ public class Engine
         {
             if (obj is EnemyObject enemy)
             {
+                double distance = Math.Sqrt(Math.Pow(enemy.X - _player.X - 48, 2) + Math.Pow(enemy.Y - _player.Y + 20, 2));
+
+                if (distance <= 5)
+                {
+                    IsGameOver = true;
+                    break;
+                }
+
                 enemy.Update(_player, (int)msSinceLastFrame);
             }
 
@@ -182,6 +206,12 @@ public class Engine
         _renderer.SetDrawColor(0, 0, 0, 255);
         _renderer.ClearScreen();
 
+        if (IsGameOver)
+        {
+            RenderGameOverScreen();
+            return;
+        }
+
         _renderer.CameraLookAt(_player!.X, _player!.Y);
 
         RenderTerrain();
@@ -189,6 +219,48 @@ public class Engine
 
         _renderer.PresentFrame();
     }
+
+
+    private void RenderGameOverScreen()
+    {
+        _renderer.SetDrawColor(0, 0, 0, 255);
+        _renderer.ClearScreen();
+
+        if (_youDiedTextureId.HasValue)
+        {
+            var screenWidth = _renderer.GetScreenWidth();
+            var screenHeight = _renderer.GetScreenHeight();
+
+            var textureWidth = 523;
+            var textureHeight = 445;
+
+            var destRect = new Rectangle<int>(
+                (screenWidth - textureWidth) / 2,
+                (screenHeight - textureHeight) / 2,
+                textureWidth,
+                textureHeight
+            );
+
+            var sourceRect = new Rectangle<int>(0, 0, textureWidth, textureHeight);
+
+            _renderer.RenderTexture(_youDiedTextureId.Value, sourceRect, destRect);
+        }
+
+        _renderer.PresentFrame();
+    }
+
+
+
+    private void RestartGame()
+    {
+        IsGameOver = false;
+        _player = new PlayerObject(_renderer);
+        _gameObjects.Clear();
+        _tileIdMap.Clear();
+        _loadedTileSets.Clear();
+        SetupWorld();
+    }
+
 
     public void RenderAllObjects()
     {

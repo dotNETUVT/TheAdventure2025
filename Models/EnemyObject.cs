@@ -12,6 +12,7 @@ public class EnemyObject : RenderableGameObject
 
     private Rectangle<int> _source = new(0, 0, 48, 48);
     private Rectangle<int> _target = new(0, 0, 48, 48);
+    private readonly int _textureId;
 
     private const int Speed = 64;
 
@@ -32,6 +33,10 @@ public class EnemyObject : RenderableGameObject
         X = startX;
         Y = startY;
         renderer.LoadTexture(Path.Combine("Assets", "enemy.png"), out _);
+        if (_textureId < 0)
+        {
+            throw new Exception("Failed to load enemy texture");
+        }
         UpdateTarget();
     }
 

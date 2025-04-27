@@ -117,4 +117,15 @@ public unsafe class GameRenderer
     {
         _sdl.RenderPresent(_renderer);
     }
+
+    public int GetScreenWidth()
+    {
+        return _window.Size.Width;
+    }
+
+    public int GetScreenHeight()
+    {
+        return _window.Size.Height;
+    }
+
 }
