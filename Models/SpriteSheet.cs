@@ -37,6 +37,74 @@ public class SpriteSheet
         FrameWidth = frameWidth;
         FrameHeight = frameHeight;
         FrameCenter = frameCenter;
+
+        Animations = new Dictionary<string, Animation>();
+        Animations["IdleDown"] = new Animation
+        {
+            StartFrame = (0, 0),
+            EndFrame = (0, 5),
+            DurationMs = 1000,
+            Loop = true
+        };
+        Animations["IdleLeft"] = new Animation
+        {
+            StartFrame = (1, 0),
+            EndFrame = (1, 5),
+            DurationMs = 1000,
+            Flip = RendererFlip.Horizontal,
+            Loop = true
+        };
+        Animations["IdleRight"] = new Animation
+        {
+            StartFrame = (3, 0),
+            EndFrame = (3, 5),
+            DurationMs = 1000,
+            Loop = true
+        };
+
+        Animations["IdleUp"] = new Animation
+        {
+            StartFrame = (2, 0),
+            EndFrame = (2, 5),
+            DurationMs = 1000,
+            Loop = true
+        };
+        Animations["WalkDown"] = new Animation
+        {
+            StartFrame = (3, 0),
+            EndFrame = (3, 5),
+            DurationMs = 1000,
+            Loop = true
+        };
+        Animations["WalkLeft"] = new Animation
+        {
+            StartFrame = (4, 0),
+            EndFrame = (4, 5),
+            Flip = RendererFlip.Horizontal,
+            DurationMs = 1000,
+            Loop = true
+        };
+        Animations["WalkRight"] = new Animation
+        {
+            StartFrame = (4, 0),
+            EndFrame = (4, 5),
+            DurationMs = 1000,
+            Loop = true
+        };
+        Animations["WalkUp"] = new Animation
+        {
+            StartFrame = (5, 0),
+            EndFrame = (5, 5),
+            DurationMs = 1000,
+            Loop = true
+        };
+        Animations["Death"] = new Animation
+        {
+            StartFrame = (9, 0),
+            EndFrame = (9, 5),
+            DurationMs = 1000,
+            Loop = false
+        };
     }
 
     public void ActivateAnimation(string name)

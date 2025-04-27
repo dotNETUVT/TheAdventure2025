@@ -5,14 +5,14 @@ namespace TheAdventure.Models;
 public class TemporaryGameObject : RenderableGameObject
 {
     public double Ttl { get; init; }
-    public bool IsExpired => (DateTimeOffset.Now - _spawnTime).TotalSeconds >= Ttl;
+    public bool IsExpired => (DateTimeOffset.Now - SpawnTime).TotalSeconds >= Ttl;
     
-    private DateTimeOffset _spawnTime;
+    public DateTimeOffset SpawnTime;
     
     public TemporaryGameObject(SpriteSheet spriteSheet, double ttl, (int X, int Y) position, double angle = 0.0, Point rotationCenter = new())
         : base(spriteSheet, position, angle, rotationCenter)
     {
         Ttl = ttl;
-        _spawnTime = DateTimeOffset.Now;
+        SpawnTime = DateTimeOffset.Now;
     }
 }

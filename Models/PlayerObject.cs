@@ -34,6 +34,8 @@ public class PlayerObject : GameObject
         X -= (int)(pixelsToMove * left);
         X += (int)(pixelsToMove * right);
 
+        
+
         UpdateTarget();
     }
 
