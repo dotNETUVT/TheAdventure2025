@@ -19,6 +19,10 @@ public class Engine
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
 
+    private Random _random = new Random();
+    private double _enemySpawnTimer = 0;
+
+
     public Engine(GameRenderer renderer, Input input)
     {
         _renderer = renderer;
@@ -72,6 +76,25 @@ public class Engine
         _currentLevel = level;
     }
 
+    public void AddBomb(int screenX, int screenY)
+    {
+        var worldCoords = _renderer.ToWorldCoordinates(screenX, screenY);
+
+        SpriteSheet spriteSheet = new(_renderer, Path.Combine("Assets", "BombExploding.png"), 1, 13, 32, 64, (16, 48));
+        spriteSheet.Animations["Explode"] = new SpriteSheet.Animation
+        {
+            StartFrame = (0, 0),
+            EndFrame = (0, 12),
+            DurationMs = 2000,
+            Loop = false
+        };
+        spriteSheet.ActivateAnimation("Explode");
+
+        TemporaryGameObject bomb = new(spriteSheet, ttl: 2.0, position: (worldCoords.X, worldCoords.Y));
+
+        _gameObjects.Add(bomb.Id, bomb);
+    }
+
     public void ProcessFrame()
     {
         var currentTime = DateTimeOffset.Now;
@@ -84,7 +107,75 @@ public class Engine
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
 
         _player?.UpdatePosition(up, down, left, right, (int)msSinceLastFrame);
+
+        if (_player == null) return;
+
+        foreach (var obj in _gameObjects.Values)
+        {
+            if (obj is EnemyObject enemy)
+            {
+                enemy.Update(_player, (int)msSinceLastFrame);
+            }
+
+            if (obj is TemporaryGameObject tempObj)
+            {
+                if (tempObj.IsExpired)
+                {
+                    _gameObjects.Remove(tempObj.Id);
+                }
+                else
+                {
+                    if ((DateTimeOffset.Now - tempObj.SpawnTime).TotalSeconds > 1.5 &&
+                        (DateTimeOffset.Now - tempObj.SpawnTime).TotalSeconds < 1.7)
+                    {
+                        CheckBombCollisions(tempObj);
+                    }
+                }
+            }
+        }
+
+        _enemySpawnTimer += msSinceLastFrame;
+        if (_enemySpawnTimer > 1000)
+        {
+            SpawnEnemy();
+            _enemySpawnTimer = 0;
+        }
     }
+
+    private void CheckBombCollisions(TemporaryGameObject bomb)
+    {
+        var toRemoveEnemies = new List<int>();
+
+        foreach (var obj in _gameObjects.Values)
+        {
+            if (obj is EnemyObject enemy)
+            {
+                double distance = Math.Sqrt(Math.Pow(bomb.Position.X - enemy.X, 2) + Math.Pow(bomb.Position.Y - enemy.Y, 2));
+
+                if (distance <= 30)
+                {
+                    enemy.SpriteSheet.ActivateAnimation("Death");
+                    enemy.IsDead = true;
+                    enemy.DeathTime = DateTimeOffset.Now;
+                }
+
+                if (enemy.IsDead)
+                {
+                    var timeSinceDeath = (DateTimeOffset.Now - enemy.DeathTime).TotalMilliseconds;
+                    if (timeSinceDeath > 1000)
+                    {
+                        toRemoveEnemies.Add(enemy.Id);
+                    }
+                }
+            }
+        }
+
+        foreach (var enemyId in toRemoveEnemies)
+        {
+            _gameObjects.Remove(enemyId);
+        }
+    }
+
 
     public void RenderFrame()
     {
@@ -163,21 +254,32 @@ public class Engine
         }
     }
 
-    private void AddBomb(int screenX, int screenY)
+    private void SpawnEnemy()
     {
-        var worldCoords = _renderer.ToWorldCoordinates(screenX, screenY);
+        if (_player == null) return;
 
-        SpriteSheet spriteSheet = new(_renderer, Path.Combine("Assets", "BombExploding.png"), 1, 13, 32, 64, (16, 48));
-        spriteSheet.Animations["Explode"] = new SpriteSheet.Animation
+        var bounds = _renderer.GetWorldBounds();
+
+        int worldLeft = bounds.Origin.X;
+        int worldTop = bounds.Origin.Y;
+        int worldRight = worldLeft + bounds.Size.X;
+        int worldBottom = worldTop + bounds.Size.Y;
+
+        int spawnX = _random.Next(worldLeft, worldRight);
+        int spawnY = _random.Next(worldTop, worldBottom);
+
+        var dx = spawnX - _player.X;
+        var dy = spawnY - _player.Y;
+        var distance = Math.Sqrt(dx * dx + dy * dy);
+
+        if (distance < 200)
         {
-            StartFrame = (0, 0),
-            EndFrame = (0, 12),
-            DurationMs = 2000,
-            Loop = false
-        };
-        spriteSheet.ActivateAnimation("Explode");
+            spawnX += _random.Next(200, 400) * (_random.Next(0, 2) == 0 ? -1 : 1);
+            spawnY += _random.Next(200, 400) * (_random.Next(0, 2) == 0 ? -1 : 1);
+        }
 
-        TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
-        _gameObjects.Add(bomb.Id, bomb);
+        var enemy = new EnemyObject(_renderer, spawnX, spawnY);
+
+        _gameObjects.Add(enemy.Id, enemy);
     }
 }

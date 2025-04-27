@@ -13,6 +13,7 @@ public unsafe class GameRenderer
     private Renderer* _renderer;
     private GameWindow _window;
     private Camera _camera;
+    private Rectangle<int> _worldBounds;
 
     private Dictionary<int, IntPtr> _texturePointers = new();
     private Dictionary<int, TextureData> _textureData = new();
@@ -32,7 +33,13 @@ public unsafe class GameRenderer
 
     public void SetWorldBounds(Rectangle<int> bounds)
     {
+        _worldBounds = bounds;
         _camera.SetWorldBounds(bounds);
+    }
+
+    public Rectangle<int> GetWorldBounds()
+    {
+        return _worldBounds;
     }
 
     public void CameraLookAt(int x, int y)
