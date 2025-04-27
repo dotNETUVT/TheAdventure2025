@@ -208,6 +208,7 @@ public class Engine
 
         if (IsGameOver)
         {
+            _renderer.CameraLookAt(320, 200);
             RenderGameOverScreen();
             return;
         }
@@ -223,9 +224,6 @@ public class Engine
 
     private void RenderGameOverScreen()
     {
-        _renderer.SetDrawColor(0, 0, 0, 255);
-        _renderer.ClearScreen();
-
         if (_youDiedTextureId.HasValue)
         {
             var screenWidth = _renderer.GetScreenWidth();
