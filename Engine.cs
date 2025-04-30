@@ -82,8 +82,9 @@ public class Engine
         double down = _input.IsDownPressed() ? 1.0 : 0.0;
         double left = _input.IsLeftPressed() ? 1.0 : 0.0;
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
+        bool isSpacePressed = _input.IsSpacePressed();
 
-        _player?.UpdatePosition(up, down, left, right, 48, 48,msSinceLastFrame);
+        _player?.UpdatePosition(up, down, left, right, isSpacePressed, 48, 48, msSinceLastFrame);
     }
 
     public void RenderFrame()

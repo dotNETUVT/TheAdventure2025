@@ -42,6 +42,13 @@ public class SpriteSheet
     private int _textureId = -1;
     private DateTimeOffset _animationStart = DateTimeOffset.MinValue;
 
+    public DateTimeOffset AnimationStart { 
+        get 
+        {
+        return _animationStart;
+        }
+    }
+
     public static SpriteSheet Load(GameRenderer renderer, string fileName, string directory)
     {
         var json = File.ReadAllText(Path.Combine(directory, fileName));
