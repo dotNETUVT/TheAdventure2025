@@ -29,7 +29,7 @@ public class Engine
 
     public void SetupWorld()
     {
-        _player = new(_renderer);
+        _player = new(SpriteSheet.Load(_renderer, "Player.json", "Assets"), 100, 100);
 
         var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
         var level = JsonSerializer.Deserialize<Level>(levelContent);
@@ -83,7 +83,7 @@ public class Engine
         double left = _input.IsLeftPressed() ? 1.0 : 0.0;
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
 
-        _player?.UpdatePosition(up, down, left, right, (int)msSinceLastFrame);
+        _player?.UpdatePosition(up, down, left, right, 48, 48,msSinceLastFrame);
     }
 
     public void RenderFrame()
@@ -91,7 +91,8 @@ public class Engine
         _renderer.SetDrawColor(0, 0, 0, 255);
         _renderer.ClearScreen();
 
-        _renderer.CameraLookAt(_player!.X, _player!.Y);
+        var playerPosition = _player!.Position;
+        _renderer.CameraLookAt(playerPosition.X, playerPosition.Y);
 
         RenderTerrain();
         RenderAllObjects();
