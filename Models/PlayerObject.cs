@@ -7,9 +7,14 @@ public class PlayerObject : RenderableGameObject
     private const int _speed = 128; // pixels per second
     private string _currentAnimation = "IdleDown";
 
-    public PlayerObject(SpriteSheet spriteSheet, int x, int y) : base(spriteSheet, (x, y))
+    private readonly int _worldWidth;
+    private readonly int _worldHeight;
+
+    public PlayerObject(SpriteSheet spriteSheet, int x, int y, int worldWidth, int worldHeight) : base(spriteSheet, (x, y))
     {
         SpriteSheet.ActivateAnimation(_currentAnimation);
+        _worldHeight = worldHeight;
+        _worldWidth = worldWidth;
     }
 
     public void UpdatePosition(double up, double down, double left, double right, bool isSpacePressed, int width, int height, double time)
@@ -83,6 +88,9 @@ public class PlayerObject : RenderableGameObject
 
         var y = Position.Y + (int)(down * pixelsToMove);
         y -= (int)(up * pixelsToMove);
+
+        x = Math.Clamp(x, 8, _worldWidth - 8);
+        y = Math.Clamp(y, 22, _worldHeight);
 
         var newAnimation = _currentAnimation;
 

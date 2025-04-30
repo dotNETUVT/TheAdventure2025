@@ -29,8 +29,6 @@ public class Engine
 
     public void SetupWorld()
     {
-        _player = new(SpriteSheet.Load(_renderer, "Player.json", "Assets"), 100, 100);
-
         var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
         var level = JsonSerializer.Deserialize<Level>(levelContent);
         if (level == null)
@@ -65,6 +63,9 @@ public class Engine
         {
             throw new Exception("Invalid tile dimensions");
         }
+
+        _player = new(SpriteSheet.Load(_renderer, "Player.json", "Assets"), 100, 100, level.Width.Value * level.TileWidth.Value,
+            level.Height.Value * level.TileHeight.Value);
 
         _renderer.SetWorldBounds(new Rectangle<int>(0, 0, level.Width.Value * level.TileWidth.Value,
             level.Height.Value * level.TileHeight.Value));
