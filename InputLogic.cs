@@ -170,7 +170,6 @@ public unsafe class InputLogic
             right = 1.0;
         }
 
-        //For restart mechanism
         if (keyboardState[(int)KeyCode.R] == 1)  // Check for 'R' key press
         {
             _gameLogic.RestartGame();
