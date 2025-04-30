@@ -42,6 +42,13 @@ public class SpriteSheet
     private int _textureId = -1;
     private DateTimeOffset _animationStart = DateTimeOffset.MinValue;
 
+    public DateTimeOffset AnimationStart { 
+        get 
+        {
+        return _animationStart;
+        }
+    }
+
     public static SpriteSheet Load(GameRenderer renderer, string fileName, string directory)
     {
         var json = File.ReadAllText(Path.Combine(directory, fileName));
@@ -70,7 +77,10 @@ public class SpriteSheet
             throw new Exception($"Sprite sheet {fileName} has invalid row/column count.");
         }
 
-        spriteSheet._textureId = renderer.LoadTexture(Path.Combine(directory, spriteSheet.FileName), out _);
+        using (var fileStream = File.OpenRead(Path.Combine(directory, spriteSheet.FileName)))
+        {
+            spriteSheet._textureId = renderer.LoadTexture(fileStream, out _);
+        }
         if (spriteSheet._textureId == -1)
         {
             throw new Exception($"Failed to load texture for sprite sheet: {spriteSheet.FileName}");

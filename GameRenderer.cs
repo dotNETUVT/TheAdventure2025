@@ -40,39 +40,41 @@ public unsafe class GameRenderer
         _camera.LookAt(x, y);
     }
 
-    public int LoadTexture(string fileName, out TextureData textureInfo)
+    public (int Width, int Height) GetWindowSize()
     {
-        using (var fStream = new FileStream(fileName, FileMode.Open))
+        return _window.Size;
+    }
+
+    public int LoadTexture(Stream stream, out TextureData textureInfo)
+    {
+        var image = Image.Load<Rgba32>(stream);
+        textureInfo = new TextureData()
         {
-            var image = Image.Load<Rgba32>(fStream);
-            textureInfo = new TextureData()
+            Width = image.Width,
+            Height = image.Height
+        };
+        var imageRAWData = new byte[textureInfo.Width * textureInfo.Height * 4];
+        image.CopyPixelDataTo(imageRAWData.AsSpan());
+        fixed (byte* data = imageRAWData)
+        {
+            var imageSurface = _sdl.CreateRGBSurfaceWithFormatFrom(data, textureInfo.Width,
+                textureInfo.Height, 8, textureInfo.Width * 4, (uint)PixelFormatEnum.Rgba32);
+            if (imageSurface == null)
             {
-                Width = image.Width,
-                Height = image.Height
-            };
-            var imageRAWData = new byte[textureInfo.Width * textureInfo.Height * 4];
-            image.CopyPixelDataTo(imageRAWData.AsSpan());
-            fixed (byte* data = imageRAWData)
-            {
-                var imageSurface = _sdl.CreateRGBSurfaceWithFormatFrom(data, textureInfo.Width,
-                    textureInfo.Height, 8, textureInfo.Width * 4, (uint)PixelFormatEnum.Rgba32);
-                if (imageSurface == null)
-                {
-                    throw new Exception("Failed to create surface from image data.");
-                }
-                
-                var imageTexture = _sdl.CreateTextureFromSurface(_renderer, imageSurface);
-                if (imageTexture == null)
-                {
-                    _sdl.FreeSurface(imageSurface);
-                    throw new Exception("Failed to create texture from surface.");
-                }
-                
-                _sdl.FreeSurface(imageSurface);
-                
-                _textureData[_textureId] = textureInfo;
-                _texturePointers[_textureId] = (IntPtr)imageTexture;
+                throw new Exception("Failed to create surface from image data.");
             }
+            
+            var imageTexture = _sdl.CreateTextureFromSurface(_renderer, imageSurface);
+            if (imageTexture == null)
+            {
+                _sdl.FreeSurface(imageSurface);
+                throw new Exception("Failed to create texture from surface.");
+            }
+            
+            _sdl.FreeSurface(imageSurface);
+            
+            _textureData[_textureId] = textureInfo;
+            _texturePointers[_textureId] = (IntPtr)imageTexture;
         }
 
         return _textureId++;
@@ -109,5 +111,17 @@ public unsafe class GameRenderer
     public void PresentFrame()
     {
         _sdl.RenderPresent(_renderer);
+    }
+
+    public void RenderUI(int textureId, Rectangle<int> src, Rectangle<int> dst,
+        RendererFlip flip = RendererFlip.None, double angle = 0.0, Point center = default)
+    {
+        if (_texturePointers.TryGetValue(textureId, out var imageTexture))
+        {
+            _sdl.RenderCopyEx(_renderer, (Texture*)imageTexture, in src,
+                in dst,
+                angle,
+                in center, flip);
+        }
     }
 }
