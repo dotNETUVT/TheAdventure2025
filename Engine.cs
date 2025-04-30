@@ -167,14 +167,7 @@ public class Engine
     {
         var worldCoords = _renderer.ToWorldCoordinates(screenX, screenY);
 
-        SpriteSheet spriteSheet = new(_renderer, Path.Combine("Assets", "BombExploding.png"), 1, 13, 32, 64, (16, 48));
-        spriteSheet.Animations["Explode"] = new SpriteSheet.Animation
-        {
-            StartFrame = (0, 0),
-            EndFrame = (0, 12),
-            DurationMs = 2000,
-            Loop = false
-        };
+        SpriteSheet spriteSheet = SpriteSheet.Load(_renderer, "BombExploding.json", "Assets");
         spriteSheet.ActivateAnimation("Explode");
 
         TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
