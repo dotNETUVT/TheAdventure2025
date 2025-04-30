@@ -178,6 +178,7 @@ public class GameLogic
         }
     }
 
+    //For Restart Mechanism
     public void RestartGame()
     {
     _player = new PlayerObject(_renderer);
