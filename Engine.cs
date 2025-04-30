@@ -29,8 +29,6 @@ public class Engine
 
     public void SetupWorld()
     {
-        _player = new(SpriteSheet.Load(_renderer, "Player.json", "Assets"), 100, 100);
-
         var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
         var level = JsonSerializer.Deserialize<Level>(levelContent);
         if (level == null)
@@ -66,6 +64,9 @@ public class Engine
             throw new Exception("Invalid tile dimensions");
         }
 
+        _player = new(SpriteSheet.Load(_renderer, "Player.json", "Assets"), 100, 100, level.Width.Value * level.TileWidth.Value,
+            level.Height.Value * level.TileHeight.Value);
+
         _renderer.SetWorldBounds(new Rectangle<int>(0, 0, level.Width.Value * level.TileWidth.Value,
             level.Height.Value * level.TileHeight.Value));
 
@@ -82,8 +83,9 @@ public class Engine
         double down = _input.IsDownPressed() ? 1.0 : 0.0;
         double left = _input.IsLeftPressed() ? 1.0 : 0.0;
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
+        bool isSpacePressed = _input.IsSpacePressed();
 
-        _player?.UpdatePosition(up, down, left, right, 48, 48,msSinceLastFrame);
+        _player?.UpdatePosition(up, down, left, right, isSpacePressed, 48, 48, msSinceLastFrame);
     }
 
     public void RenderFrame()
