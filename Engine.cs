@@ -1,5 +1,8 @@
 using System.Text.Json;
 using Silk.NET.Maths;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp.Drawing.Processing;
 using TheAdventure.Models;
 using TheAdventure.Models.Data;
 
@@ -16,6 +19,8 @@ public class Engine
 
     private Level _currentLevel = new();
     private PlayerObject? _player;
+    private bool _gameOver = false;
+    private int _gameOverTextTexture = -1;
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
 
@@ -25,10 +30,27 @@ public class Engine
         _input = input;
 
         _input.OnMouseClick += (_, coords) => AddBomb(coords.x, coords.y);
+        
+        using var image = new SixLabors.ImageSharp.Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(300, 80);
+        var font = SixLabors.Fonts.SystemFonts.CreateFont("Arial", 24, SixLabors.Fonts.FontStyle.Bold);
+        
+        image.Mutate(ctx => {
+            ctx.Fill(SixLabors.ImageSharp.Color.Transparent);
+            ctx.DrawText("GAME OVER\nPress R to restart", font, SixLabors.ImageSharp.Color.White, new SixLabors.ImageSharp.PointF(20, 10));
+        });
+        
+        using var ms = new MemoryStream();
+        image.SaveAsPng(ms);
+        ms.Position = 0;
+        
+        _gameOverTextTexture = _renderer.LoadTexture(ms, out _);
     }
 
     public void SetupWorld()
     {
+        _gameObjects.Clear();
+        _gameOver = false;
+        
         var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
         var level = JsonSerializer.Deserialize<Level>(levelContent);
         if (level == null)
@@ -47,11 +69,20 @@ public class Engine
 
             foreach (var tile in tileSet.Tiles)
             {
-                tile.TextureId = _renderer.LoadTexture(Path.Combine("Assets", tile.Image), out _);
-                _tileIdMap.Add(tile.Id!.Value, tile);
+                if (!_tileIdMap.ContainsKey(tile.Id!.Value))
+                {
+                    using (var stream = File.OpenRead(Path.Combine("Assets", tile.Image)))
+                    {
+                        tile.TextureId = _renderer.LoadTexture(stream, out _);
+                    }
+                    _tileIdMap.Add(tile.Id!.Value, tile);
+                }
             }
 
-            _loadedTileSets.Add(tileSet.Name, tileSet);
+            if (!_loadedTileSets.ContainsKey(tileSet.Name))
+            {
+                _loadedTileSets.Add(tileSet.Name, tileSet);
+            }
         }
 
         if (level.Width == null || level.Height == null)
@@ -79,6 +110,17 @@ public class Engine
         var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
         _lastUpdate = currentTime;
 
+        if (_gameOver && _input.IsRPressed())
+        {
+            SetupWorld();
+            return;
+        }
+
+        if (_player != null && _player.IsDead)
+        {
+            _gameOver = true;
+        }
+
         double up = _input.IsUpPressed() ? 1.0 : 0.0;
         double down = _input.IsDownPressed() ? 1.0 : 0.0;
         double left = _input.IsLeftPressed() ? 1.0 : 0.0;
@@ -98,8 +140,33 @@ public class Engine
 
         RenderTerrain();
         RenderAllObjects();
+        
+        if (_gameOver && _gameOverTextTexture != -1)
+        {
+            var windowSize = _renderer.GetWindowSize();
+            var src = new Rectangle<int>(0, 0, 300, 80);
+            var dst = new Rectangle<int>(windowSize.Width / 2 - 150, windowSize.Height / 2 - 40, 300, 80);
+            _renderer.RenderUI(_gameOverTextTexture, src, dst);
+        }
 
         _renderer.PresentFrame();
+    }
+
+    private void CheckBombExplosion(TemporaryGameObject bomb)
+    {
+        if (_player == null || _player.IsDead) return;
+        
+        var playerPos = _player.Position;
+        var bombPos = bomb.Position;
+        
+        var distance = Math.Sqrt(
+            Math.Pow(playerPos.X - bombPos.X, 2) + 
+            Math.Pow(playerPos.Y - bombPos.Y, 2));
+        
+        if (distance < 24)
+        {
+            _player.Die();
+        }
     }
 
     public void RenderAllObjects()
@@ -110,6 +177,10 @@ public class Engine
             gameObject.Render(_renderer);
             if (gameObject is TemporaryGameObject { IsExpired: true } tempGameObject)
             {
+                if (tempGameObject.SpriteSheet.ActiveAnimation?.DurationMs == 2000)
+                {
+                    CheckBombExplosion(tempGameObject);
+                }
                 toRemove.Add(tempGameObject.Id);
             }
         }

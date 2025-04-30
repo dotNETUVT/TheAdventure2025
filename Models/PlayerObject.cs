@@ -10,6 +10,8 @@ public class PlayerObject : RenderableGameObject
     private readonly int _worldWidth;
     private readonly int _worldHeight;
 
+    public bool IsDead { get; private set; } = false;
+
     public PlayerObject(SpriteSheet spriteSheet, int x, int y, int worldWidth, int worldHeight) : base(spriteSheet, (x, y))
     {
         SpriteSheet.ActivateAnimation(_currentAnimation);
@@ -17,8 +19,20 @@ public class PlayerObject : RenderableGameObject
         _worldWidth = worldWidth;
     }
 
+    public void Die()
+    {
+        if (!IsDead)
+        {
+            IsDead = true;
+            _currentAnimation = "Die";
+            SpriteSheet.ActivateAnimation(_currentAnimation);
+        }
+    }
+
     public void UpdatePosition(double up, double down, double left, double right, bool isSpacePressed, int width, int height, double time)
     {
+        if (IsDead) return;
+
         if (isSpacePressed)
         {
             string attackAnimation = _currentAnimation switch
