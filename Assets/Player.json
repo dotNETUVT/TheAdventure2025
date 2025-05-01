@@ -72,6 +72,19 @@
       "durationMs": 1000,
       "loop": true,
       "flip": 0
+    },
+    "Dying": {
+      "startFrame": {
+        "row": 9,
+        "col": 0
+      },
+      "endFrame": {
+        "row": 9,
+        "col": 5
+      },
+      "durationMs": 200,
+      "loop": false
     }
+
   }
 }
