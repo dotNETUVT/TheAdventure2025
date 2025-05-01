@@ -36,6 +36,24 @@ public unsafe class Input
         ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
         return keyboardState[(int)KeyCode.Down] == 1;
     }
+    
+    public bool IsAttackPressed()
+    {
+        ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
+        return keyboardState[(int)KeyCode.Space] == 1;
+    }
+
+    public bool IsRestartPressed()
+    {
+        ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
+        return keyboardState[(int)KeyCode.R] == 1;
+    }
+
+    public bool IsDebugBossKeyPressed()
+    {
+        ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
+        return keyboardState[(int)KeyCode.B] == 1;
+    }
 
     public bool ProcessInput()
     {
