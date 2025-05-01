@@ -1,0 +1,13 @@
+﻿{
+  "RowCount": 1,
+  "ColumnCount": 1,
+  "FrameWidth": 32,
+  "FrameHeight": 32,
+  "FrameCenter": {
+    "OffsetX": 16,
+    "OffsetY": 16
+  },
+  "FileName": "coin.png",
+  "Animations": {}
+}
+   

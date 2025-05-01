@@ -1,7 +1,9 @@
 using System.Text.Json;
 using Silk.NET.Maths;
+using SixLabors.ImageSharp;
 using TheAdventure.Models;
 using TheAdventure.Models.Data;
+using SixLabors.Fonts;
 
 namespace TheAdventure;
 
@@ -23,11 +25,21 @@ public class Engine
     private List<HeartObject> _collectedHearts = new();
     private bool _isGameOver = false;
 
-    private int _heartTextureId; 
-    private TextureData _heartTextureData; 
+    private int _heartTextureId;
+    private TextureData _heartTextureData;
 
-    private int _gameOverTextureId; 
-    private TextureData _gameOverTextureData; 
+    private int _gameOverTextureId;
+    private TextureData _gameOverTextureData;
+
+    private int _winTextureId; 
+    private TextureData _winTextureData; 
+
+    private List<CoinObject> _coins = new();
+    private int _collectedCoins = 0;
+    private int _coinTextureId;
+    private TextureData _coinTextureData;
+    private DateTimeOffset _lastCoinUpdate = DateTimeOffset.Now;
+    private bool _isGameWin = false;
 
     public Engine(GameRenderer renderer, Input input)
     {
@@ -39,13 +51,18 @@ public class Engine
 
     public void SetupWorld()
     {
+        _tileIdMap.Clear();
+        _loadedTileSets.Clear();
+
         _player = new(SpriteSheet.Load(_renderer, "Player.json", "Assets"), 100, 100);
 
-        // Load heart texture for lives rendering
         _heartTextureId = _renderer.LoadTexture(Path.Combine("Assets", "heart.png"), out _heartTextureData);
 
-        // Load game over texture
         _gameOverTextureId = _renderer.LoadTexture(Path.Combine("Assets", "GameOverText.png"), out _gameOverTextureData);
+
+        _winTextureId = _renderer.LoadTexture(Path.Combine("Assets", "WinScreen.png"), out _winTextureData);
+
+        _coinTextureId = _renderer.LoadTexture(Path.Combine("Assets", "coin.png"), out _coinTextureData);
 
         var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
         var level = JsonSerializer.Deserialize<Level>(levelContent);
@@ -87,8 +104,10 @@ public class Engine
 
         _currentLevel = level;
 
-        AddHeartsToField(7);
+        AddHeartsToField(5);
+        AddCoinsToField(10);
     }
+
 
     private void AddHeartsToField(int count)
     {
@@ -105,8 +124,94 @@ public class Engine
         }
     }
 
+    private void AddCoinsToField(int count)
+    {
+        SpriteSheet coinSprite = SpriteSheet.Load(_renderer, "Coin.json", "Assets");
+        Random random = new();
+
+        for (int i = 0; i < count; i++)
+        {
+            int x = random.Next(0, _currentLevel.Width.Value * _currentLevel.TileWidth.Value);
+            int y = random.Next(0, _currentLevel.Height.Value * _currentLevel.TileHeight.Value);
+
+            CoinObject coin = new(coinSprite, x, y);
+            _coins.Add(coin);
+        }
+    }
+
+    private void UpdateCoinPositions()
+    {
+        var currentTime = DateTimeOffset.Now;
+        if ((currentTime - _lastCoinUpdate).TotalSeconds >= 15)
+        {
+            foreach (var coin in _coins)
+            {
+                coin.RandomizePosition(_currentLevel.Width.Value * _currentLevel.TileWidth.Value,
+                                       _currentLevel.Height.Value * _currentLevel.TileHeight.Value);
+            }
+            _lastCoinUpdate = currentTime;
+        }
+    }
+
+    private void CheckCoinCollection()
+    {
+        var toRemove = new List<CoinObject>();
+
+        foreach (var coin in _coins)
+        {
+            var dx = coin.Position.X - _player!.Position.X;
+            var dy = coin.Position.Y - _player.Position.Y;
+
+            if (Math.Abs(dx) < 20 && Math.Abs(dy) < 20)
+            {
+                _collectedCoins++;
+                toRemove.Add(coin);
+            }
+        }
+
+        foreach (var coin in toRemove)
+        {
+            _coins.Remove(coin);
+        }
+
+        if (_collectedCoins >= 3)
+        {
+            _isGameOver = false; 
+            _isGameWin = true;   
+        }
+    }
+
+    private void RenderCoins()
+    {
+        foreach (var coin in _coins)
+        {
+            coin.Render(_renderer);
+        }
+    }
+
+    private void RenderCollectedCoins()
+    {
+        int count = Math.Min(_collectedCoins, 3);
+        var srcRect = new Rectangle<int>(0, 0, _coinTextureData.Width, _coinTextureData.Height);
+
+        for (int i = 0; i < count; i++)
+        {
+            var dstRect = new Rectangle<int>(20 + i * 40, 20, 32, 32);
+            _renderer.RenderTextureScreen(_coinTextureId, srcRect, dstRect);
+        }
+    }
+
     public void ProcessFrame()
     {
+        if (_isGameWin)
+        {
+            if (_input.IsRPressed()) 
+            {
+                RestartGame();
+            }
+            return;
+        }
+
         if (_isGameOver) return;
 
         var currentTime = DateTimeOffset.Now;
@@ -122,6 +227,8 @@ public class Engine
 
         CheckHeartCollection();
         CheckBombExplosions();
+        CheckCoinCollection();
+        UpdateCoinPositions();
     }
 
     private void CheckHeartCollection()
@@ -163,7 +270,8 @@ public class Engine
                     _lives--;
                     if (_lives <= 0)
                     {
-                        _isGameOver = true;
+                        _player.SpriteSheet.ActivateAnimation("Dying");
+                        Task.Delay(1000).ContinueWith(_ => _isGameOver = true);
                     }
                 }
             }
@@ -172,6 +280,12 @@ public class Engine
 
     public void RenderFrame()
     {
+        if (_isGameWin)
+        {
+            RenderWinScreen();
+            return;
+        }
+
         if (_isGameOver)
         {
             RenderGameOverScreen();
@@ -186,6 +300,8 @@ public class Engine
 
         RenderTerrain();
         RenderAllObjects();
+        RenderCoins();
+        RenderCollectedCoins();
         RenderLives();
 
         _renderer.PresentFrame();
@@ -216,13 +332,33 @@ public class Engine
         int windowHeight = windowSize.Height;
 
         int scaledWidth = windowWidth;
-        int scaledHeight = (int)(scaledWidth / 1.5); 
+        int scaledHeight = (int)(scaledWidth / 1.5);
         int yPos = 20;
 
         var srcRect = new Rectangle<int>(0, 0, _gameOverTextureData.Width, _gameOverTextureData.Height);
         var dstRect = new Rectangle<int>(0, yPos, scaledWidth, scaledHeight);
 
         _renderer.RenderTextureScreen(_gameOverTextureId, srcRect, dstRect);
+        _renderer.PresentFrame();
+    }
+
+    private void RenderWinScreen()
+    {
+        _renderer.SetDrawColor(0, 0, 0, 255);
+        _renderer.ClearScreen();
+
+        var windowSize = _renderer.WindowSize;
+        int windowWidth = windowSize.Width;
+        int windowHeight = windowSize.Height;
+
+        int scaledWidth = windowWidth;
+        int scaledHeight = (int)(scaledWidth / 1.5);
+        int yPos = (windowHeight - scaledHeight) / 2;
+
+        var srcRect = new Rectangle<int>(0, 0, _winTextureData.Width, _winTextureData.Height);
+        var dstRect = new Rectangle<int>(0, yPos, scaledWidth, scaledHeight);
+
+        _renderer.RenderTextureScreen(_winTextureId, srcRect, dstRect);
         _renderer.PresentFrame();
     }
 
@@ -323,10 +459,13 @@ public class Engine
 
     private void RestartGame()
     {
-        _lives = 2;
+        _lives = 3;
         _collectedHearts.Clear();
         _gameObjects.Clear();
+        _coins.Clear();
+        _collectedCoins = 0; 
         _isGameOver = false;
+        _isGameWin = false;
 
         SetupWorld();
     }

@@ -1,0 +1,13 @@
+{
+  "RowCount": 1,
+  "ColumnCount": 1,
+  "FrameWidth": 256,
+  "FrameHeight": 64,
+  "FrameCenter": {
+    "OffsetX": 128,
+    "OffsetY": 32
+  },
+  "FileName": "WinScreen.png",
+  "Animations": {}
+}
+   
