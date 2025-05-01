@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Silk.NET.Maths;
 using Silk.NET.SDL;
 
@@ -5,38 +6,77 @@ namespace TheAdventure.Models;
 
 public class SpriteSheet
 {
-    public class Animation
+    public struct Position
     {
-        public (int Row, int Col) StartFrame { get; init; }
-        public (int Row, int Col) EndFrame { get; init; }
-        public RendererFlip Flip { get; init; } = RendererFlip.None;
-        public int DurationMs { get; init; }
-        public bool Loop { get; init; }
+        public int Row { get; set; }
+        public int Col { get; set; }
     }
 
-    public int RowCount { get; init; }
-    public int ColumnCount { get; init; }
+    public struct Offset
+    {
+        public int OffsetX { get; set; }
+        public int OffsetY { get; set; }
+    }
 
-    public int FrameWidth { get; init; }
-    public int FrameHeight { get; init; }
-    public (int OffsetX, int OffsetY) FrameCenter { get; init; }
+    public class Animation
+    {
+        public Position StartFrame { get; set; }
+        public Position EndFrame { get; set; }
+        public RendererFlip Flip { get; set; } = RendererFlip.None;
+        public int DurationMs { get; set; }
+        public bool Loop { get; set; }
+    }
 
-    public Animation? ActiveAnimation { get; private set; }
-    public Dictionary<string, Animation> Animations { get; init; } = new();
+    public int RowCount { get; set; }
+    public int ColumnCount { get; set; }
 
-    private int _textureId;
+    public int FrameWidth { get; set; }
+    public int FrameHeight { get; set; }
+    public Offset FrameCenter { get; set; }
+
+    public string? FileName { get; set; }
+
+    public Animation? ActiveAnimation { get; set; }
+    public Dictionary<string, Animation> Animations { get; set; } = new();
+
+    private int _textureId = -1;
     private DateTimeOffset _animationStart = DateTimeOffset.MinValue;
 
-    public SpriteSheet(GameRenderer renderer, string fileName, int rowCount, int columnCount, int frameWidth,
-        int frameHeight, (int OffsetX, int OffsetY) frameCenter)
+    public static SpriteSheet Load(GameRenderer renderer, string fileName, string directory)
     {
-        _textureId = renderer.LoadTexture(fileName, out var textureData);
+        var json = File.ReadAllText(Path.Combine(directory, fileName));
+        var spriteSheet = JsonSerializer.Deserialize<SpriteSheet>(json, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true,
+        });
 
-        RowCount = rowCount;
-        ColumnCount = columnCount;
-        FrameWidth = frameWidth;
-        FrameHeight = frameHeight;
-        FrameCenter = frameCenter;
+        if (spriteSheet == null)
+        {
+            throw new Exception($"Failed to load sprite sheet: {fileName}");
+        }
+
+        if (spriteSheet.FileName == null)
+        {
+            throw new Exception($"Sprite sheet {fileName} does not have a file name.");
+        }
+
+        if (spriteSheet.FrameWidth <= 0 || spriteSheet.FrameHeight <= 0)
+        {
+            throw new Exception($"Sprite sheet {fileName} has invalid frame dimensions.");
+        }
+
+        if (spriteSheet.RowCount <= 0 || spriteSheet.ColumnCount <= 0)
+        {
+            throw new Exception($"Sprite sheet {fileName} has invalid row/column count.");
+        }
+
+        spriteSheet._textureId = renderer.LoadTexture(Path.Combine(directory, spriteSheet.FileName), out _);
+        if (spriteSheet._textureId == -1)
+        {
+            throw new Exception($"Failed to load texture for sprite sheet: {spriteSheet.FileName}");
+        }
+
+        return spriteSheet;
     }
 
     public void ActivateAnimation(string name)
