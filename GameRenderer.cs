@@ -30,6 +30,8 @@ public unsafe class GameRenderer
         _camera = new Camera(windowSize.Width, windowSize.Height);
     }
 
+    public (int Width, int Height) WindowSize => _window.Size;
+
     public void SetWorldBounds(Rectangle<int> bounds)
     {
         _camera.SetWorldBounds(bounds);
@@ -91,6 +93,18 @@ public unsafe class GameRenderer
         }
     }
 
+    public void RenderUITexture(int textureId, Rectangle<int> src, Rectangle<int> dst,
+        RendererFlip flip = RendererFlip.None, double angle = 0.0, Point center = default)
+    {
+        if (_texturePointers.TryGetValue(textureId, out var imageTexture))
+        {
+            _sdl.RenderCopyEx(_renderer, (Texture*)imageTexture, in src,
+                in dst,
+                angle,
+                in center, flip);
+        }
+    }
+
     public Vector2D<int> ToWorldCoordinates(int x, int y)
     {
         return _camera.ToWorldCoordinates(new Vector2D<int>(x, y));
@@ -109,5 +123,10 @@ public unsafe class GameRenderer
     public void PresentFrame()
     {
         _sdl.RenderPresent(_renderer);
+    }
+
+    public Renderer* GetRenderer()
+    {
+        return _renderer;
     }
 }
