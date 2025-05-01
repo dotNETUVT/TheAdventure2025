@@ -28,6 +28,7 @@ public class SpriteSheet
     private int _textureId;
     private DateTimeOffset _animationStart = DateTimeOffset.MinValue;
     private string _currentAnimationName = "";
+    private bool _isPaused = false;
 
     public SpriteSheet(GameRenderer renderer, string fileName, int rowCount, int columnCount, int frameWidth,
         int frameHeight, (int OffsetX, int OffsetY) frameCenter)
@@ -45,7 +46,6 @@ public class SpriteSheet
     {
         if (!Animations.TryGetValue(name, out var animation)) return;
 
-        // Only reset timer if it's a different animation or timer hasn't been set
         bool resetTimer = _currentAnimationName != name || _animationStart == DateTimeOffset.MinValue;
         
         ActiveAnimation = animation;
@@ -65,6 +65,17 @@ public class SpriteSheet
         }
     }
 
+    public void PauseAnimation()
+    {
+        _isPaused = true;
+    }
+    
+    public void ResumeAnimation()
+    {
+        _isPaused = false;
+        _animationStart = DateTimeOffset.Now;
+    }
+
     public void Render(GameRenderer renderer, (int X, int Y) dest, double angle = 0.0, Point rotationCenter = new())
     {
         if (ActiveAnimation == null)
@@ -76,33 +87,35 @@ public class SpriteSheet
         else
         {
             var totalFramesInAnimation = (ActiveAnimation.EndFrame.Row * ColumnCount + ActiveAnimation.EndFrame.Col) -
-                                         (ActiveAnimation.StartFrame.Row * ColumnCount + ActiveAnimation.StartFrame.Col) + 1; // +1 because EndFrame is inclusive
+                                         (ActiveAnimation.StartFrame.Row * ColumnCount + ActiveAnimation.StartFrame.Col) + 1;
 
             var frameDuration = ActiveAnimation.DurationMs / (double)totalFramesInAnimation;
-            if (frameDuration <= 0) frameDuration = 100; // Avoid division by zero or negative duration
+            if (frameDuration <= 0) frameDuration = 100;
 
-            var elapsedMs = (DateTimeOffset.Now - _animationStart).TotalMilliseconds;
-            var currentFrameIndex = (int)(elapsedMs / frameDuration);
-
-            if (currentFrameIndex >= totalFramesInAnimation)
+            int currentFrameIndex = 0;
+            
+            if (!_isPaused)
             {
-                if (ActiveAnimation.Loop)
+                var elapsedMs = (DateTimeOffset.Now - _animationStart).TotalMilliseconds;
+                currentFrameIndex = (int)(elapsedMs / frameDuration);
+
+                if (currentFrameIndex >= totalFramesInAnimation)
                 {
-                    // Keep looping from the start of the animation sequence
-                    currentFrameIndex %= totalFramesInAnimation;
-                    
-                    // Better timer reset logic for smoother animation looping
-                    double animationDuration = frameDuration * totalFramesInAnimation;
-                    double overflowTime = elapsedMs % animationDuration;
-                    _animationStart = DateTimeOffset.Now.AddMilliseconds(-overflowTime);
-                }
-                else
-                {
-                    currentFrameIndex = totalFramesInAnimation - 1; // Stay on the last frame
+                    if (ActiveAnimation.Loop)
+                    {
+                        currentFrameIndex %= totalFramesInAnimation;
+                        
+                        double animationDuration = frameDuration * totalFramesInAnimation;
+                        double overflowTime = elapsedMs % animationDuration;
+                        _animationStart = DateTimeOffset.Now.AddMilliseconds(-overflowTime);
+                    }
+                    else
+                    {
+                        currentFrameIndex = totalFramesInAnimation - 1;
+                    }
                 }
             }
 
-            // Calculate the row and column based on the StartFrame and the currentFrameIndex
             var startFrameLinearIndex = ActiveAnimation.StartFrame.Row * ColumnCount + ActiveAnimation.StartFrame.Col;
             var currentFrameLinearIndex = startFrameLinearIndex + currentFrameIndex;
 

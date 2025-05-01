@@ -49,6 +49,12 @@ public unsafe class Input
         return keyboardState[(int)KeyCode.R] == 1;
     }
 
+    public bool IsDebugBossKeyPressed()
+    {
+        ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
+        return keyboardState[(int)KeyCode.B] == 1;
+    }
+
     public bool ProcessInput()
     {
         Event ev = new Event();

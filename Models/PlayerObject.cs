@@ -1,5 +1,6 @@
 using Silk.NET.Maths;
 using Silk.NET.SDL;
+using System.Collections.Generic;
 
 namespace TheAdventure.Models;
 
@@ -12,7 +13,11 @@ public class PlayerObject : GameObject
     public int Health { get; private set; }
     public bool IsDead => Health <= 0;
     
-    public int AttackDamage { get; private set; } = 25;
+    public bool HasWon { get; private set; } = false;
+    private DateTimeOffset? _victoryTime = null;
+    private readonly int _victoryAnimationDuration = 1000;
+    
+    public int AttackDamage { get; private set; } = 2;
     public int AttackRange { get; private set; } = 45;
     public bool IsInvulnerable { get; private set; } = false;
     private DateTimeOffset _lastDamageTime = DateTimeOffset.MinValue;
@@ -25,6 +30,15 @@ public class PlayerObject : GameObject
     private DateTimeOffset _lastAttackTime = DateTimeOffset.MinValue;
     private readonly TimeSpan _attackCooldown = TimeSpan.FromMilliseconds(500);
     private readonly int _attackDurationMs = 300;
+    private readonly int _moveDurationMs = 400;
+    private readonly int _idleDurationMs = 1000;
+    
+    public int EnemiesKilled { get; private set; } = 0;
+    public int HighestWaveReached { get; set; } = 1;
+    
+    private List<OrcObject> _orcsInGame = new List<OrcObject>();
+    private DateTimeOffset? _deathTime = null;
+    private readonly int _deathAnimationDuration = 1000;
 
     private const int Speed = 128;
 
@@ -36,20 +50,22 @@ public class PlayerObject : GameObject
         {
             Animations = new Dictionary<string, SpriteSheet.Animation>()
             {
-                { "IdleDown", new SpriteSheet.Animation{ StartFrame = (0, 0), EndFrame = (0, 5), DurationMs = 1000, Loop = true } },
-                { "IdleLeft", new SpriteSheet.Animation{ StartFrame = (1, 0), EndFrame = (1, 5), DurationMs = 1000, Loop = true, Flip = RendererFlip.Horizontal } },
-                { "IdleRight", new SpriteSheet.Animation{ StartFrame = (1, 0), EndFrame = (1, 5), DurationMs = 1000, Loop = true } },
-                { "IdleUp", new SpriteSheet.Animation{ StartFrame = (2, 0), EndFrame = (2, 5), DurationMs = 1000, Loop = true } },
+                { "IdleDown", new SpriteSheet.Animation{ StartFrame = (0, 0), EndFrame = (0, 5), DurationMs = _idleDurationMs, Loop = true } },
+                { "IdleLeft", new SpriteSheet.Animation{ StartFrame = (1, 0), EndFrame = (1, 5), DurationMs = _idleDurationMs, Loop = true, Flip = RendererFlip.Horizontal } },
+                { "IdleRight", new SpriteSheet.Animation{ StartFrame = (1, 0), EndFrame = (1, 5), DurationMs = _idleDurationMs, Loop = true } },
+                { "IdleUp", new SpriteSheet.Animation{ StartFrame = (2, 0), EndFrame = (2, 5), DurationMs = _idleDurationMs, Loop = true } },
 
-                { "WalkDown", new SpriteSheet.Animation{ StartFrame = (3, 0), EndFrame = (3, 5), DurationMs = 400, Loop = true } },
-                { "WalkLeft", new SpriteSheet.Animation{ StartFrame = (4, 0), EndFrame = (4, 5), DurationMs = 400, Loop = true, Flip = RendererFlip.Horizontal } },
-                { "WalkRight", new SpriteSheet.Animation{ StartFrame = (4, 0), EndFrame = (4, 5), DurationMs = 400, Loop = true } },
-                { "WalkUp", new SpriteSheet.Animation{ StartFrame = (5, 0), EndFrame = (5, 3), DurationMs = 400, Loop = true } },
+                { "WalkDown", new SpriteSheet.Animation{ StartFrame = (3, 0), EndFrame = (3, 5), DurationMs = _moveDurationMs, Loop = true } },
+                { "WalkLeft", new SpriteSheet.Animation{ StartFrame = (4, 0), EndFrame = (4, 5), DurationMs = _moveDurationMs, Loop = true, Flip = RendererFlip.Horizontal } },
+                { "WalkRight", new SpriteSheet.Animation{ StartFrame = (4, 0), EndFrame = (4, 5), DurationMs = _moveDurationMs, Loop = true } },
+                { "WalkUp", new SpriteSheet.Animation{ StartFrame = (5, 0), EndFrame = (5, 3), DurationMs = _moveDurationMs, Loop = true } },
 
                 { "AttackDown", new SpriteSheet.Animation{ StartFrame = (6, 0), EndFrame = (6, 3), DurationMs = _attackDurationMs, Loop = false } },
                 { "AttackLeft", new SpriteSheet.Animation{ StartFrame = (7, 0), EndFrame = (7, 3), DurationMs = _attackDurationMs, Loop = false, Flip = RendererFlip.Horizontal } },
                 { "AttackRight", new SpriteSheet.Animation{ StartFrame = (7, 0), EndFrame = (7, 3), DurationMs = _attackDurationMs, Loop = false } },
                 { "AttackUp", new SpriteSheet.Animation{ StartFrame = (8, 0), EndFrame = (8, 3), DurationMs = _attackDurationMs, Loop = false } },
+
+                {"Death", new SpriteSheet.Animation{ StartFrame = (9, 0), EndFrame = (9, 3), DurationMs = _deathAnimationDuration, Loop = false }}
             }
         };
         _spriteSheet.ActivateAnimation(_currentAnimation);
@@ -59,6 +75,12 @@ public class PlayerObject : GameObject
     {
         if (IsDead)
         {
+            if (_deathTime == null)
+            {
+                _deathTime = DateTimeOffset.Now;
+                _spriteSheet.ActivateAnimation("Death");
+                _currentAnimation = "Death";
+            }
             return;
         }
             
@@ -75,6 +97,7 @@ public class PlayerObject : GameObject
 
         if (_isAttacking && !attackAnimationFinished)
         {
+            HandleAttackOnEnemies();
             return;
         }
         else if (_isAttacking && attackAnimationFinished)
@@ -101,6 +124,8 @@ public class PlayerObject : GameObject
 
              _spriteSheet.ActivateAnimation(desiredAnimation);
              _currentAnimation = desiredAnimation;
+             
+             HandleAttackOnEnemies();
              return;
         }
 
@@ -164,7 +189,49 @@ public class PlayerObject : GameObject
         
         if (IsDead)
         {
+            _deathTime = DateTimeOffset.Now;
+            _spriteSheet.ActivateAnimation("Death");
+            _currentAnimation = "Death";
         }
+    }
+    
+    public void SetEnemies(List<OrcObject> orcs)
+    {
+        _orcsInGame = orcs;
+    }
+    
+    private void HandleAttackOnEnemies()
+    {
+        if (!IsCurrentlyAttacking()) return;
+        
+        foreach (var orc in _orcsInGame)
+        {
+            if (orc.IsDead) continue;
+            
+            if (IsPositionInAttackArc(new Vector2D<int>(orc.Position.X, orc.Position.Y)))
+            {
+                int damage = CalculateDamage(orc);
+                bool wasAlive = !orc.IsDead;
+                orc.TakeDamage(damage);
+                
+                if (wasAlive && orc.IsDead)
+                {
+                    EnemiesKilled++;
+                }
+            }
+        }
+    }
+    
+    private int CalculateDamage(OrcObject orc)
+    {
+        int dx = orc.Position.X - X;
+        int dy = orc.Position.Y - Y;
+        float distance = MathF.Sqrt(dx * dx + dy * dy);
+        
+        if (distance < AttackRange * 0.5f)
+            return (AttackDamage * 3) / 2;
+        else
+            return AttackDamage;
     }
     
     public string GetFacingDirection()
@@ -262,6 +329,12 @@ public class PlayerObject : GameObject
 
     public void Render(GameRenderer renderer)
     {
+        if (IsDead)
+        {
+            _spriteSheet.Render(renderer, (X, Y));
+            return;
+        }
+        
         if (IsInvulnerable)
         {
             if ((DateTimeOffset.Now.Ticks / TimeSpan.TicksPerMillisecond) % 100 < 50)
@@ -274,20 +347,108 @@ public class PlayerObject : GameObject
             _spriteSheet.Render(renderer, (X, Y));
         }
         
-        int healthBarWidth = 40;
-        int healthBarHeight = 5;
-        int healthBarX = X - healthBarWidth / 2;
-        int healthBarY = Y - 50;
+        if (!IsDead)
+        {
+            int healthBarWidth = 40;
+            int healthBarHeight = 5;
+            int healthBarX = X - healthBarWidth / 2;
+            int healthBarY = Y - 50;
+            
+            renderer.RenderRectangle(
+                new Rectangle<int>(healthBarX, healthBarY, healthBarWidth, healthBarHeight),
+                255, 0, 0, 255
+            );
+            
+            int currentHealthWidth = (int)(healthBarWidth * (Health / (float)MaxHealth));
+            renderer.RenderRectangle(
+                new Rectangle<int>(healthBarX, healthBarY, currentHealthWidth, healthBarHeight),
+                0, 255, 0, 255
+            );
+        }
+    }
+    
+    public void RenderGameOverScreen(GameRenderer renderer)
+    {
+        if (!IsDead) return;
         
-        renderer.RenderRectangle(
-            new Rectangle<int>(healthBarX, healthBarY, healthBarWidth, healthBarHeight),
-            255, 0, 0, 255
-        );
+        if (_deathTime.HasValue && (DateTimeOffset.Now - _deathTime.Value).TotalMilliseconds >= _deathAnimationDuration)
+        {
+            var windowSize = renderer.GetWindowSize();
+            int windowWidth = windowSize.Width;
+            int windowHeight = windowSize.Height;
+            
+            renderer.RenderRectangle(
+                new Rectangle<int>(0, 0, windowWidth, windowHeight),
+                0, 0, 0, 180
+            );
+            
+            int titleY = windowHeight / 3;
+            int statsY = titleY + 80;
+            int waveY = statsY + 50;
+            int restartY = waveY + 70;
+            
+            string gameOverText = "GAME OVER";
+            int textWidth = gameOverText.Length * 10;
+            renderer.RenderUIText(gameOverText, windowWidth / 2 - textWidth / 2, titleY, 255, 0, 0);
+            
+            string statsText = $"Enemies Killed: {EnemiesKilled}";
+            textWidth = statsText.Length * 7;
+            renderer.RenderUIText(statsText, windowWidth / 2 - textWidth / 2, statsY, 255, 255, 255);
+            
+            string waveText = $"Highest Wave: {HighestWaveReached}";
+            textWidth = waveText.Length * 7;
+            renderer.RenderUIText(waveText, windowWidth / 2 - textWidth / 2, waveY, 255, 255, 255);
+            
+            string restartText = "Press R to Restart";
+            textWidth = restartText.Length * 7;
+            renderer.RenderUIText(restartText, windowWidth / 2 - textWidth / 2, restartY, 255, 255, 0);
+        }
+    }
+
+    public void SetVictorious()
+    {
+        if (!HasWon && !IsDead)
+        {
+            HasWon = true;
+            _victoryTime = DateTimeOffset.Now;
+        }
+    }
+    
+    public void RenderVictoryScreen(GameRenderer renderer)
+    {
+        if (!HasWon) return;
         
-        int currentHealthWidth = (int)(healthBarWidth * (Health / (float)MaxHealth));
-        renderer.RenderRectangle(
-            new Rectangle<int>(healthBarX, healthBarY, currentHealthWidth, healthBarHeight),
-            0, 255, 0, 255
-        );
+        if (_victoryTime.HasValue && (DateTimeOffset.Now - _victoryTime.Value).TotalMilliseconds >= _victoryAnimationDuration)
+        {
+            var windowSize = renderer.GetWindowSize();
+            int windowWidth = windowSize.Width;
+            int windowHeight = windowSize.Height;
+            
+            renderer.RenderRectangle(
+                new Rectangle<int>(0, 0, windowWidth, windowHeight),
+                0, 0, 0, 180
+            );
+            
+            int titleY = windowHeight / 3;
+            int statsY = titleY + 80;
+            int waveY = statsY + 50;
+            int restartY = waveY + 70;
+            
+            string victoryText = "VICTORY!";
+            int textWidth = victoryText.Length * 13;
+            renderer.RenderUIText(victoryText, windowWidth / 2 - textWidth / 2, titleY, 0, 255, 0);
+            
+            string statsText = $"Enemies Killed: {EnemiesKilled}";
+            textWidth = statsText.Length * 7;
+            renderer.RenderUIText(statsText, windowWidth / 2 - textWidth / 2, statsY, 255, 255, 255);
+            
+            string waveText = $"Highest Wave: {HighestWaveReached}";
+            textWidth = waveText.Length * 7;
+            renderer.RenderUIText(waveText, windowWidth / 2 - textWidth / 2, waveY, 255, 255, 255);
+            
+            string restartText = "Press R to Restart";
+            textWidth = restartText.Length * 7;
+            renderer.RenderUIText(restartText, windowWidth / 2 - textWidth / 2, restartY, 255, 255, 0);
+        }
     }
 }

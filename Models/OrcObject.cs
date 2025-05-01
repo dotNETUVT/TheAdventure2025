@@ -8,13 +8,13 @@ namespace TheAdventure.Models;
 
 public class OrcObject : RenderableGameObject
 {
-    public int MaxHealth { get; private set; } = 50;
-    public int Health { get; private set; }
+    public int MaxHealth { get; protected set; } = 50;
+    public int Health { get; protected set; }
     public bool IsDead => Health <= 0;
-    public DateTimeOffset? DeathTime { get; private set; } = null;
+    public DateTimeOffset? DeathTime { get; protected set; } = null;
     
-    public int AttackDamage { get; private set; } = 10;
-    public int AttackRange { get; private set; } = 25;
+    public int AttackDamage { get; protected set; } = 10;
+    public int AttackRange { get; protected set; } = 25;
     private DateTimeOffset _lastAttackTime = DateTimeOffset.MinValue;
     private readonly TimeSpan _attackCooldown = TimeSpan.FromMilliseconds(2000);
     private bool _isAttacking = false;
@@ -24,6 +24,11 @@ public class OrcObject : RenderableGameObject
     public float ChaseRange { get; set; } = 200f;
     public float AttackRangeTrigger { get; set; } = 45f;
     public PlayerObject? PlayerTarget { get; set; }
+    
+    private bool _isHurt = false;
+    private DateTimeOffset _hurtAnimationStart = DateTimeOffset.MinValue;
+    private string _lastAnimation = "";
+    private readonly int _hurtDurationMs = 300;
     
     private readonly Dictionary<string, SpriteSheet> _animationSheets;
     private string _currentAnimation = "IdleDown";
@@ -48,7 +53,13 @@ public class OrcObject : RenderableGameObject
         Health = MaxHealth;
         
         _animationSheets = new Dictionary<string, SpriteSheet>();
-        _animationSheets["Idle"] = base.SpriteSheet;
+        var idleSheet = new SpriteSheet(renderer, Path.Combine("Assets", "orc", "Orc1_idle", "orc1_idle_full.png"),
+                                       OrcRowCount, OrcColumnCount, OrcFrameWidth, OrcFrameHeight, OrcFrameCenter);
+        idleSheet.Animations["IdleDown"] = new SpriteSheet.Animation { StartFrame = (0, 0), EndFrame = (0, 3), DurationMs = 1000, Loop = true };
+        idleSheet.Animations["IdleUp"] = new SpriteSheet.Animation { StartFrame = (1, 0), EndFrame = (1, 3), DurationMs = 1000, Loop = true };
+        idleSheet.Animations["IdleLeft"] = new SpriteSheet.Animation { StartFrame = (2, 0), EndFrame = (2, 3), DurationMs = 1000, Loop = true };
+        idleSheet.Animations["IdleRight"] = new SpriteSheet.Animation { StartFrame = (3, 0), EndFrame = (3, 3), DurationMs = 1000, Loop = true };
+        _animationSheets["Idle"] = idleSheet;
 
         var walkSheet = new SpriteSheet(renderer, Path.Combine("Assets", "orc", "Orc1_walk", "orc1_walk_full.png"),
                                        OrcRowCount, OrcColumnCount, OrcFrameWidth, OrcFrameHeight, OrcFrameCenter);
@@ -79,6 +90,14 @@ public class OrcObject : RenderableGameObject
         deathSheet.Animations["Death"] = new SpriteSheet.Animation { StartFrame = (0, 0), EndFrame = (0, 5), DurationMs = 800, Loop = false };
         _animationSheets["Death"] = deathSheet;
 
+        var hurtSheet = new SpriteSheet(renderer, Path.Combine("Assets", "orc", "Orc1_hurt", "orc1_hurt_full.png"),
+                                       OrcRowCount, OrcColumnCount, OrcFrameWidth, OrcFrameHeight, OrcFrameCenter);
+        hurtSheet.Animations["HurtDown"] = new SpriteSheet.Animation { StartFrame = (0, 0), EndFrame = (0, 3), DurationMs = 300, Loop = false };
+        hurtSheet.Animations["HurtUp"] = new SpriteSheet.Animation { StartFrame = (1, 0), EndFrame = (1, 3), DurationMs = 300, Loop = false };
+        hurtSheet.Animations["HurtLeft"] = new SpriteSheet.Animation { StartFrame = (2, 0), EndFrame = (2, 3), DurationMs = 300, Loop = false };
+        hurtSheet.Animations["HurtRight"] = new SpriteSheet.Animation { StartFrame = (3, 0), EndFrame = (3, 3), DurationMs = 300, Loop = false };
+        _animationSheets["Hurt"] = hurtSheet;
+
         ActivateAnimation("IdleDown");
     }
 
@@ -93,13 +112,30 @@ public class OrcObject : RenderableGameObject
         return idleSheet;
     }
 
-    public void Update(double deltaTimeSeconds)
+    public virtual void Update(double deltaTimeSeconds)
     {
         if (IsDead)
         {
             if (_currentAnimation != "Death")
             {
                 ActivateAnimation("Death");
+            }
+            return;
+        }
+        
+        if (_isHurt)
+        {
+            if ((DateTimeOffset.Now - _hurtAnimationStart).TotalMilliseconds >= _hurtDurationMs)
+            {
+                _isHurt = false;
+                if (!string.IsNullOrEmpty(_lastAnimation))
+                {
+                    ActivateAnimation(_lastAnimation);
+                }
+                else
+                {
+                    ActivateAnimation("Idle" + _currentDirection);
+                }
             }
             return;
         }
@@ -136,7 +172,7 @@ public class OrcObject : RenderableGameObject
         RandomMovement(deltaTimeSeconds);
     }
     
-    private float CalculateDistanceToPlayer()
+    public float CalculateDistanceToPlayer()
     {
         if (PlayerTarget == null) return float.MaxValue;
         
@@ -249,7 +285,10 @@ public class OrcObject : RenderableGameObject
         {
             desiredAnimationBase = "Walk";
         }
-
+        else
+        {
+            desiredAnimationBase = "Idle";
+        }
 
         if (_isMoving) {
              int deltaX = 0;
@@ -275,7 +314,10 @@ public class OrcObject : RenderableGameObject
 
         string desiredAnimation = desiredAnimationBase + _currentDirection;
 
-        ActivateAnimation(desiredAnimation);
+        if (_currentAnimation != desiredAnimation)
+        {
+            ActivateAnimation(desiredAnimation);
+        }
     }
     
     public void TakeDamage(int damage)
@@ -288,6 +330,15 @@ public class OrcObject : RenderableGameObject
         {
             DeathTime = DateTimeOffset.Now;
             ActivateAnimation("Death");
+        }
+        else
+        {
+            string hurtAnimation = "Hurt" + _currentDirection;
+            ActivateAnimation(hurtAnimation);
+            
+            _lastAnimation = _currentAnimation;
+            _hurtAnimationStart = DateTimeOffset.Now;
+            _isHurt = true;
         }
     }
 
