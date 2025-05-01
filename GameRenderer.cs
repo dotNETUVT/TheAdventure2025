@@ -90,6 +90,34 @@ public unsafe class GameRenderer
                 in center, flip);
         }
     }
+    
+    public void RenderRectangle(Rectangle<int> rect, byte r, byte g, byte b, byte a)
+    {
+        byte originalR, originalG, originalB, originalA;
+        _sdl.GetRenderDrawColor(_renderer, &originalR, &originalG, &originalB, &originalA);
+        
+        _sdl.SetRenderDrawColor(_renderer, r, g, b, a);
+        
+        var translatedRect = _camera.ToScreenCoordinates(rect);
+        
+        _sdl.RenderFillRect(_renderer, &translatedRect);
+        
+        _sdl.SetRenderDrawColor(_renderer, originalR, originalG, originalB, originalA);
+    }
+    
+    public void RenderRectangleOutline(Rectangle<int> rect, byte r, byte g, byte b, byte a)
+    {
+        byte originalR, originalG, originalB, originalA;
+        _sdl.GetRenderDrawColor(_renderer, &originalR, &originalG, &originalB, &originalA);
+        
+        _sdl.SetRenderDrawColor(_renderer, r, g, b, a);
+        
+        var translatedRect = _camera.ToScreenCoordinates(rect);
+        
+        _sdl.RenderDrawRect(_renderer, &translatedRect);
+        
+        _sdl.SetRenderDrawColor(_renderer, originalR, originalG, originalB, originalA);
+    }
 
     public Vector2D<int> ToWorldCoordinates(int x, int y)
     {

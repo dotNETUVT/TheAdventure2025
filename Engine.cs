@@ -2,6 +2,7 @@ using System.Text.Json;
 using Silk.NET.Maths;
 using TheAdventure.Models;
 using TheAdventure.Models.Data;
+using System.Collections.Generic;
 
 namespace TheAdventure;
 
@@ -16,6 +17,11 @@ public class Engine
 
     private Level _currentLevel = new();
     private PlayerObject? _player;
+    private List<OrcObject> _orcs = new();
+    private List<OrcObject> _orcsToRemove = new();
+    private List<HeartPickup> _heartPickups = new();
+    private List<HeartPickup> _heartsToRemove = new();
+    private List<BombObject> _bombs = new();
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
 
@@ -29,6 +35,13 @@ public class Engine
 
     public void SetupWorld()
     {
+        _gameObjects.Clear();
+        _orcs.Clear();
+        _orcsToRemove.Clear();
+        _heartPickups.Clear();
+        _heartsToRemove.Clear();
+        _bombs.Clear();
+        
         _player = new(_renderer);
 
         var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
@@ -38,22 +51,25 @@ public class Engine
             throw new Exception("Failed to load level");
         }
 
-        foreach (var tileSetRef in level.TileSets)
+        if (_loadedTileSets.Count == 0)
         {
-            var tileSetContent = File.ReadAllText(Path.Combine("Assets", tileSetRef.Source));
-            var tileSet = JsonSerializer.Deserialize<TileSet>(tileSetContent);
-            if (tileSet == null)
+            foreach (var tileSetRef in level.TileSets)
             {
-                throw new Exception("Failed to load tile set");
-            }
+                var tileSetContent = File.ReadAllText(Path.Combine("Assets", tileSetRef.Source));
+                var tileSet = JsonSerializer.Deserialize<TileSet>(tileSetContent);
+                if (tileSet == null)
+                {
+                    throw new Exception("Failed to load tile set");
+                }
 
-            foreach (var tile in tileSet.Tiles)
-            {
-                tile.TextureId = _renderer.LoadTexture(Path.Combine("Assets", tile.Image), out _);
-                _tileIdMap.Add(tile.Id!.Value, tile);
-            }
+                foreach (var tile in tileSet.Tiles)
+                {
+                    tile.TextureId = _renderer.LoadTexture(Path.Combine("Assets", tile.Image), out _);
+                    _tileIdMap.Add(tile.Id!.Value, tile);
+                }
 
-            _loadedTileSets.Add(tileSet.Name, tileSet);
+                _loadedTileSets.Add(tileSet.Name, tileSet);
+            }
         }
 
         if (level.Width == null || level.Height == null)
@@ -70,20 +86,159 @@ public class Engine
             level.Height.Value * level.TileHeight.Value));
 
         _currentLevel = level;
+
+        SpawnOrcs(5);
+    }
+    
+    private void SpawnOrcs(int count)
+    {
+        Random random = new Random();
+        
+        for (int i = 0; i < count; i++)
+        {
+            int distance = random.Next(150, 400);
+            double angle = random.NextDouble() * Math.PI * 2;
+            
+            int x = _player!.X + (int)(Math.Cos(angle) * distance);
+            int y = _player!.Y + (int)(Math.Sin(angle) * distance);
+            
+            x = Math.Clamp(x, 100, (_currentLevel.Width ?? 60) * (_currentLevel.TileWidth ?? 16) - 100);
+            y = Math.Clamp(y, 100, (_currentLevel.Height ?? 40) * (_currentLevel.TileHeight ?? 16) - 100);
+            
+            var orc = new OrcObject(_renderer, (x, y));
+            orc.PlayerTarget = _player;
+            _gameObjects.Add(orc.Id, orc);
+            _orcs.Add(orc);
+        }
     }
 
     public void ProcessFrame()
     {
         var currentTime = DateTimeOffset.Now;
         var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
+        var deltaSeconds = msSinceLastFrame / 1000.0;
         _lastUpdate = currentTime;
 
-        double up = _input.IsUpPressed() ? 1.0 : 0.0;
-        double down = _input.IsDownPressed() ? 1.0 : 0.0;
-        double left = _input.IsLeftPressed() ? 1.0 : 0.0;
-        double right = _input.IsRightPressed() ? 1.0 : 0.0;
+        if (_input.IsRestartPressed())
+        {
+            SetupWorld();
+            return;
+        }
 
-        _player?.UpdatePosition(up, down, left, right, (int)msSinceLastFrame);
+        if (_player?.IsDead == true)
+        {
+            return;
+        }
+
+        _player?.Update(_input, (int)msSinceLastFrame);
+
+        _orcsToRemove.Clear();
+        _heartsToRemove.Clear();
+
+        foreach (var gameObject in _gameObjects.Values)
+        {
+            if (gameObject is BombObject bomb && bomb.ShouldDamage())
+            {
+                if (_player != null && !_player.IsDead && 
+                    bomb.IsInExplosionRange(new Vector2D<int>(_player.X, _player.Y)))
+                {
+                    _player.TakeDamage(bomb.Damage);
+                }
+                
+                foreach (var orc in _orcs)
+                {
+                    if (!orc.IsDead && bomb.IsInExplosionRange(new Vector2D<int>(orc.Position.X, orc.Position.Y)))
+                    {
+                        orc.TakeDamage(bomb.Damage);
+                    }
+                }
+            }
+        }
+
+        foreach (var orc in _orcs)
+        {
+            orc.Update(deltaSeconds);
+            
+            if (_player != null && _player.IsCurrentlyAttacking() && !orc.IsDead)
+            {
+                if (_player.IsPositionInAttackArc(new Vector2D<int>(orc.Position.X, orc.Position.Y)))
+                {
+                    int distanceToDamageBonus(float distance)
+                    {
+                        float range = _player.AttackRange;
+                        if (distance < range * 0.5f)
+                            return (_player.AttackDamage * 3) / 2;
+                        else
+                            return _player.AttackDamage;
+                    }
+                    
+                    int dx = orc.Position.X - _player.X;
+                    int dy = orc.Position.Y - _player.Y;
+                    float distance = MathF.Sqrt(dx * dx + dy * dy);
+                    
+                    int damage = distanceToDamageBonus(distance);
+                    orc.TakeDamage(damage);
+                }
+            }
+            
+            if (orc.IsDead)
+            {
+                if (orc.DeathTime.HasValue && (DateTimeOffset.Now - orc.DeathTime.Value) > TimeSpan.FromSeconds(2))
+                {
+                    _orcsToRemove.Add(orc);
+                }
+            }
+        }
+        
+        foreach (var heart in _heartPickups)
+        {
+            heart.Update(deltaSeconds);
+            
+            if (heart.IsPickedUp)
+            {
+                _heartsToRemove.Add(heart);
+            }
+        }
+        
+        Random random = new Random();
+        foreach (var deadOrc in _orcsToRemove)
+        {
+            if (random.NextDouble() <= 0.6)
+            {
+                var heartPickup = new HeartPickup(_renderer, deadOrc.Position);
+                heartPickup.PlayerTarget = _player;
+                _heartPickups.Add(heartPickup);
+                _gameObjects.Add(heartPickup.Id, heartPickup);
+            }
+            
+            _orcs.Remove(deadOrc);
+            _gameObjects.Remove(deadOrc.Id);
+            
+            if (_orcs.Count < 10 && random.NextDouble() < 0.2)
+            {
+                SpawnOrcs(1);
+            }
+        }
+        
+        foreach (var heart in _heartsToRemove)
+        {
+            _heartPickups.Remove(heart);
+            _gameObjects.Remove(heart.Id);
+        }
+
+        var expiredIds = new List<int>();
+        foreach (var gameObject in _gameObjects.Values)
+        {
+            if (gameObject is TemporaryGameObject tempGo && tempGo.IsExpired)
+            {
+                expiredIds.Add(tempGo.Id);
+            }
+        }
+
+        foreach (var id in expiredIds)
+        {
+            _gameObjects.Remove(id);
+        }
     }
 
     public void RenderFrame()
@@ -117,6 +272,7 @@ public class Engine
         }
 
         _player?.Render(_renderer);
+        
     }
 
     public void RenderTerrain()
@@ -154,6 +310,9 @@ public class Engine
 
     public IEnumerable<RenderableGameObject> GetRenderables()
     {
+        if (_player != null)
+        {
+        }
         foreach (var gameObject in _gameObjects.Values)
         {
             if (gameObject is RenderableGameObject renderableGameObject)
@@ -177,7 +336,8 @@ public class Engine
         };
         spriteSheet.ActivateAnimation("Explode");
 
-        TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
+        BombObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y), 30, 120f);
         _gameObjects.Add(bomb.Id, bomb);
+        _bombs.Add(bomb);
     }
 }
