@@ -21,6 +21,8 @@ public class Engine
     private PlayerObject? _player;
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
+    private bool _immortalKeyPressed = false;
+    private bool _speedKeyPressed = false;  // Add flag for speed key state
 
     private const int MinimumBombDistance = 32;
     private const int ExplosionRadius = 25; 
@@ -61,10 +63,17 @@ public class Engine
         _bombThatHitPlayerId = null; 
         const int initialX = 100;
         const int initialY = 100;
-        _player?.Reset(initialX, initialY);
-        _renderer.CameraLookAt(initialX, initialY); 
+        if (_player != null)
+        {
+            _player.Reset(initialX, initialY);
+            _gameUI.SetImmortalVisible(false);
+            _gameUI.SetSpeedVisible(false);
+        }
+        _renderer.CameraLookAt(initialX, initialY);
         _gameUI.HideGameOver();
         _gameOverDelayStartTime = DateTimeOffset.MinValue; 
+        _immortalKeyPressed = false;
+        _speedKeyPressed = false;
     }
 
     public void SetupWorld()
@@ -117,6 +126,24 @@ public class Engine
         var currentTime = DateTimeOffset.Now;
         var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
         _lastUpdate = currentTime;
+        
+        // Handle Immortality Toggle
+        bool immortalKeyDown = _input.IsImmortalityTogglePressed();
+        if (immortalKeyDown && !_immortalKeyPressed && _player != null && !_player.IsDead)
+        {
+            _player.ToggleImmortality();
+            _gameUI.SetImmortalVisible(_player.IsImmortal);
+        }
+        _immortalKeyPressed = immortalKeyDown;
+        
+        // Handle Speed Toggle
+        bool speedKeyDown = _input.IsSpeedTogglePressed();
+        if (speedKeyDown && !_speedKeyPressed && _player != null && !_player.IsDead)
+        {
+            _player.ToggleSuperSpeed();
+            _gameUI.SetSpeedVisible(_player.IsSuperSpeed);
+        }
+        _speedKeyPressed = speedKeyDown;
 
         if (_gameUI.IsGameOverVisible)
         {
@@ -154,33 +181,42 @@ public class Engine
     {
         var bombsToRemove = new List<int>();
 
+        // First, find bombs that are about to explode and mark them
         foreach (var kvp in _gameObjects)
         {
             if (kvp.Value is TemporaryGameObject tempBomb && _activeBombs.ContainsKey(tempBomb.Id))
             {
-                 double timeLeft = tempBomb.Ttl - (currentTime - tempBomb.SpawnTime).TotalSeconds;
-                 if (timeLeft <= ExplosionTimeThreshold && !_explodingBombs.ContainsKey(tempBomb.Id))
-                 {
-                     _explodingBombs[tempBomb.Id] = currentTime;
-                 }
+                double timeLeft = tempBomb.Ttl - (currentTime - tempBomb.SpawnTime).TotalSeconds;
+                
+                // Only mark bomb as exploding when it reaches the explosion threshold
+                // This is about 2 seconds after placement
+                if (timeLeft <= ExplosionTimeThreshold && !_explodingBombs.ContainsKey(tempBomb.Id))
+                {
+                    _explodingBombs[tempBomb.Id] = currentTime;
+                }
             }
         }
         
+        // Then handle expired bombs - this will completely remove them from the game
         foreach (var kvp in _gameObjects)
         {
-             if (kvp.Value is TemporaryGameObject tempBomb && tempBomb.IsExpired) 
-             {
-                 bombsToRemove.Add(tempBomb.Id);
-                 _activeBombs.Remove(tempBomb.Id);
-                 _explodingBombs.Remove(tempBomb.Id); 
-
-                 if (_player != null && !_player.IsDead && _bombThatHitPlayerId == tempBomb.Id)
-                 {
-                     _player.Die(); 
-                     _gameOverDelayStartTime = currentTime; 
-                     _bombThatHitPlayerId = null; 
-                 }
-             }
+            if (kvp.Value is TemporaryGameObject tempBomb && tempBomb.IsExpired) 
+            {
+                bombsToRemove.Add(tempBomb.Id);
+                _activeBombs.Remove(tempBomb.Id);
+                
+                // Only process player death if this bomb was marked as hitting the player
+                if (_player != null && !_player.IsDead && _bombThatHitPlayerId == tempBomb.Id)
+                {
+                    _player.Die(); 
+                    _gameUI.SetImmortalVisible(false);
+                    _gameUI.SetSpeedVisible(false);
+                    _gameOverDelayStartTime = currentTime; 
+                    _bombThatHitPlayerId = null; 
+                }
+                
+                _explodingBombs.Remove(tempBomb.Id);
+            }
         }
         
         foreach (var id in bombsToRemove)
@@ -191,12 +227,21 @@ public class Engine
 
     private void CheckBombCollisions()
     {
-        if (_player == null || _player.IsDead || _bombThatHitPlayerId != null) return; 
+        // Only check collisions if player is not dead, not immortal, and not already marked for death
+        if (_player == null || _player.IsDead || _bombThatHitPlayerId != null || _player.IsImmortal) return; 
 
         var playerPos = new Vector2D<int>(_player.Position.X, _player.Position.Y);
+        var currentTime = DateTimeOffset.Now;
         
-        foreach (var bombId in _explodingBombs.Keys) 
+        // Only consider bombs that are actually in the exploding state
+        foreach (var bombIdAndTime in _explodingBombs) 
         {
+            int bombId = bombIdAndTime.Key;
+            DateTimeOffset explosionStartTime = bombIdAndTime.Value;
+            
+            // Reduced from 1.6s to 1s - shorter time for player to escape
+            if ((currentTime - explosionStartTime).TotalSeconds < 1.0) continue;
+            
             if (_activeBombs.TryGetValue(bombId, out var bombPos))
             {
                 var distance = Vector2D.Distance(playerPos, bombPos);
@@ -231,6 +276,8 @@ public class Engine
     public void RenderAllObjects()
     {
         var toRemove = new List<int>();
+        
+        // Draw all bombs
         foreach (var gameObject in GetRenderables())
         {
             gameObject.Render(_renderer);
@@ -241,11 +288,13 @@ public class Engine
             }
         }
 
+        // Remove expired bombs
         foreach (var id in toRemove)
         {
             _gameObjects.Remove(id);
         }
 
+        // Draw player on top of bombs to ensure visual priority
         _player?.Render(_renderer);
     }
 
@@ -295,6 +344,7 @@ public class Engine
 
     private bool IsPositionNearActiveBomb(Vector2D<int> position)
     {
+        // Only check distance to other bombs, not to player position
         foreach (var bombPos in _activeBombs.Values)
         {
             var distance = Vector2D.Distance(position, bombPos);
@@ -312,6 +362,7 @@ public class Engine
         
         var worldCoords = _renderer.ToWorldCoordinates(screenX, screenY);
         
+        // Only check for proximity to other bombs, not to the player
         if (IsPositionNearActiveBomb(new Vector2D<int>(worldCoords.X, worldCoords.Y)))
         {
             return;
@@ -320,9 +371,11 @@ public class Engine
         SpriteSheet spriteSheet = SpriteSheet.Load(_renderer, "BombExploding.json", "Assets");
         spriteSheet.ActivateAnimation("Explode");
 
+        // Create bomb with 2.1 second timer
         TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y)); 
         _gameObjects.Add(bomb.Id, bomb);
         
+        // Add bomb position to track it, but never restrict player movement
         _activeBombs.Add(bomb.Id, new Vector2D<int>(worldCoords.X, worldCoords.Y));
     }
 }
