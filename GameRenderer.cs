@@ -30,6 +30,8 @@ public unsafe class GameRenderer
         _camera = new Camera(windowSize.Width, windowSize.Height);
     }
 
+    public (int Width, int Height) WindowSize => _window.Size;
+
     public void SetWorldBounds(Rectangle<int> bounds)
     {
         _camera.SetWorldBounds(bounds);
@@ -78,6 +80,16 @@ public unsafe class GameRenderer
         return _textureId++;
     }
 
+    public TextureData GetTextureData(int textureId)
+    {
+        if (_textureData.TryGetValue(textureId, out var data))
+        {
+            return data;
+        }
+        
+        return new TextureData { Width = 0, Height = 0 };
+    }
+
     public void RenderTexture(int textureId, Rectangle<int> src, Rectangle<int> dst,
         RendererFlip flip = RendererFlip.None, double angle = 0.0, Point center = default)
     {
@@ -89,6 +101,34 @@ public unsafe class GameRenderer
                 angle,
                 in center, flip);
         }
+    }
+
+    public void RenderUITexture(int textureId, Rectangle<int> src, Rectangle<int> dst,
+        RendererFlip flip = RendererFlip.None, double angle = 0.0, Point center = default)
+    {
+        if (_texturePointers.TryGetValue(textureId, out var imageTexture))
+        {
+            _sdl.RenderCopyEx(_renderer, (Texture*)imageTexture, in src,
+                in dst,
+                angle,
+                in center, flip);
+        }
+    }
+    
+    public void DrawText(string text, int x, int y)
+    {
+        int boxHeight = 20;
+        int boxWidth = 120;
+        
+        Rectangle<int> bgRect = new Rectangle<int>(x, y, boxWidth, boxHeight);
+        _sdl.SetRenderDrawColor(_renderer, 0, 0, 0, 255);
+        _sdl.RenderFillRect(_renderer, &bgRect);
+        
+        _sdl.SetRenderDrawColor(_renderer, 255, 255, 0, 255);
+        _sdl.RenderDrawRect(_renderer, &bgRect);
+        
+        Rectangle<int> indicator = new Rectangle<int>(x + 10, y + 5, 10, 10);
+        _sdl.RenderFillRect(_renderer, &indicator);
     }
 
     public Vector2D<int> ToWorldCoordinates(int x, int y)
@@ -109,5 +149,10 @@ public unsafe class GameRenderer
     public void PresentFrame()
     {
         _sdl.RenderPresent(_renderer);
+    }
+
+    public Renderer* GetRenderer()
+    {
+        return _renderer;
     }
 }

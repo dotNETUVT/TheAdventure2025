@@ -37,6 +37,24 @@ public unsafe class Input
         return keyboardState[(int)KeyCode.Down] == 1;
     }
 
+    public bool IsRestartPressed()
+    {
+        ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
+        return keyboardState[(int)KeyCode.R] == 1;
+    }
+    
+    public bool IsImmortalityTogglePressed()
+    {
+        ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
+        return keyboardState[(int)KeyCode.I] == 1;
+    }
+
+    public bool IsSpeedTogglePressed()
+    {
+        ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
+        return keyboardState[(int)KeyCode.F] == 1;
+    }
+
     public bool ProcessInput()
     {
         Event ev = new Event();

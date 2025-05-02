@@ -43,14 +43,14 @@ public class Camera
     
     public void LookAt(int x, int y)
     {
-        if (_worldBounds.Contains(new Vector2D<int>(_x, y)))
-        {
-            _y = y;
-        }
-        if (_worldBounds.Contains(new Vector2D<int>(x, _y)))
-        {
-            _x = x;
-        }
+        int minX = _worldBounds.Origin.X;
+        int minY = _worldBounds.Origin.Y;
+        int maxX = _worldBounds.Origin.X + _worldBounds.Size.X;
+        int maxY = _worldBounds.Origin.Y + _worldBounds.Size.Y;
+
+        _x = Math.Clamp(x, minX, maxX);
+        
+        _y = Math.Clamp(y, minY, maxY);
     }
 
     public Rectangle<int> ToScreenCoordinates(Rectangle<int> rect)
