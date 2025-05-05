@@ -37,6 +37,18 @@ public unsafe class Input
         return keyboardState[(int)KeyCode.Down] == 1;
     }
 
+    public bool IsSpacePressed()
+    {
+        ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
+        return keyboardState[(int)KeyCode.Space] == 1;
+    }
+
+    public bool IsEPressed()
+    {
+        ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
+        return keyboardState[(int)KeyCode.E] == 1;
+    }
+
     public bool ProcessInput()
     {
         Event ev = new Event();
