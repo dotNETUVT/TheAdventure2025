@@ -6,6 +6,8 @@ public class RenderableGameObject : GameObject
 {
     public SpriteSheet SpriteSheet { get; set; }
     public (int X, int Y) Position { get; set; }
+
+     public bool IsExpired { get; set; } = false;
     public double Angle { get; set; }
     public Point RotationCenter { get; set; }
 

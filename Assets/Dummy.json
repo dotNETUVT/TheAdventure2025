@@ -1,0 +1,25 @@
+{
+  "rowCount": 1,
+  "columnCount": 1,
+  "frameWidth": 48,
+  "frameHeight": 48,
+  "frameCenter": {
+    "offsetX": 24,
+    "offsetY": 42
+  },
+  "fileName": "dummy.png",
+  "animations": {
+    "Idle": {
+      "startFrame": {
+        "row": 0,
+        "col": 0
+      },
+      "endFrame": {
+        "row": 0,
+        "col": 0
+      },
+      "durationMs": 1000,
+      "loop": true
+    }
+  }
+}

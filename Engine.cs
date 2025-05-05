@@ -1,3 +1,4 @@
+﻿using System.Numerics;
 using System.Text.Json;
 using Silk.NET.Maths;
 using TheAdventure.Models;
@@ -14,8 +15,11 @@ public class Engine
     private readonly Dictionary<string, TileSet> _loadedTileSets = new();
     private readonly Dictionary<int, Tile> _tileIdMap = new();
 
+    private const float BombDamageDistance = 80f;
+
     private Level _currentLevel = new();
     private PlayerObject? _player;
+    private TrainingDummyObject? _dummy;
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
 
@@ -29,7 +33,10 @@ public class Engine
 
     public void SetupWorld()
     {
-        _player = new(_renderer);
+        _player = new(SpriteSheet.Load(_renderer, "Player.json", "Assets"), 100, 100);
+        var dummySpriteSheet = SpriteSheet.Load(_renderer, "Dummy.json", "Assets");
+        _dummy = new TrainingDummyObject(dummySpriteSheet, 200, 200);
+        _gameObjects.Add(_dummy.Id, _dummy);
 
         var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
         var level = JsonSerializer.Deserialize<Level>(levelContent);
@@ -75,23 +82,109 @@ public class Engine
     public void ProcessFrame()
     {
         var currentTime = DateTimeOffset.Now;
-        var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
+        var msSinceLast = (currentTime - _lastUpdate).TotalMilliseconds;
         _lastUpdate = currentTime;
+
+        double delta = msSinceLast / 1000.0;
 
         double up = _input.IsUpPressed() ? 1.0 : 0.0;
         double down = _input.IsDownPressed() ? 1.0 : 0.0;
         double left = _input.IsLeftPressed() ? 1.0 : 0.0;
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
+        bool attack = _input.IsAttackPressed();
 
-        _player?.UpdatePosition(up, down, left, right, (int)msSinceLastFrame);
+        if (_player != null)
+        {
+            _player.Update(delta);
+
+            if (!_player.IsDead)
+            {
+                if (attack)
+                {
+                    _player.Attack();
+                    AttemptBombThrow();
+
+                    if (_dummy != null && IsInRange(_player.Position, _dummy.Position, 48))
+                    {
+                        _dummy.TakeDamage();
+                    }
+                }
+
+                if (!_player.IsAttacking)
+                {
+                    _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLast);
+                }
+            }
+        }
+
+        // update bombs
+        foreach (var obj in _gameObjects.Values)
+        {
+            if (obj is TemporaryGameObject bomb)
+            {
+                bomb.Update(delta);
+
+                if (!bomb.IsFlying && bomb.IsExpired && _dummy != null && IsInRange(bomb.Position, _dummy.Position, 80))
+                {
+                    _dummy.TakeDamage();
+                }
+            }
+        }
+
+        if (_player != null && !_player.IsDead)
+        {
+            foreach (var obj in _gameObjects.Values)
+            {
+                if (obj is TemporaryGameObject bomb && bomb.IsExpired)
+                {
+                    var playerPos = new Vector2(_player.Position.X, _player.Position.Y);
+                    var bombPos = new Vector2(bomb.Position.X, bomb.Position.Y);
+                    if (Vector2.Distance(playerPos, bombPos) < BombDamageDistance)
+                    {
+                        _player.Die();
+                        break;
+                    }
+                }
+            }
+        }
     }
+    private bool IsInRange((int X, int Y) pos1, (int X, int Y) pos2, float range)
+    {
+        var dx = pos1.X - pos2.X;
+        var dy = pos1.Y - pos2.Y;
+        return (dx * dx + dy * dy) <= (range * range);
+    }
+
+    private void AttemptBombThrow()
+    {
+        var p = new Vector2(_player.Position.X, _player.Position.Y);
+        const float range = 80f;
+
+        foreach (var obj in _gameObjects.Values)
+        {
+            if (obj is TemporaryGameObject bomb && !bomb.IsFlying)
+            {
+                var b = new Vector2(bomb.Position.X, bomb.Position.Y);
+                if (Vector2.Distance(p, b) <= range)
+                {
+                    Vector2 playerPos = new(_player.Position.X, _player.Position.Y);
+                    Vector2 playerDir = _player.FacingDirection;
+
+                    bomb.Launch(playerPos, playerDir);
+                    break;
+                }
+            }
+        }
+    }
+
 
     public void RenderFrame()
     {
         _renderer.SetDrawColor(0, 0, 0, 255);
         _renderer.ClearScreen();
 
-        _renderer.CameraLookAt(_player!.X, _player!.Y);
+        var playerPosition = _player!.Position;
+        _renderer.CameraLookAt(playerPosition.X, playerPosition.Y);
 
         RenderTerrain();
         RenderAllObjects();
@@ -104,7 +197,11 @@ public class Engine
         var toRemove = new List<int>();
         foreach (var gameObject in GetRenderables())
         {
-            gameObject.Render(_renderer);
+            if (gameObject is RenderableGameObject renderableGameObject && !renderableGameObject.IsExpired)
+            {
+                renderableGameObject.Render(_renderer);
+            }
+
             if (gameObject is TemporaryGameObject { IsExpired: true } tempGameObject)
             {
                 toRemove.Add(tempGameObject.Id);
@@ -118,6 +215,7 @@ public class Engine
 
         _player?.Render(_renderer);
     }
+
 
     public void RenderTerrain()
     {
@@ -167,14 +265,7 @@ public class Engine
     {
         var worldCoords = _renderer.ToWorldCoordinates(screenX, screenY);
 
-        SpriteSheet spriteSheet = new(_renderer, Path.Combine("Assets", "BombExploding.png"), 1, 13, 32, 64, (16, 48));
-        spriteSheet.Animations["Explode"] = new SpriteSheet.Animation
-        {
-            StartFrame = (0, 0),
-            EndFrame = (0, 12),
-            DurationMs = 2000,
-            Loop = false
-        };
+        SpriteSheet spriteSheet = SpriteSheet.Load(_renderer, "BombExploding.json", "Assets");
         spriteSheet.ActivateAnimation("Explode");
 
         TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
