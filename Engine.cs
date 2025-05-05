@@ -19,12 +19,19 @@ public class Engine
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
 
+    private int _levelWidth;
+    private int _levelHeight;
+    private DateTimeOffset _lastBombSpawnTime = DateTimeOffset.Now;
+    private readonly double _bombSpawnInterval = 2000;
+    private readonly int _minSpawnRadius = 10;
+    private readonly int _maxSpawnRadius = 100;
+
+    private readonly Random _random = new();
+
     public Engine(GameRenderer renderer, Input input)
     {
         _renderer = renderer;
         _input = input;
-
-        _input.OnMouseClick += (_, coords) => AddBomb(coords.x, coords.y);
     }
 
     public void SetupWorld()
@@ -37,6 +44,9 @@ public class Engine
         {
             throw new Exception("Failed to load level");
         }
+
+        _levelWidth = level.Width!.Value * level.TileWidth!.Value;
+        _levelHeight = level.Height!.Value * level.TileHeight!.Value;
 
         foreach (var tileSetRef in level.TileSets)
         {
@@ -84,6 +94,25 @@ public class Engine
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
 
         _player?.UpdatePosition(up, down, left, right, (int)msSinceLastFrame);
+
+        if ((currentTime - _lastBombSpawnTime).TotalMilliseconds >= _bombSpawnInterval)
+        {
+            double angle = _random.NextDouble() * 2 * Math.PI;
+
+            // Generate random distance within radius range
+            int distance = _random.Next(_minSpawnRadius, _maxSpawnRadius);
+
+            // Calculate offset from player's position
+            int offsetX = (int)(Math.Cos(angle) * distance);
+            int offsetY = (int)(Math.Sin(angle) * distance);
+
+            // Calculate bomb position within world bounds
+            int bombX = Math.Clamp(_player.X + offsetX, 0, _levelWidth);
+            int bombY = Math.Clamp(_player.Y + offsetY, 0, _levelHeight);
+
+            AddBomb(bombX, bombY);
+            _lastBombSpawnTime = currentTime;
+        }
     }
 
     public void RenderFrame()
@@ -163,10 +192,8 @@ public class Engine
         }
     }
 
-    private void AddBomb(int screenX, int screenY)
+    private void AddBomb(int worldX, int worldY)
     {
-        var worldCoords = _renderer.ToWorldCoordinates(screenX, screenY);
-
         SpriteSheet spriteSheet = new(_renderer, Path.Combine("Assets", "BombExploding.png"), 1, 13, 32, 64, (16, 48));
         spriteSheet.Animations["Explode"] = new SpriteSheet.Animation
         {
@@ -177,7 +204,7 @@ public class Engine
         };
         spriteSheet.ActivateAnimation("Explode");
 
-        TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
+        TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldX, worldY));
         _gameObjects.Add(bomb.Id, bomb);
     }
 }
