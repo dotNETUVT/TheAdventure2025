@@ -19,6 +19,7 @@ public class Engine
 
     private Level _currentLevel = new();
     private PlayerObject? _player;
+    private TrainingDummyObject? _dummy;
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
 
@@ -33,6 +34,9 @@ public class Engine
     public void SetupWorld()
     {
         _player = new(SpriteSheet.Load(_renderer, "Player.json", "Assets"), 100, 100);
+        var dummySpriteSheet = SpriteSheet.Load(_renderer, "Dummy.json", "Assets");
+        _dummy = new TrainingDummyObject(dummySpriteSheet, 200, 200);
+        _gameObjects.Add(_dummy.Id, _dummy);
 
         var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
         var level = JsonSerializer.Deserialize<Level>(levelContent);
@@ -99,6 +103,11 @@ public class Engine
                 {
                     _player.Attack();
                     AttemptBombThrow();
+
+                    if (_dummy != null && IsInRange(_player.Position, _dummy.Position, 48))
+                    {
+                        _dummy.TakeDamage();
+                    }
                 }
 
                 if (!_player.IsAttacking)
@@ -114,6 +123,11 @@ public class Engine
             if (obj is TemporaryGameObject bomb)
             {
                 bomb.Update(delta);
+
+                if (!bomb.IsFlying && bomb.IsExpired && _dummy != null && IsInRange(bomb.Position, _dummy.Position, 80))
+                {
+                    _dummy.TakeDamage();
+                }
             }
         }
 
@@ -134,7 +148,12 @@ public class Engine
             }
         }
     }
-
+    private bool IsInRange((int X, int Y) pos1, (int X, int Y) pos2, float range)
+    {
+        var dx = pos1.X - pos2.X;
+        var dy = pos1.Y - pos2.Y;
+        return (dx * dx + dy * dy) <= (range * range);
+    }
 
     private void AttemptBombThrow()
     {
@@ -178,7 +197,11 @@ public class Engine
         var toRemove = new List<int>();
         foreach (var gameObject in GetRenderables())
         {
-            gameObject.Render(_renderer);
+            if (gameObject is RenderableGameObject renderableGameObject && !renderableGameObject.IsExpired)
+            {
+                renderableGameObject.Render(_renderer);
+            }
+
             if (gameObject is TemporaryGameObject { IsExpired: true } tempGameObject)
             {
                 toRemove.Add(tempGameObject.Id);
@@ -192,6 +215,7 @@ public class Engine
 
         _player?.Render(_renderer);
     }
+
 
     public void RenderTerrain()
     {
