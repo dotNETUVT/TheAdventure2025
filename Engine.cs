@@ -1,3 +1,4 @@
+using System.Numerics;
 using System.Text.Json;
 using Silk.NET.Maths;
 using TheAdventure.Models;
@@ -78,20 +79,63 @@ public class Engine
         var msSinceLast = (currentTime - _lastUpdate).TotalMilliseconds;
         _lastUpdate = currentTime;
 
+        double delta = msSinceLast / 1000.0;
+
         double up = _input.IsUpPressed() ? 1.0 : 0.0;
         double down = _input.IsDownPressed() ? 1.0 : 0.0;
         double left = _input.IsLeftPressed() ? 1.0 : 0.0;
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
         bool attack = _input.IsAttackPressed();
 
-        if (_player != null && attack)
+        if (_player != null)
         {
-            _player.Attack();
-            return;
+            _player.Update(delta);
+
+            if (attack)
+            {
+                _player.Attack();
+                AttemptBombThrow();
+            }
+
+            // only move if not attacking
+            if (!_player.IsAttacking)
+            {
+                _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLast);
+            }
         }
 
-        _player?.UpdatePosition(up, down, left, right, 48, 48, msSinceLast);
+        // update bombs
+        foreach (var obj in _gameObjects.Values)
+        {
+            if (obj is TemporaryGameObject bomb)
+            {
+                bomb.Update(delta);
+            }
+        }
     }
+
+    private void AttemptBombThrow()
+    {
+        var p = new Vector2(_player.Position.X, _player.Position.Y);
+        const float range = 80f;
+
+        foreach (var obj in _gameObjects.Values)
+        {
+            if (obj is TemporaryGameObject bomb && !bomb.IsFlying)
+            {
+                var b = new Vector2(bomb.Position.X, bomb.Position.Y);
+                if (Vector2.Distance(p, b) <= range)
+                {
+                    Vector2 playerPos = new(_player.Position.X, _player.Position.Y);
+                    Vector2 playerDir = _player.FacingDirection;
+
+                    bomb.Launch(playerPos, playerDir);
+                    break;
+                }
+            }
+        }
+    }
+
 
     public void RenderFrame()
     {
