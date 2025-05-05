@@ -30,6 +30,10 @@ public class Engine
     public void SetupWorld()
     {
         _player = new(_renderer);
+        
+        var bat = new EnemyObject(_renderer, _player, 300, 300); 
+        _gameObjects.Add(bat.Id, bat);
+
 
         var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
         var level = JsonSerializer.Deserialize<Level>(levelContent);
@@ -83,7 +87,15 @@ public class Engine
         double left = _input.IsLeftPressed() ? 1.0 : 0.0;
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
 
-        _player?.UpdatePosition(up, down, left, right, (int)msSinceLastFrame);
+        bool isAttack = _input.IsAttackPressed();
+        bool isSprinting = _input.IsSprintPressed();
+
+        _player?.UpdatePosition(up, down, left, right, (int)msSinceLastFrame, isAttack, isSprinting);
+
+        foreach (var gameObject in _gameObjects.Values)
+        {
+            gameObject.Update((int)msSinceLastFrame);
+        }
     }
 
     public void RenderFrame()
@@ -177,7 +189,8 @@ public class Engine
         };
         spriteSheet.ActivateAnimation("Explode");
 
-        TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
+        var enemies = _gameObjects.Values.OfType<EnemyObject>().ToList();
+        BombObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y), _player!, enemies);
         _gameObjects.Add(bomb.Id, bomb);
     }
 }
