@@ -78,6 +78,15 @@ public class SpriteSheet
 
         return spriteSheet;
     }
+    public bool IsActiveAnimationFinished()
+    //required to wait for attack animation finish
+    {
+        if (ActiveAnimation == null || ActiveAnimation.Loop)
+            return false;
+
+        var elapsed = (DateTimeOffset.Now - _animationStart).TotalMilliseconds;
+        return elapsed >= ActiveAnimation.DurationMs;
+    }
 
     public void ActivateAnimation(string name)
     {

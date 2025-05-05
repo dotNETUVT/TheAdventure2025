@@ -75,15 +75,22 @@ public class Engine
     public void ProcessFrame()
     {
         var currentTime = DateTimeOffset.Now;
-        var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
+        var msSinceLast = (currentTime - _lastUpdate).TotalMilliseconds;
         _lastUpdate = currentTime;
 
         double up = _input.IsUpPressed() ? 1.0 : 0.0;
         double down = _input.IsDownPressed() ? 1.0 : 0.0;
         double left = _input.IsLeftPressed() ? 1.0 : 0.0;
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
+        bool attack = _input.IsAttackPressed();
 
-        _player?.UpdatePosition(up, down, left, right, 48, 48,msSinceLastFrame);
+        if (_player != null && attack)
+        {
+            _player.Attack();
+            return;
+        }
+
+        _player?.UpdatePosition(up, down, left, right, 48, 48, msSinceLast);
     }
 
     public void RenderFrame()

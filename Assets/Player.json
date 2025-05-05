@@ -72,6 +72,58 @@
       "durationMs": 1000,
       "loop": true,
       "flip": 0
+    },
+    "AttackDown": {
+      "startFrame": {
+        "row": 6,
+        "col": 0
+      },
+      "endFrame": {
+        "row": 6,
+        "col": 3
+      },
+      "durationMs": 800,
+      "loop": false,
+      "flip": 0
+    },
+    "AttackRight": {
+      "startFrame": {
+        "row": 7,
+        "col": 0
+      },
+      "endFrame": {
+        "row": 7,
+        "col": 3
+      },
+      "durationMs": 800,
+      "loop": false,
+      "flip": 0
+    },
+    "AttackLeft": {
+      "startFrame": {
+        "row": 7,
+        "col": 0
+      },
+      "endFrame": {
+        "row": 7,
+        "col": 3
+      },
+      "durationMs": 800,
+      "loop": false,
+      "flip": 1
+    },
+    "AttackUp": {
+      "startFrame": {
+        "row": 8,
+        "col": 0
+      },
+      "endFrame": {
+        "row": 8,
+        "col": 3
+      },
+      "durationMs": 800,
+      "loop": false,
+      "flip": 0
     }
   }
 }
