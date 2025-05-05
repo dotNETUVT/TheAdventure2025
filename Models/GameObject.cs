@@ -10,4 +10,6 @@ public class GameObject
     {
         Id = Interlocked.Increment(ref _nextId);
     }
+    public virtual void Update(int elapsedMs) { }
 }
+
