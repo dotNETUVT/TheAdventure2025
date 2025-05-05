@@ -1,0 +1,129 @@
+{
+  "rowCount": 10,
+  "columnCount": 6,
+  "frameWidth": 48,
+  "frameHeight": 48,
+  "frameCenter": {
+    "offsetX": 24,
+    "offsetY": 42
+  },
+  "fileName": "player.png",
+  "animations": {
+    "IdleDown": {
+      "startFrame": {
+        "row": 0,
+        "col": 0
+      },
+      "endFrame": {
+        "row": 0,
+        "col": 5
+      },
+      "durationMs": 1000,
+      "loop": true
+    },
+    "MoveLeft": {
+      "startFrame": {
+        "row": 4,
+        "col": 0
+      },
+      "endFrame": {
+        "row": 4,
+        "col": 5
+      },
+      "durationMs": 1000,
+      "loop": true,
+      "flip": 1
+    },
+    "MoveRight": {
+      "startFrame": {
+        "row": 4,
+        "col": 0
+      },
+      "endFrame": {
+        "row": 4,
+        "col": 5
+      },
+      "durationMs": 1000,
+      "loop": true,
+      "flip": 0
+    },
+    "MoveDown": {
+      "startFrame": {
+        "row": 3,
+        "col": 0
+      },
+      "endFrame": {
+        "row": 3,
+        "col": 5
+      },
+      "durationMs": 1000,
+      "loop": true,
+      "flip": 0
+    },
+    "MoveUp": {
+      "startFrame": {
+        "row": 5,
+        "col": 0
+      },
+      "endFrame": {
+        "row": 5,
+        "col": 5
+      },
+      "durationMs": 1000,
+      "loop": true,
+      "flip": 0
+    },
+    "AttackDown": {
+      "startFrame": {
+        "row": 6,
+        "col": 0
+      },
+      "endFrame": {
+        "row": 6,
+        "col": 3
+      },
+      "durationMs": 800,
+      "loop": false,
+      "flip": 0
+    },
+    "AttackRight": {
+      "startFrame": {
+        "row": 7,
+        "col": 0
+      },
+      "endFrame": {
+        "row": 7,
+        "col": 3
+      },
+      "durationMs": 800,
+      "loop": false,
+      "flip": 0
+    },
+    "AttackLeft": {
+      "startFrame": {
+        "row": 7,
+        "col": 0
+      },
+      "endFrame": {
+        "row": 7,
+        "col": 3
+      },
+      "durationMs": 800,
+      "loop": false,
+      "flip": 1
+    },
+    "AttackUp": {
+      "startFrame": {
+        "row": 8,
+        "col": 0
+      },
+      "endFrame": {
+        "row": 8,
+        "col": 3
+      },
+      "durationMs": 800,
+      "loop": false,
+      "flip": 0
+    }
+  }
+}

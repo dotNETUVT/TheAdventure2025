@@ -2,48 +2,81 @@ using Silk.NET.Maths;
 
 namespace TheAdventure.Models;
 
-public class PlayerObject : GameObject
+public class PlayerObject : RenderableGameObject
 {
-    public int X { get; set; } = 100;
-    public int Y { get; set; } = 100;
+    private const int _speed = 128; // pixels per second
+    private string _currentAnimation = "IdleDown";
+    private string _facing = "Down";
 
-    private Rectangle<int> _source = new(0, 0, 48, 48);
-    private Rectangle<int> _target = new(0, 0, 48, 48);
-
-    private readonly int _textureId;
-
-    private const int Speed = 128; // pixels per second
-
-    public PlayerObject(GameRenderer renderer)
+    public PlayerObject(SpriteSheet spriteSheet, int x, int y) : base(spriteSheet, (x, y))
     {
-        _textureId = renderer.LoadTexture(Path.Combine("Assets", "player.png"), out _);
-        if (_textureId < 0)
+        SpriteSheet.ActivateAnimation(_currentAnimation);
+    }
+    public void Attack()
+    {
+        string attackAnim = "Attack" + _facing;
+
+        if (attackAnim == _currentAnimation) return;
+
+        _currentAnimation = attackAnim;
+        SpriteSheet.ActivateAnimation(_currentAnimation);
+    }
+
+    public void UpdatePosition(double up, double down, double left, double right, int width, int height, double time)
+    {
+        if (up + down + left + right == 0)
         {
-            throw new Exception("Failed to load player texture");
+            return;
         }
 
-        UpdateTarget();
-    }
+        var pixelsToMove = _speed * (time / 1000.0);
 
-    public void UpdatePosition(double up, double down, double left, double right, int time)
-    {
-        var pixelsToMove = Speed * (time / 1000.0);
+        var x = Position.X + (int)(right * pixelsToMove);
+        x -= (int)(left * pixelsToMove);
 
-        Y -= (int)(pixelsToMove * up);
-        Y += (int)(pixelsToMove * down);
-        X -= (int)(pixelsToMove * left);
-        X += (int)(pixelsToMove * right);
+        var y = Position.Y + (int)(down * pixelsToMove);
+        y -= (int)(up * pixelsToMove);
 
-        UpdateTarget();
-    }
+        var newAnimation = _currentAnimation;
 
-    public void Render(GameRenderer renderer)
-    {
-        renderer.RenderTexture(_textureId, _source, _target);
-    }
+        if (y < Position.Y && _currentAnimation != "MoveUp")
+        {
+            newAnimation = "MoveUp";
+        }
 
-    private void UpdateTarget()
-    {
-        _target = new(X + 24, Y - 42, 48, 48);
+        if (y > Position.Y && newAnimation != "MoveDown")
+        {
+            newAnimation = "MoveDown";
+        }
+
+        if (x < Position.X && newAnimation != "MoveLeft")
+        {
+            newAnimation = "MoveLeft";
+        }
+
+        if (x > Position.X && newAnimation != "MoveRight")
+        {
+            newAnimation = "MoveRight";
+        }
+
+        if (x == Position.X && y == Position.Y && newAnimation != "IdleDown")
+        {
+            newAnimation = "IdleDown";
+        }
+
+        if (newAnimation != _currentAnimation)
+        {
+            if (newAnimation.StartsWith("Move"))
+            {
+                //only update if it's a movement animation
+                //othwerwise the latest animation will always be idle and the attack animation will be AttackDown regardless of direction
+                _facing = newAnimation.Substring(4);
+            }
+
+            _currentAnimation = newAnimation;
+            SpriteSheet.ActivateAnimation(_currentAnimation);
+        }
+
+        Position = (x, y);
     }
 }
