@@ -8,6 +8,8 @@ public class PlayerObject : RenderableGameObject
     private const int _speed = 128; // pixels per second
     private string _currentAnimation = "IdleDown";
     private string _facing = "Down";
+    private bool _isDead = false;
+    public bool IsDead => _isDead;
 
     private double _attackTimer = 0;
     private const double AttackDuration = 0.4; // in seconds
@@ -38,6 +40,9 @@ public class PlayerObject : RenderableGameObject
 
     public void Attack()
     {
+        if (_isDead)
+            return;
+
         string attackAnim = "Attack" + _facing;
         _attackTimer = AttackDuration;
 
@@ -50,6 +55,8 @@ public class PlayerObject : RenderableGameObject
 
     public void Update(double deltaTime)
     {
+        if (_isDead)
+            return;
         // Decrease the attack timer
         if (_attackTimer > 0)
         {
@@ -121,4 +128,14 @@ public class PlayerObject : RenderableGameObject
 
         Position = (x, y);
     }
+    public void Die()
+    {
+        if (_isDead)
+            return;
+
+        _isDead = true;
+        _currentAnimation = "Death";
+        SpriteSheet.ActivateAnimation(_currentAnimation);
+    }
+
 }

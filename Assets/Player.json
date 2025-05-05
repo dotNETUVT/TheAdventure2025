@@ -124,6 +124,18 @@
       "durationMs": 800,
       "loop": false,
       "flip": 0
+    },
+    "Death": {
+      "startFrame": {
+        "row": 9,
+        "col": 0
+      },
+      "endFrame": {
+        "row": 9,
+        "col": 2
+      },
+      "durationMs": 1000,
+      "loop": false
     }
   }
 }

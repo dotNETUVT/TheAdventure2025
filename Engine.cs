@@ -1,4 +1,4 @@
-using System.Numerics;
+﻿using System.Numerics;
 using System.Text.Json;
 using Silk.NET.Maths;
 using TheAdventure.Models;
@@ -14,6 +14,8 @@ public class Engine
     private readonly Dictionary<int, GameObject> _gameObjects = new();
     private readonly Dictionary<string, TileSet> _loadedTileSets = new();
     private readonly Dictionary<int, Tile> _tileIdMap = new();
+
+    private const float BombDamageDistance = 80f;
 
     private Level _currentLevel = new();
     private PlayerObject? _player;
@@ -91,16 +93,18 @@ public class Engine
         {
             _player.Update(delta);
 
-            if (attack)
+            if (!_player.IsDead)
             {
-                _player.Attack();
-                AttemptBombThrow();
-            }
+                if (attack)
+                {
+                    _player.Attack();
+                    AttemptBombThrow();
+                }
 
-            // only move if not attacking
-            if (!_player.IsAttacking)
-            {
-                _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLast);
+                if (!_player.IsAttacking)
+                {
+                    _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLast);
+                }
             }
         }
 
@@ -112,7 +116,25 @@ public class Engine
                 bomb.Update(delta);
             }
         }
+
+        if (_player != null && !_player.IsDead)
+        {
+            foreach (var obj in _gameObjects.Values)
+            {
+                if (obj is TemporaryGameObject bomb && bomb.IsExpired)
+                {
+                    var playerPos = new Vector2(_player.Position.X, _player.Position.Y);
+                    var bombPos = new Vector2(bomb.Position.X, bomb.Position.Y);
+                    if (Vector2.Distance(playerPos, bombPos) < BombDamageDistance)
+                    {
+                        _player.Die();
+                        break;
+                    }
+                }
+            }
+        }
     }
+
 
     private void AttemptBombThrow()
     {
