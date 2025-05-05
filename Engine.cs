@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Silk.NET.Maths;
 using TheAdventure.Models;
 using TheAdventure.Models.Data;
@@ -9,10 +9,14 @@ public class Engine
 {
     private readonly GameRenderer _renderer;
     private readonly Input _input;
+    private bool _wasSpacePressed = false;
+    private bool _wasEPressed = false;
 
     private readonly Dictionary<int, GameObject> _gameObjects = new();
     private readonly Dictionary<string, TileSet> _loadedTileSets = new();
     private readonly Dictionary<int, Tile> _tileIdMap = new();
+
+    private List<ChestObject> _chests = new();
 
     private Level _currentLevel = new();
     private PlayerObject? _player;
@@ -24,7 +28,7 @@ public class Engine
         _renderer = renderer;
         _input = input;
 
-        _input.OnMouseClick += (_, coords) => AddBomb(coords.x, coords.y);
+        //_input.OnMouseClick += (_, coords) => AddBomb(coords.x, coords.y);
     }
 
     public void SetupWorld()
@@ -70,6 +74,8 @@ public class Engine
             level.Height.Value * level.TileHeight.Value));
 
         _currentLevel = level;
+
+        InitializeChests();
     }
 
     public void ProcessFrame()
@@ -84,6 +90,35 @@ public class Engine
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
 
         _player?.UpdatePosition(up, down, left, right, (int)msSinceLastFrame);
+
+        // Place Bombs
+        bool isSpacePressed = _input.IsSpacePressed();
+        if (isSpacePressed && !_wasSpacePressed && _player != null)
+        {
+            if (_player.TryUseBomb())
+            {
+                // Adjust coordinates to have bomb placed at correct position
+                int bombX = _player.X;
+                int bombY = _player.Y - 5;
+                AddBomb(bombX, bombY);
+            }
+        }
+        _wasSpacePressed = isSpacePressed;
+
+        // Open chests
+        bool isEPressed = _input.IsEPressed();
+        if (isEPressed && !_wasEPressed && _player != null && _player.BombCount < 5)
+        {
+            foreach (var chest in _chests)
+            {
+                if (chest.CanInteract((_player.X, _player.Y)))
+                {
+                    chest.Open(bombs => _player.AddBomb(bombs));
+                    break; // Only open one chest at a time
+                }
+            }
+        }
+        _wasEPressed = isEPressed;
     }
 
     public void RenderFrame()
@@ -95,6 +130,8 @@ public class Engine
 
         RenderTerrain();
         RenderAllObjects();
+
+        RenderHUD();
 
         _renderer.PresentFrame();
     }
@@ -163,11 +200,18 @@ public class Engine
         }
     }
 
-    private void AddBomb(int screenX, int screenY)
+    public void AddBomb(int x, int y)
     {
-        var worldCoords = _renderer.ToWorldCoordinates(screenX, screenY);
+        var spriteSheet = new SpriteSheet(
+            _renderer,
+            Path.Combine("Assets", "BombExploding.png"),
+            rowCount: 1,
+            columnCount: 13,
+            frameWidth: 32,
+            frameHeight: 64,
+            frameCenter: (16, 48)
+        );
 
-        SpriteSheet spriteSheet = new(_renderer, Path.Combine("Assets", "BombExploding.png"), 1, 13, 32, 64, (16, 48));
         spriteSheet.Animations["Explode"] = new SpriteSheet.Animation
         {
             StartFrame = (0, 0),
@@ -175,9 +219,103 @@ public class Engine
             DurationMs = 2000,
             Loop = false
         };
+
         spriteSheet.ActivateAnimation("Explode");
 
-        TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
+        var bomb = new TemporaryGameObject(spriteSheet, ttl: 2.1, position: (x, y));
         _gameObjects.Add(bomb.Id, bomb);
+    }
+
+    private void RenderHUD()
+    {
+        if (_player == null) return;
+
+        int maxBombs = 5;
+        int gap = 2;
+        int barWidth = maxBombs * 30 - gap;
+        int barHeight = 20;
+        int margin = 10;
+        int totalGapWidth = (maxBombs - 1) * gap;
+        int segmentWidth = (barWidth - totalGapWidth) / maxBombs;
+
+        // Draw background
+        var backgroundRect = new Rectangle<int>(margin, margin, barWidth, barHeight);
+        _renderer.FillScreenRectangle(backgroundRect, 128, 128, 128, 255);
+
+        // Draw each bomb segment with spacing
+        for (int i = 0; i < _player.BombCount; i++)
+        {
+            int x = margin + i * (segmentWidth + gap);
+            var segmentRect = new Rectangle<int>(x, margin, segmentWidth, barHeight);
+            _renderer.FillScreenRectangle(segmentRect, 255, 0, 0, 255);
+        }
+
+        // Draw border
+        _renderer.DrawScreenRectangle(backgroundRect, 255, 255, 255, 255);
+    }
+
+    private void InitializeChests()
+    {
+        var random = new Random();
+        var placed = new List<(int X, int Y)>();
+
+        int levelWidth = (_currentLevel.Width ?? 20) * (_currentLevel.TileWidth ?? 32);
+        int levelHeight = (_currentLevel.Height ?? 20) * (_currentLevel.TileHeight ?? 32);
+
+        // 1) Determine chest count based on area
+        int area = levelWidth * levelHeight;
+        int chestCount = Math.Max(1, area / 100_000);
+
+        // 2) Enforce spacing = 1/3 of smaller map dimension
+        int minSpacing = Math.Min(levelWidth, levelHeight) / 3;
+        int minSqDist = minSpacing * minSpacing;
+
+        while (placed.Count < chestCount)
+        {
+            var chestSpriteSheet = new SpriteSheet(
+                _renderer,
+                Path.Combine("Assets", "chest.png"),
+                rowCount: 2,
+                columnCount: 3,
+                frameWidth: 56,
+                frameHeight: 60,
+                frameCenter: (28, 30)
+            );
+
+            chestSpriteSheet.Animations["Closed"] = new SpriteSheet.Animation
+            {
+                StartFrame = (0, 0),
+                EndFrame = (0, 0),
+                DurationMs = 1000,
+                Loop = true
+            };
+
+            chestSpriteSheet.Animations["Opening"] = new SpriteSheet.Animation
+            {
+                StartFrame = (0, 0),
+                EndFrame = (1, 2),
+                DurationMs = 650,
+                Loop = false
+            };
+            // leave a 100px margin all around
+            int x = random.Next(100, levelWidth - 100);
+            int y = random.Next(100, levelHeight - 100);
+
+            // reject if it's too close to any existing chest
+            if (placed.Any(p =>
+            {
+                int dx = p.X - x, dy = p.Y - y;
+                return dx * dx + dy * dy < minSqDist;
+            }))
+                continue;
+
+            placed.Add((x, y));
+
+            var chest = new ChestObject(chestSpriteSheet, (x, y));
+            chest.SpriteSheet.ActivateAnimation("Closed");
+
+            _chests.Add(chest);
+            _gameObjects.Add(chest.Id, chest);
+        }
     }
 }

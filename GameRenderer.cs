@@ -110,4 +110,16 @@ public unsafe class GameRenderer
     {
         _sdl.RenderPresent(_renderer);
     }
+
+    public void FillScreenRectangle(Rectangle<int> rect, byte r, byte g, byte b, byte a)
+    {
+        SetDrawColor(r, g, b, a);
+        _sdl.RenderFillRect(_renderer, rect);
+    }
+
+    public void DrawScreenRectangle(Rectangle<int> rect, byte r, byte g, byte b, byte a)
+    {
+        SetDrawColor(r, g, b, a);
+        _sdl.RenderDrawRect(_renderer, rect);
+    }
 }

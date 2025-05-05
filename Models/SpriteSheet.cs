@@ -23,6 +23,7 @@ public class SpriteSheet
 
     public Animation? ActiveAnimation { get; private set; }
     public Dictionary<string, Animation> Animations { get; init; } = new();
+    public RendererFlip CurrentFlip { get; set; } = RendererFlip.None;
 
     private int _textureId;
     private DateTimeOffset _animationStart = DateTimeOffset.MinValue;
@@ -76,11 +77,12 @@ public class SpriteSheet
 
             var currentRow = ActiveAnimation.StartFrame.Row + currentFrame / ColumnCount;
             var currentCol = ActiveAnimation.StartFrame.Col + currentFrame % ColumnCount;
+            var flip = CurrentFlip;
 
             renderer.RenderTexture(_textureId,
                 new Rectangle<int>(currentCol * FrameWidth, currentRow * FrameHeight, FrameWidth, FrameHeight),
                 new Rectangle<int>(dest.X - FrameCenter.OffsetX, dest.Y - FrameCenter.OffsetY, FrameWidth, FrameHeight),
-                ActiveAnimation.Flip, angle, rotationCenter);
+                flip, angle, rotationCenter);
         }
     }
 }
