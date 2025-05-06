@@ -16,6 +16,7 @@ public class Engine
 
     private Level _currentLevel = new();
     private PlayerObject? _player;
+    private DogCompanion? _dog;
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
 
@@ -29,7 +30,9 @@ public class Engine
 
     public void SetupWorld()
     {
-        _player = new(SpriteSheet.Load(_renderer, "Player.json", "Assets"), 100, 100);
+        _player = new PlayerObject(SpriteSheet.Load(_renderer, "Player.json", "Assets"), 100, 100);
+
+        _dog = new DogCompanion(_player, SpriteSheet.Load(_renderer, "Dog.json", "Assets"));
 
         var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
         var level = JsonSerializer.Deserialize<Level>(levelContent);
@@ -83,7 +86,9 @@ public class Engine
         double left = _input.IsLeftPressed() ? 1.0 : 0.0;
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
 
-        _player?.UpdatePosition(up, down, left, right, 48, 48,msSinceLastFrame);
+        _player?.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame);
+
+        _dog?.Update();
     }
 
     public void RenderFrame()
@@ -116,6 +121,8 @@ public class Engine
         {
             _gameObjects.Remove(id);
         }
+
+        _dog?.Render(_renderer);
 
         _player?.Render(_renderer);
     }

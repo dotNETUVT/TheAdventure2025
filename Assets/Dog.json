@@ -1,0 +1,80 @@
+{
+    "FileName": "dog.png",
+    "FrameWidth": 32,
+    "FrameHeight": 32,
+    "RowCount": 11,
+    "ColumnCount": 4,
+    "FrameCenter": {
+      "OffsetX": 16,
+      "OffsetY": 16
+    },
+    "Animations": {
+      "IdleDown": {
+        "StartFrame": { "Row": 0, "Col": 0 },
+        "EndFrame": { "Row": 0, "Col": 3 },
+        "DurationMs": 400,
+        "Loop": true
+      },
+      "WalkDown": {
+        "StartFrame": { "Row": 1, "Col": 0 },
+        "EndFrame": { "Row": 1, "Col": 3 },
+        "DurationMs": 400,
+        "Loop": true
+      },
+      "IdleLeft": {
+        "StartFrame": { "Row": 2, "Col": 0 },
+        "EndFrame": { "Row": 2, "Col": 3 },
+        "DurationMs": 400,
+        "Loop": true
+      },
+      "WalkLeft": {
+        "StartFrame": { "Row": 3, "Col": 0 },
+        "EndFrame": { "Row": 3, "Col": 3 },
+        "DurationMs": 400,
+        "Loop": true
+      },
+      "IdleRight": {
+        "StartFrame": { "Row": 4, "Col": 0 },
+        "EndFrame": { "Row": 4, "Col": 3 },
+        "DurationMs": 400,
+        "Loop": true
+      },
+      "WalkRight": {
+        "StartFrame": { "Row": 5, "Col": 0 },
+        "EndFrame": { "Row": 5, "Col": 3 },
+        "DurationMs": 400,
+        "Loop": true
+      },
+      "IdleUp": {
+        "StartFrame": { "Row": 6, "Col": 0 },
+        "EndFrame": { "Row": 6, "Col": 3 },
+        "DurationMs": 400,
+        "Loop": true
+      },
+      "WalkUp": {
+        "StartFrame": { "Row": 7, "Col": 0 },
+        "EndFrame": { "Row": 7, "Col": 3 },
+        "DurationMs": 400,
+        "Loop": true
+      },
+      "SitDown": {
+        "StartFrame": { "Row": 8, "Col": 0 },
+        "EndFrame": { "Row": 8, "Col": 3 },
+        "DurationMs": 600,
+        "Loop": false
+      },
+      "SitLeft": {
+        "StartFrame": { "Row": 9, "Col": 0 },
+        "EndFrame": { "Row": 9, "Col": 3 },
+        "DurationMs": 600,
+        "Loop": false
+      },
+      "SitRight": {
+        "StartFrame": { "Row": 10, "Col": 0 },
+        "EndFrame": { "Row": 10, "Col": 3 },
+        "DurationMs": 600,
+        "Loop": false
+      }
+    }
+  }
+  
