@@ -1,6 +1,8 @@
 using Silk.NET.Maths;
 
 namespace TheAdventure.Models;
+using System; // For Math.Abs
+using Silk.NET.Maths; // For Vector2D<float>
 
 public class PlayerObject : RenderableGameObject
 {
@@ -21,35 +23,40 @@ public class PlayerObject : RenderableGameObject
         
         var pixelsToMove = _speed * (time / 1000.0);
         
-        var x = Position.X + (int)(right * pixelsToMove);
-        x -= (int)(left * pixelsToMove);
+        // Use floating-point calculations
+        var newX = Position.X + (float)(right * pixelsToMove);
+        newX -= (float)(left * pixelsToMove);
         
-        var y = Position.Y + (int)(down * pixelsToMove);
-        y -= (int)(up * pixelsToMove);
+        var newY = Position.Y + (float)(down * pixelsToMove);
+        newY -= (float)(up * pixelsToMove);
         
         var newAnimation = _currentAnimation;
 
-        if (y < Position.Y && _currentAnimation != "MoveUp")
+        // Compare floats directly
+        if (newY < Position.Y && _currentAnimation != "MoveUp")
         {
             newAnimation = "MoveUp";
         }
         
-        if (y > Position.Y && newAnimation != "MoveDown")
+        if (newY > Position.Y && newAnimation != "MoveDown")
         {
             newAnimation = "MoveDown";
         }
         
-        if (x < Position.X && newAnimation != "MoveLeft")
+        if (newX < Position.X && newAnimation != "MoveLeft")
         {
             newAnimation = "MoveLeft";
         }
         
-        if (x > Position.X && newAnimation != "MoveRight")
+        if (newX > Position.X && newAnimation != "MoveRight")
         {
             newAnimation = "MoveRight";
         }
         
-        if (x == Position.X && y == Position.Y && newAnimation != "IdleDown")
+        // Use tolerance for floating-point comparison
+        if (Math.Abs(newX - Position.X) < 0.01 && 
+            Math.Abs(newY - Position.Y) < 0.01 && 
+            newAnimation != "IdleDown")
         {
             newAnimation = "IdleDown";
         }
@@ -60,6 +67,7 @@ public class PlayerObject : RenderableGameObject
             SpriteSheet.ActivateAnimation(_currentAnimation);
         }
         
-        Position = (x, y);
+        // Update position with Vector2D<float>
+        Position = new Vector2D<float>(newX, newY);
     }
 }

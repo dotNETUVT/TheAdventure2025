@@ -35,9 +35,9 @@ public unsafe class GameRenderer
         _camera.SetWorldBounds(bounds);
     }
 
-    public void CameraLookAt(int x, int y)
+    public void CameraLookAt(float x, float y)
     {
-        _camera.LookAt(x, y);
+        _camera.LookAt((int)x, (int)y);
     }
 
     public int LoadTexture(string fileName, out TextureData textureInfo)
