@@ -324,7 +324,7 @@ public class Engine
         var bombX = Math.Clamp(worldCoords.X, 0, cameraWidth);
         var bombY = Math.Clamp(worldCoords.Y, 0, cameraHeight);
 
-        // Check if there's already a bomb at this position (with a smaller radius check)
+        // Check if there's already a bomb at this position
         foreach (var position in _bombPositions.Keys)
         {
             if (Math.Abs(position.X - bombX) < 15 && Math.Abs(position.Y - bombY) < 15)
