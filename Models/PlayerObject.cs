@@ -100,6 +100,9 @@ public class PlayerObject : GameObject
             else if (right > 0) { X += (int)pixelsToMove; newAnimation = "WalkRight"; _lastDirection = "Right"; }
             else { newAnimation = $"Idle{_lastDirection}"; }
         }
+        
+        X = Math.Clamp(X, 0, 960);
+        Y = Math.Clamp(Y, 0, 640);
 
         if (_spriteSheet.ActiveAnimation != _spriteSheet.Animations[newAnimation])
         {

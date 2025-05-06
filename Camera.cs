@@ -22,36 +22,38 @@ public class Camera
     
     public void SetWorldBounds(Rectangle<int> bounds)
     {
-        var marginLeft = Width / 2;
-        var marginTop = Height / 2;
-        
-        if (marginLeft * 2 > bounds.Size.X)
-        {
-            marginLeft = 48;
-        }
-        
-        if (marginTop * 2 > bounds.Size.Y)
-        {
-            marginTop = 48;
-        }
-        
-        _worldBounds = new Rectangle<int>(marginLeft, marginTop, bounds.Size.X - marginLeft * 2,
-            bounds.Size.Y - marginTop * 2);
-        _x = marginLeft;
-        _y = marginTop;
+        _worldBounds = bounds;
+        _x = bounds.Center.X;
+        _y = bounds.Center.Y;
     }
     
     public void LookAt(int x, int y)
     {
-        if (_worldBounds.Contains(new Vector2D<int>(_x, y)))
-        {
-            _y = y;
-        }
-        if (_worldBounds.Contains(new Vector2D<int>(x, _y)))
-        {
-            _x = x;
-        }
+        int halfW = Width / 2;
+        int halfH = Height / 2;
+
+        int left   = _worldBounds.Origin.X;
+        int right  = _worldBounds.Origin.X + _worldBounds.Size.X;
+        int top    = _worldBounds.Origin.Y;
+        int bottom = _worldBounds.Origin.Y + _worldBounds.Size.Y;
+
+        int worldWidth = right - left;
+        int worldHeight = bottom - top;
+
+        // If window is wider/taller than the world, center the camera
+        if (Width >= worldWidth)
+            _x = left + worldWidth / 2;
+        else
+            _x = Math.Clamp(x, left + halfW, right - halfW);
+
+        if (Height >= worldHeight)
+            _y = top + worldHeight / 2;
+        else
+            _y = Math.Clamp(y, top + halfH, bottom - halfH);
     }
+
+
+
 
     public Rectangle<int> ToScreenCoordinates(Rectangle<int> rect)
     {

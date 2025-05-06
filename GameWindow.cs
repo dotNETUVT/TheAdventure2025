@@ -23,8 +23,8 @@ public unsafe class GameWindow : IDisposable
     {
         _sdl = sdl;
         _window = (IntPtr)sdl.CreateWindow(
-            "The Adventure", Sdl.WindowposUndefined, Sdl.WindowposUndefined, 640, 400,
-            (uint)WindowFlags.Resizable | (uint)WindowFlags.AllowHighdpi
+            "The Adventure", Sdl.WindowposUndefined, Sdl.WindowposUndefined, 960, 640,
+            (uint)(WindowFlags.Borderless | WindowFlags.AllowHighdpi)
         );
 
         if (_window == IntPtr.Zero)

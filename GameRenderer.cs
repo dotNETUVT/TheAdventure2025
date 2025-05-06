@@ -17,7 +17,8 @@ public unsafe class GameRenderer
     private Dictionary<int, IntPtr> _texturePointers = new();
     private Dictionary<int, TextureData> _textureData = new();
     private int _textureId;
-
+    public (int Width, int Height) WindowSize => _window.Size;
+    
     public GameRenderer(Sdl sdl, GameWindow window)
     {
         _sdl = sdl;
@@ -110,4 +111,13 @@ public unsafe class GameRenderer
     {
         _sdl.RenderPresent(_renderer);
     }
+    
+    public void RenderRawTexture(int textureId, Rectangle<int> src, Rectangle<int> dst)
+    {
+        if (_texturePointers.TryGetValue(textureId, out var imageTexture))
+        {
+            _sdl.RenderCopy(_renderer, (Texture*)imageTexture, &src, &dst);
+        }
+    }
+
 }
