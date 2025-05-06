@@ -30,6 +30,7 @@ public class Engine
     public void SetupWorld()
     {
         _player = new(SpriteSheet.Load(_renderer, "Player.json", "Assets"), 100, 100);
+        SpriteSheet treeSpriteSheet = SpriteSheet.Load(_renderer, "Tree.json", "Assets");
 
         var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
         var level = JsonSerializer.Deserialize<Level>(levelContent);
@@ -70,6 +71,18 @@ public class Engine
             level.Height.Value * level.TileHeight.Value));
 
         _currentLevel = level;
+
+        Random rand = new Random();
+        int numTrees = 50;
+        for (int i = 0; i < numTrees; i++)
+        {
+            int x = rand.Next(0, _currentLevel.Width.Value * _currentLevel.TileWidth.Value);
+            int y = rand.Next(0, _currentLevel.Height.Value * _currentLevel.TileHeight.Value);
+
+            var tree = new RenderableGameObject(treeSpriteSheet, (x, y));
+            tree.Type = "Tree"; // Optional: Set type if needed
+            _gameObjects.Add(tree.Id, tree);
+        }
     }
 
     public void ProcessFrame()

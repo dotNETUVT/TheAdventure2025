@@ -1,0 +1,16 @@
+{
+    "FileName": "tree.png",
+    "RowCount": 1,
+    "ColumnCount": 1,
+    "FrameWidth": 32,
+    "FrameHeight": 32,
+    "FrameCenter": { "OffsetX": 16, "OffsetY": 16 },
+    "Animations": {
+      "Idle": {
+        "StartFrame": { "Row": 0, "Col": 0 },
+        "EndFrame": { "Row": 0, "Col": 0 },
+        "DurationMs": 100,
+        "Loop": true
+      }
+    }
+  }
