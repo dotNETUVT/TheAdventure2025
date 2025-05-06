@@ -13,18 +13,21 @@ public class Engine
     private readonly Dictionary<int, GameObject> _gameObjects = new();
     private readonly Dictionary<string, TileSet> _loadedTileSets = new();
     private readonly Dictionary<int, Tile> _tileIdMap = new();
+    private readonly Dictionary<(int X, int Y), bool> _bombPositions = new();
 
     private Level _currentLevel = new();
     private PlayerObject? _player;
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
+    private DateTimeOffset _lastBombPlacement = DateTimeOffset.MinValue;
+    private const double _bombPlacementCooldown = 1.0; // seconds
 
     public Engine(GameRenderer renderer, Input input)
     {
         _renderer = renderer;
         _input = input;
 
-        _input.OnMouseClick += (_, coords) => AddBomb(coords.x, coords.y);
+        _input.OnMouseClick += (_, coords) => TryAddBomb(coords.x, coords.y);
     }
 
     public void SetupWorld()
@@ -66,8 +69,13 @@ public class Engine
             throw new Exception("Invalid tile dimensions");
         }
 
-        _renderer.SetWorldBounds(new Rectangle<int>(0, 0, level.Width.Value * level.TileWidth.Value,
-            level.Height.Value * level.TileHeight.Value));
+        var worldBounds = new Rectangle<int>(0, 0, level.Width.Value * level.TileWidth.Value,
+            level.Height.Value * level.TileHeight.Value);
+
+        _renderer.SetWorldBounds(worldBounds);
+
+        // Set player world bounds
+        _player.SetWorldBounds(worldBounds);
 
         _currentLevel = level;
     }
@@ -83,7 +91,19 @@ public class Engine
         double left = _input.IsLeftPressed() ? 1.0 : 0.0;
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
 
-        _player?.UpdatePosition(up, down, left, right, 48, 48,msSinceLastFrame);
+        _player?.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame);
+
+        // Handle space bar for attack
+        if (_input.IsSpacePressed())
+        {
+            _player?.Attack();
+        }
+
+        // Handle L key for lay down
+        if (_input.IsLPressed())
+        {
+            _player?.LayDown();
+        }
     }
 
     public void RenderFrame()
@@ -109,6 +129,16 @@ public class Engine
             if (gameObject is TemporaryGameObject { IsExpired: true } tempGameObject)
             {
                 toRemove.Add(tempGameObject.Id);
+
+                // Remove from bomb positions tracking
+                foreach (var position in _bombPositions.Keys.ToList())
+                {
+                    if (Math.Abs(tempGameObject.Position.X - position.X) < 20 &&
+                        Math.Abs(tempGameObject.Position.Y - position.Y) < 20)
+                    {
+                        _bombPositions.Remove(position);
+                    }
+                }
             }
         }
 
@@ -164,14 +194,39 @@ public class Engine
         }
     }
 
-    private void AddBomb(int screenX, int screenY)
+    private void TryAddBomb(int screenX, int screenY)
     {
+        // Check cooldown
+        if ((DateTimeOffset.Now - _lastBombPlacement).TotalSeconds < _bombPlacementCooldown)
+        {
+            return;
+        }
+
         var worldCoords = _renderer.ToWorldCoordinates(screenX, screenY);
+
+        // Round to nearest grid cell 
+        var gridX = (worldCoords.X / 32) * 32 + 16;
+        var gridY = (worldCoords.Y / 32) * 32 + 16;
+
+        // Check if there's already a bomb at this position
+        foreach (var position in _bombPositions.Keys)
+        {
+            if (Math.Abs(position.X - gridX) < 20 && Math.Abs(position.Y - gridY) < 20)
+            {
+                return; // Bomb already exists here
+            }
+        }
 
         SpriteSheet spriteSheet = SpriteSheet.Load(_renderer, "BombExploding.json", "Assets");
         spriteSheet.ActivateAnimation("Explode");
 
-        TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
+        TemporaryGameObject bomb = new(spriteSheet, 2.1, (gridX, gridY));
         _gameObjects.Add(bomb.Id, bomb);
+
+        // Track bomb position
+        _bombPositions[(gridX, gridY)] = true;
+
+        // Update cooldown
+        _lastBombPlacement = DateTimeOffset.Now;
     }
 }
