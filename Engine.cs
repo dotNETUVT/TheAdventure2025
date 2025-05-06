@@ -20,7 +20,7 @@ public class Engine
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
     private DateTimeOffset _lastBombPlacement = DateTimeOffset.MinValue;
-    private const double _bombPlacementCooldown = 1.0; // seconds
+    private const double _bombPlacementCooldown = 1.5; // seconds
 
     public Engine(GameRenderer renderer, Input input)
     {
@@ -204,14 +204,18 @@ public class Engine
 
         var worldCoords = _renderer.ToWorldCoordinates(screenX, screenY);
 
-        // Round to nearest grid cell 
-        var gridX = (worldCoords.X / 32) * 32 + 16;
-        var gridY = (worldCoords.Y / 32) * 32 + 16;
+        // Get the world bounds from the camera
+        var cameraWidth = (_currentLevel.Width ?? 0) * (_currentLevel.TileWidth ?? 0);
+        var cameraHeight = (_currentLevel.Height ?? 0) * (_currentLevel.TileHeight ?? 0);
 
-        // Check if there's already a bomb at this position
+        // Ensure placement is within world boundaries
+        var bombX = Math.Clamp(worldCoords.X, 0, cameraWidth);
+        var bombY = Math.Clamp(worldCoords.Y, 0, cameraHeight);
+
+        // Check if there's already a bomb at this position (with a smaller radius check)
         foreach (var position in _bombPositions.Keys)
         {
-            if (Math.Abs(position.X - gridX) < 20 && Math.Abs(position.Y - gridY) < 20)
+            if (Math.Abs(position.X - bombX) < 15 && Math.Abs(position.Y - bombY) < 15)
             {
                 return; // Bomb already exists here
             }
@@ -220,11 +224,11 @@ public class Engine
         SpriteSheet spriteSheet = SpriteSheet.Load(_renderer, "BombExploding.json", "Assets");
         spriteSheet.ActivateAnimation("Explode");
 
-        TemporaryGameObject bomb = new(spriteSheet, 2.1, (gridX, gridY));
+        TemporaryGameObject bomb = new(spriteSheet, 2.1, (bombX, bombY));
         _gameObjects.Add(bomb.Id, bomb);
 
         // Track bomb position
-        _bombPositions[(gridX, gridY)] = true;
+        _bombPositions[(bombX, bombY)] = true;
 
         // Update cooldown
         _lastBombPlacement = DateTimeOffset.Now;
