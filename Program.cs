@@ -28,10 +28,12 @@ public static class Program
             bool quit = false;
             while (!quit)
             {
-                quit = input.ProcessInput();
+                bool inputQuit = input.ProcessInput();
+                bool engineQuit = engine.ProcessFrame();
+                quit = inputQuit || engineQuit;
+
                 if (quit) break;
 
-                engine.ProcessFrame();
                 engine.RenderFrame();
 
                 Thread.Sleep(13);

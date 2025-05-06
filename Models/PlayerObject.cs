@@ -9,6 +9,8 @@ public class PlayerObject : RenderableGameObject
     private string _currentAnimation = "IdleDown";
     private bool _isAttacking = false;
     private bool _isLayingDown = false;
+    private bool _isPaused = false;
+
     private DateTimeOffset _attackStartTime;
     private DateTimeOffset _layDownStartTime;
     private const double _attackDuration = 0.5; // seconds
@@ -38,9 +40,30 @@ public class PlayerObject : RenderableGameObject
         );
     }
 
+    public void SetPaused(bool paused)
+    {
+        _isPaused = paused;
+        SpriteSheet.SetPaused(paused);
+
+        // If we're attacking or laying down, we need to adjust the timers
+        if (_isAttacking && paused)
+        {
+            // When pausing, we'll need to extend the animation duration
+            _attackStartTime = DateTimeOffset.Now.AddMilliseconds(
+                -((DateTimeOffset.Now - _attackStartTime).TotalMilliseconds));
+        }
+
+        if (_isLayingDown && paused)
+        {
+            // When pausing, we'll need to extend the animation duration
+            _layDownStartTime = DateTimeOffset.Now.AddMilliseconds(
+                -((DateTimeOffset.Now - _layDownStartTime).TotalMilliseconds));
+        }
+    }
     public void Attack()
     {
-        if (_isAttacking || _isLayingDown) return;
+        if (_isAttacking || _isLayingDown || _isPaused) return;
+
 
         _isAttacking = true;
         _attackStartTime = DateTimeOffset.Now;
@@ -68,7 +91,7 @@ public class PlayerObject : RenderableGameObject
 
     public void LayDown()
     {
-        if (_isLayingDown || _isAttacking) return;
+        if (_isLayingDown || _isAttacking || _isPaused) return;
 
         _isLayingDown = true;
         _layDownStartTime = DateTimeOffset.Now;
@@ -77,6 +100,9 @@ public class PlayerObject : RenderableGameObject
 
     public void UpdatePosition(double up, double down, double left, double right, int width, int height, double time)
     {
+        // Don't update anything if paused
+        if (_isPaused) return;
+
         // Check if lay down is finished
         if (_isLayingDown)
         {

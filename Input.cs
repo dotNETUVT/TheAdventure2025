@@ -49,6 +49,18 @@ public unsafe class Input
         return keyboardState[(int)KeyCode.L] == 1;
     }
 
+    public bool IsEscapePressed()
+    {
+        ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
+        return keyboardState[(int)KeyCode.Escape] == 1;
+    }
+
+    public bool IsEnterPressed()
+    {
+        ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
+        return keyboardState[(int)KeyCode.Return] == 1;
+    }
+
     public bool ProcessInput()
     {
         Event ev = new Event();
