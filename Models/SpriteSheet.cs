@@ -6,6 +6,8 @@ namespace TheAdventure.Models;
 
 public class SpriteSheet
 {
+
+
     public struct Position
     {
         public int Row { get; set; }
@@ -41,6 +43,25 @@ public class SpriteSheet
 
     private int _textureId = -1;
     private DateTimeOffset _animationStart = DateTimeOffset.MinValue;
+    private double _pausedAnimationTime = 0; // Store animation progress when paused
+    private bool _isPaused = false;
+
+
+    public void SetPaused(bool paused)
+    {
+        if (paused && !_isPaused)
+        {
+            // Entering pause state - record current animation progress
+            _pausedAnimationTime = (DateTimeOffset.Now - _animationStart).TotalMilliseconds;
+            _isPaused = true;
+        }
+        else if (!paused && _isPaused)
+        {
+            // Unpausing - reset animation start time to continue from where we left off
+            _animationStart = DateTimeOffset.Now.AddMilliseconds(-_pausedAnimationTime);
+            _isPaused = false;
+        }
+    }
 
     public static SpriteSheet Load(GameRenderer renderer, string fileName, string directory)
     {
@@ -99,8 +120,20 @@ public class SpriteSheet
         {
             var totalFrames = (ActiveAnimation.EndFrame.Row - ActiveAnimation.StartFrame.Row) * ColumnCount +
                 ActiveAnimation.EndFrame.Col - ActiveAnimation.StartFrame.Col;
-            var currentFrame = (int)((DateTimeOffset.Now - _animationStart).TotalMilliseconds /
+
+            // Calculate current frame based on whether we're paused or not
+            int currentFrame;
+            if (_isPaused)
+            {
+                // Use the stored time when paused
+                currentFrame = (int)(_pausedAnimationTime / (ActiveAnimation.DurationMs / (double)totalFrames));
+            }
+            else
+            {
+                currentFrame = (int)((DateTimeOffset.Now - _animationStart).TotalMilliseconds /
                                      (ActiveAnimation.DurationMs / (double)totalFrames));
+            }
+
             if (currentFrame > totalFrames)
             {
                 if (ActiveAnimation.Loop)
