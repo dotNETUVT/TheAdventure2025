@@ -300,6 +300,19 @@ public class Engine
             return;
         }
 
+        var currentTime = DateTimeOffset.Now;
+
+        // Check if cooldown has passed (accounting for pause time correctly)
+        if (_lastBombPlacement != DateTimeOffset.MinValue)
+        {
+            double elapsedSinceLastBomb = (currentTime - _lastBombPlacement).TotalSeconds;
+
+            // If we haven't been paused enough time to satisfy cooldown, return
+            if (elapsedSinceLastBomb < _bombPlacementCooldown)
+            {
+                return;
+            }
+        }
 
         var worldCoords = _renderer.ToWorldCoordinates(screenX, screenY);
 
@@ -331,6 +344,6 @@ public class Engine
         _pauseTimeTotal = 0;
 
         // Update cooldown with actual time
-        _lastBombPlacement = DateTimeOffset.Now;
+        _lastBombPlacement = currentTime;
     }
 }
