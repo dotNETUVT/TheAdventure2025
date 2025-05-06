@@ -1,18 +1,32 @@
-using Silk.NET.SDL;
+﻿using Silk.NET.SDL;
 
-namespace TheAdventure.Models;
-
-public class TemporaryGameObject : RenderableGameObject
+namespace TheAdventure.Models
 {
-    public double Ttl { get; init; }
-    public bool IsExpired => (DateTimeOffset.Now - _spawnTime).TotalSeconds >= Ttl;
-    
-    private DateTimeOffset _spawnTime;
-    
-    public TemporaryGameObject(SpriteSheet spriteSheet, double ttl, (int X, int Y) position, double angle = 0.0, Point rotationCenter = new())
-        : base(spriteSheet, position, angle, rotationCenter)
+    public class TemporaryGameObject : RenderableGameObject
     {
-        Ttl = ttl;
-        _spawnTime = DateTimeOffset.Now;
+        public double Ttl { get; init; }
+        public bool IsExpired => (DateTimeOffset.Now - _spawnTime).TotalSeconds >= Ttl;
+
+        private DateTimeOffset _spawnTime;
+
+    
+        public event Action? OnExpire;
+
+        public TemporaryGameObject(SpriteSheet spriteSheet, double ttl, (int X, int Y) position, double angle = 0.0, Point rotationCenter = new())
+            : base(spriteSheet, position, angle, rotationCenter)
+        {
+            Ttl = ttl;
+            _spawnTime = DateTimeOffset.Now;
+        }
+
+
+        public void Update()
+        {
+            if (IsExpired)
+            {
+           
+                OnExpire?.Invoke();
+            }
+        }
     }
 }

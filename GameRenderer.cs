@@ -18,6 +18,9 @@ public unsafe class GameRenderer
     private Dictionary<int, TextureData> _textureData = new();
     private int _textureId;
 
+    public int ScreenWidth => _camera.ViewportWidth;
+    public int ScreenHeight => _camera.ViewportHeight;
+
     public GameRenderer(Sdl sdl, GameWindow window)
     {
         _sdl = sdl;

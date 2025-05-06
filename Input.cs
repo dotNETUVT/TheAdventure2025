@@ -36,6 +36,11 @@ public unsafe class Input
         ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
         return keyboardState[(int)KeyCode.Down] == 1;
     }
+    public bool IsRightShiftPressed()
+    {
+        ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
+        return keyboardState[(int)KeyCode.RShift] == 1;
+    }
 
     public bool ProcessInput()
     {

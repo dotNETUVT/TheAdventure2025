@@ -1,3 +1,4 @@
+﻿using System.Numerics;
 using System.Text.Json;
 using Silk.NET.Maths;
 using TheAdventure.Models;
@@ -9,6 +10,7 @@ public class Engine
 {
     private readonly GameRenderer _renderer;
     private readonly Input _input;
+    private int _boostTextureId;
 
     private readonly Dictionary<int, GameObject> _gameObjects = new();
     private readonly Dictionary<string, TileSet> _loadedTileSets = new();
@@ -18,6 +20,9 @@ public class Engine
     private PlayerObject? _player;
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
+
+    private float _fadeAlpha = 0;
+    private DateTimeOffset _lastFadeTime = DateTimeOffset.Now;
 
     public Engine(GameRenderer renderer, Input input)
     {
@@ -30,6 +35,7 @@ public class Engine
     public void SetupWorld()
     {
         _player = new(_renderer);
+        _boostTextureId = _renderer.LoadTexture(Path.Combine("Assets", "speed.png"), out _);
 
         var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
         var level = JsonSerializer.Deserialize<Level>(levelContent);
@@ -83,7 +89,11 @@ public class Engine
         double left = _input.IsLeftPressed() ? 1.0 : 0.0;
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
 
-        _player?.UpdatePosition(up, down, left, right, (int)msSinceLastFrame);
+
+        bool isBoosting = _input.IsRightShiftPressed();
+
+        _player?.UpdatePosition(up, down, left, right, (int)msSinceLastFrame, isBoosting);
+    
     }
 
     public void RenderFrame()
@@ -95,6 +105,29 @@ public class Engine
 
         RenderTerrain();
         RenderAllObjects();
+
+        if (_input.IsRightShiftPressed())
+        {
+            var currentTime = DateTimeOffset.Now;
+            var msSinceLastFade = (currentTime - _lastFadeTime).TotalMilliseconds;
+
+            _lastFadeTime = currentTime;
+
+            var screenWidth = _renderer.ScreenWidth;
+            var screenHeight = _renderer.ScreenHeight;
+
+            int imgWidth = 115;
+            int imgHeight = 20;
+
+            int offsetX = (int)_player.X - imgWidth / 2 + 50;
+            int offsetY = (int)_player.Y - imgHeight - 15;
+
+            var destRect = new Rectangle<int>(offsetX, offsetY, imgWidth, imgHeight);
+            var srcRect = new Rectangle<int>(0, 0, imgWidth, imgHeight);
+
+            _renderer.SetDrawColor(255, 255, 255, (byte)_fadeAlpha);
+            _renderer.RenderTexture(_boostTextureId, srcRect, destRect);
+        }
 
         _renderer.PresentFrame();
     }
@@ -179,5 +212,17 @@ public class Engine
 
         TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
         _gameObjects.Add(bomb.Id, bomb);
+
+
+        bomb.OnExpire += () =>
+        {
+       
+            if (_player != null)
+            {
+
+            }
+        };
     }
+
+
 }

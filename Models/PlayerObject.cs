@@ -1,4 +1,4 @@
-using Silk.NET.Maths;
+﻿using Silk.NET.Maths;
 
 namespace TheAdventure.Models;
 
@@ -12,8 +12,7 @@ public class PlayerObject : GameObject
 
     private readonly int _textureId;
 
-    private const int Speed = 128; // pixels per second
-
+    private const int Speed = 128; 
     public PlayerObject(GameRenderer renderer)
     {
         _textureId = renderer.LoadTexture(Path.Combine("Assets", "player.png"), out _);
@@ -25,9 +24,14 @@ public class PlayerObject : GameObject
         UpdateTarget();
     }
 
-    public void UpdatePosition(double up, double down, double left, double right, int time)
+    public void UpdatePosition(double up, double down, double left, double right, int time, bool isBoosting)
     {
         var pixelsToMove = Speed * (time / 1000.0);
+
+        if (isBoosting)
+        {
+            pixelsToMove *= 1.5;
+        }
 
         Y -= (int)(pixelsToMove * up);
         Y += (int)(pixelsToMove * down);
@@ -36,6 +40,7 @@ public class PlayerObject : GameObject
 
         UpdateTarget();
     }
+
 
     public void Render(GameRenderer renderer)
     {
