@@ -10,9 +10,14 @@ public unsafe class Input
     
     public Input(Sdl sdl)
     {
-        _sdl = sdl;
+        _sdl = sdl; 
     }
-    
+    public bool IsSpacePressed()
+    {
+        ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
+        return keyboardState[(int)KeyCode.Space] == 1;
+    }
+
     public bool IsLeftPressed()
     {
         ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);

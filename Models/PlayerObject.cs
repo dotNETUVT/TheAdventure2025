@@ -14,6 +14,15 @@ public class PlayerObject : GameObject
 
     private const int Speed = 128; // pixels per second
 
+
+
+    private double _jumpOffset = 0;
+    private double _velocityY = 0;
+    private const double Gravity = 0.0015;
+    private bool _isOnGround = true;
+
+
+
     public PlayerObject(GameRenderer renderer)
     {
         _textureId = renderer.LoadTexture(Path.Combine("Assets", "player.png"), out _);
@@ -34,7 +43,30 @@ public class PlayerObject : GameObject
         X -= (int)(pixelsToMove * left);
         X += (int)(pixelsToMove * right);
 
+        
+        if (!_isOnGround)
+        {
+            _velocityY += Gravity * time;
+            _jumpOffset += _velocityY * time;
+
+            if (_jumpOffset >= 0)
+            {
+                _jumpOffset = 0;
+                _velocityY = 0;
+                _isOnGround = true;
+            }
+        }
+
         UpdateTarget();
+    }
+
+    public void Jump()
+    {
+        if (_isOnGround)
+        {
+            _velocityY = -0.5; 
+            _isOnGround = false;
+        }
     }
 
     public void Render(GameRenderer renderer)
@@ -44,6 +76,7 @@ public class PlayerObject : GameObject
 
     private void UpdateTarget()
     {
-        _target = new(X + 24, Y - 42, 48, 48);
+        _target = new(X + 24, (int)(Y - 42 + _jumpOffset), 48, 48);
     }
+
 }

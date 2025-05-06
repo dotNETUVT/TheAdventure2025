@@ -1,9 +1,8 @@
+﻿using Silk.NET.Maths;
 using System.Text.Json;
-using Silk.NET.Maths;
-using TheAdventure.Models;
 using TheAdventure.Models.Data;
-
-namespace TheAdventure;
+using TheAdventure.Models;
+using TheAdventure;
 
 public class Engine
 {
@@ -18,6 +17,8 @@ public class Engine
     private PlayerObject? _player;
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
+   
+    private Random _random = new();
 
     public Engine(GameRenderer renderer, Input input)
     {
@@ -78,12 +79,21 @@ public class Engine
         var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
         _lastUpdate = currentTime;
 
+      
+
         double up = _input.IsUpPressed() ? 1.0 : 0.0;
         double down = _input.IsDownPressed() ? 1.0 : 0.0;
         double left = _input.IsLeftPressed() ? 1.0 : 0.0;
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
 
+        if (_input.IsSpacePressed())
+        {
+            _player?.Jump();
+        }
+
         _player?.UpdatePosition(up, down, left, right, (int)msSinceLastFrame);
+
+    
     }
 
     public void RenderFrame()
@@ -180,4 +190,5 @@ public class Engine
         TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
         _gameObjects.Add(bomb.Id, bomb);
     }
+
 }
