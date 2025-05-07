@@ -17,6 +17,10 @@ public unsafe class GameRenderer
     private Dictionary<int, IntPtr> _texturePointers = new();
     private Dictionary<int, TextureData> _textureData = new();
     private int _textureId;
+    
+    private int _gameOverTextureId = -1;
+    private bool _gameOverTextureLoaded;
+    private TextureData _gameOverTextureData;
 
     public GameRenderer(Sdl sdl, GameWindow window)
     {
@@ -50,9 +54,9 @@ public unsafe class GameRenderer
                 Width = image.Width,
                 Height = image.Height
             };
-            var imageRAWData = new byte[textureInfo.Width * textureInfo.Height * 4];
-            image.CopyPixelDataTo(imageRAWData.AsSpan());
-            fixed (byte* data = imageRAWData)
+            var imageRawData = new byte[textureInfo.Width * textureInfo.Height * 4];
+            image.CopyPixelDataTo(imageRawData.AsSpan());
+            fixed (byte* data = imageRawData)
             {
                 var imageSurface = _sdl.CreateRGBSurfaceWithFormatFrom(data, textureInfo.Width,
                     textureInfo.Height, 8, textureInfo.Width * 4, (uint)PixelFormatEnum.Rgba32);
@@ -109,5 +113,54 @@ public unsafe class GameRenderer
     public void PresentFrame()
     {
         _sdl.RenderPresent(_renderer);
+    }
+    
+    public void Clear()
+    { 
+        _sdl.RenderClear(_renderer);
+    }
+    
+    public void RenderGameOver()
+    {
+        if (!_gameOverTextureLoaded)
+        {
+            try
+            {
+                TextureData tempTextureInfo;
+                _gameOverTextureId = LoadTexture(Path.Combine("Assets", "GameOver.png"), out tempTextureInfo);
+                _gameOverTextureData = tempTextureInfo;
+                _gameOverTextureLoaded = true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to load GameOver.png: {ex.Message}");
+                return;
+            }
+        }
+
+        SetDrawColor(0, 0, 0, 255);
+        ClearScreen();
+        
+        var windowSize = _window.Size;
+        
+        var sourceRect = new Rectangle<int>(0, 0, _gameOverTextureData.Width, _gameOverTextureData.Height);
+        
+        int displayWidth = Math.Min(windowSize.Width, _gameOverTextureData.Width);
+        int displayHeight = Math.Min(windowSize.Height, _gameOverTextureData.Height);
+        
+        var destRect = new Rectangle<int>(
+            (windowSize.Width - displayWidth) / 2,
+            (windowSize.Height - displayHeight) / 2,
+            displayWidth,
+            displayHeight
+        );
+        
+        if (_texturePointers.TryGetValue(_gameOverTextureId, out var imageTexture))
+        {
+            Point centerPoint = default;
+            
+            _sdl.RenderCopyEx(_renderer, (Texture*)imageTexture, in sourceRect,
+                in destRect, 0.0, in centerPoint, RendererFlip.None);
+        }
     }
 }
