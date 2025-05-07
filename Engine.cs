@@ -13,18 +13,31 @@ public class Engine
     private readonly Dictionary<int, GameObject> _gameObjects = new();
     private readonly Dictionary<string, TileSet> _loadedTileSets = new();
     private readonly Dictionary<int, Tile> _tileIdMap = new();
-
+    private DateTime _lastBombTime = DateTime.MinValue;
     private Level _currentLevel = new();
     private PlayerObject? _player;
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
+
+    private const int BombCooldownMs = 1000; // 1 secundă
 
     public Engine(GameRenderer renderer, Input input)
     {
         _renderer = renderer;
         _input = input;
 
-        _input.OnMouseClick += (_, coords) => AddBomb(coords.x, coords.y);
+        _input.OnMouseClick += (_, coords) =>
+        {
+            if ((DateTime.Now - _lastBombTime).TotalMilliseconds >= BombCooldownMs)
+            {
+                AddBomb(coords.x, coords.y);
+                _lastBombTime = DateTime.Now;
+            }
+            else
+            {
+                // write smth on screen to let the user know the bomb s on cooldown
+            }
+        };
     }
 
     public void SetupWorld()
