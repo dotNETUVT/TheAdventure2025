@@ -1,5 +1,8 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.2.32616.157
+MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TheAdventure", "TheAdventure.csproj", "{ECF6F2E0-F990-4520-83FC-E39AE78A3B8D}"
 EndProject
 Global
@@ -12,5 +15,11 @@ Global
 		{ECF6F2E0-F990-4520-83FC-E39AE78A3B8D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{ECF6F2E0-F990-4520-83FC-E39AE78A3B8D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{ECF6F2E0-F990-4520-83FC-E39AE78A3B8D}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {2967DDD4-C38D-4FA0-8ED8-BC9E7744467E}
 	EndGlobalSection
 EndGlobal

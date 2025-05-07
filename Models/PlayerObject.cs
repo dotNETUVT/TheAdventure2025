@@ -6,14 +6,28 @@ public class PlayerObject : RenderableGameObject
 {
     private const int _speed = 128; // pixels per second
     private string _currentAnimation = "IdleDown";
+    public bool IsDead { get; private set; } = false;
 
     public PlayerObject(SpriteSheet spriteSheet, int x, int y) : base(spriteSheet, (x, y))
     {
         SpriteSheet.ActivateAnimation(_currentAnimation);
     }
 
+    public void Die()
+    {
+        if (!IsDead)
+        {
+            IsDead = true;
+            _currentAnimation = "Death";
+            SpriteSheet.ActivateAnimation(_currentAnimation);
+        }
+    }
+
     public void UpdatePosition(double up, double down, double left, double right, int width, int height, double time)
     {
+        if (IsDead)
+            return;
+
         if (up + down + left + right == 0)
         {
             return;
@@ -61,5 +75,12 @@ public class PlayerObject : RenderableGameObject
         }
         
         Position = (x, y);
+    }
+
+    public bool IsDeathAnimationComplete()
+    {
+        if (!IsDead) return false;
+
+        return SpriteSheet.IsAnimationComplete();
     }
 }

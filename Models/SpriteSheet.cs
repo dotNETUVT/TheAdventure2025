@@ -123,4 +123,16 @@ public class SpriteSheet
                 ActiveAnimation.Flip, angle, rotationCenter);
         }
     }
+
+    public bool IsAnimationComplete()
+    {
+        if (ActiveAnimation == null || ActiveAnimation.Loop)
+            return false;
+
+        var totalFrames = (ActiveAnimation.EndFrame.Row - ActiveAnimation.StartFrame.Row) * ColumnCount +
+            ActiveAnimation.EndFrame.Col - ActiveAnimation.StartFrame.Col;
+        var elapsedTime = (DateTimeOffset.Now - _animationStart).TotalMilliseconds;
+
+        return elapsedTime >= ActiveAnimation.DurationMs;
+    }
 }

@@ -19,6 +19,9 @@ public class Engine
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
 
+    private bool _gameOver = false;
+    private DateTimeOffset _gameOverTime;
+
     public Engine(GameRenderer renderer, Input input)
     {
         _renderer = renderer;
@@ -72,19 +75,6 @@ public class Engine
         _currentLevel = level;
     }
 
-    public void ProcessFrame()
-    {
-        var currentTime = DateTimeOffset.Now;
-        var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
-        _lastUpdate = currentTime;
-
-        double up = _input.IsUpPressed() ? 1.0 : 0.0;
-        double down = _input.IsDownPressed() ? 1.0 : 0.0;
-        double left = _input.IsLeftPressed() ? 1.0 : 0.0;
-        double right = _input.IsRightPressed() ? 1.0 : 0.0;
-
-        _player?.UpdatePosition(up, down, left, right, 48, 48,msSinceLastFrame);
-    }
 
     public void RenderFrame()
     {
@@ -164,6 +154,75 @@ public class Engine
         }
     }
 
+
+    private void UpdateGameLogic()
+    {
+        var explodingBombs = new List<TemporaryGameObject>();
+
+        foreach (var gameObject in _gameObjects.Values)
+        {
+            if (gameObject is TemporaryGameObject tempObject)
+            {
+                tempObject.Update();
+
+                if (tempObject.IsExploding)
+                {
+                    explodingBombs.Add(tempObject);
+                }
+            }
+        }
+
+        if (_player != null && !_player.IsDead)
+        {
+            foreach (var bomb in explodingBombs)
+            {
+                double distance = CalculateDistance(_player.Position, bomb.Position);
+                if (distance <= bomb.ExplosionRadius)
+                {
+                    _player.Die();
+                    break;
+                }
+            }
+        }
+
+        if (_player != null && _player.IsDead && _player.IsDeathAnimationComplete())
+        {
+            if (!_gameOver)
+            {
+                _gameOver = true;
+                _gameOverTime = DateTimeOffset.Now;
+            }
+
+            if ((DateTimeOffset.Now - _gameOverTime).TotalSeconds > 3)
+            {
+                RestartGame();
+            }
+        }
+    }
+
+    private double CalculateDistance((int X, int Y) point1, (int X, int Y) point2)
+    {
+        int dx = point2.X - point1.X;
+        int dy = point2.Y - point1.Y;
+        return Math.Sqrt(dx * dx + dy * dy);
+    }
+
+    public void ProcessFrame()
+    {
+        var currentTime = DateTimeOffset.Now;
+        var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
+        _lastUpdate = currentTime;
+
+        double up = _input.IsUpPressed() ? 1.0 : 0.0;
+        double down = _input.IsDownPressed() ? 1.0 : 0.0;
+        double left = _input.IsLeftPressed() ? 1.0 : 0.0;
+        double right = _input.IsRightPressed() ? 1.0 : 0.0;
+
+        _player?.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame);
+
+        UpdateGameLogic();
+    }
+
     private void AddBomb(int screenX, int screenY)
     {
         var worldCoords = _renderer.ToWorldCoordinates(screenX, screenY);
@@ -171,7 +230,20 @@ public class Engine
         SpriteSheet spriteSheet = SpriteSheet.Load(_renderer, "BombExploding.json", "Assets");
         spriteSheet.ActivateAnimation("Explode");
 
-        TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
+        TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y),
+                                       explosionRadius: 100);
         _gameObjects.Add(bomb.Id, bomb);
+    }
+
+    private void RestartGame()
+    {
+        _gameOver = false;
+        _gameObjects.Clear();
+
+        _player = new(SpriteSheet.Load(_renderer, "Player.json", "Assets"), 100, 100);
+
+        var playerPosition = _player.Position;
+        _renderer.CameraLookAt(playerPosition.X, playerPosition.Y);
+
     }
 }
