@@ -37,16 +37,19 @@ public class Engine
     public void SetupWorld()
     {
         _gameObjects.Clear();
+
         _player = new PlayerObject(_renderer);
         _healthBarRenderer = new HealthBarRenderer(
             _renderer,
             _player,
             width: 50,
             height: 5,
-            offsetY: -30,  
-            offsetX: 47      
+            offsetY: -30,
+            offsetX: 47
         );
+
         _player.OnPlayerDeath += (sender, args) => _shouldResetGame = true;
+
 
         var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
         var level = JsonSerializer.Deserialize<Level>(levelContent);
@@ -83,12 +86,41 @@ public class Engine
             throw new Exception("Invalid tile dimensions");
         }
 
-        _renderer.SetWorldBounds(new Rectangle<int>(0, 0, level.Width.Value * level.TileWidth.Value,
-            level.Height.Value * level.TileHeight.Value));
+        _renderer.SetWorldBounds(new Rectangle<int>(
+            0, 0,
+            level.Width.Value * level.TileWidth.Value,
+            level.Height.Value * level.TileHeight.Value
+        ));
 
         _currentLevel = level;
 
         _renderer.LoadDeathScreenTexture();
+    }
+    private void AddHealthPack(int x, int y)
+    {
+        var spriteSheet = new SpriteSheet(
+            _renderer,
+            Path.Combine("Assets", "health.png"),
+            1, 1, // rows, columns
+            32, 32, // frame size
+            (16, 16) // frame center (half of width and height)
+        );
+
+        HealthPackObject healthPack = new(spriteSheet, (x, y));
+        _gameObjects.Add(healthPack.Id, healthPack);
+    }
+    private void AddSpeedPack(int x, int y)
+    {
+        var spriteSheet = new SpriteSheet(
+            _renderer,
+            Path.Combine("Assets", "speed.png"),
+            1, 1, // rows, columns
+            32, 32, // frame size
+            (16, 16) // frame center (half of width and height)
+        );
+
+        SpeedPackObject speedPack = new(spriteSheet, (x, y));
+        _gameObjects.Add(speedPack.Id, speedPack);
     }
 
     private void ResetGame()
@@ -107,7 +139,6 @@ public class Engine
     }
     public void ProcessFrame()
     {
-
         if (_shouldResetGame && !_isInDeathSequence)
         {
             StartDeathSequence();
@@ -116,12 +147,12 @@ public class Engine
         if (_isInDeathSequence)
         {
             var deathDuration = (DateTimeOffset.Now - _deathTime).TotalSeconds;
-            if (deathDuration >= 2.0) 
+            if (deathDuration >= 2.0)
             {
                 ResetGame();
                 _isInDeathSequence = false;
             }
-            return; 
+            return;
         }
 
         if (_shouldResetGame)
@@ -148,7 +179,7 @@ public class Engine
                 double timeSinceSpawn = (DateTimeOffset.Now - bomb.SpawnTime).TotalSeconds;
                 double timeUntilExpire = bomb.Ttl - timeSinceSpawn;
 
-                if (timeUntilExpire <= 1) 
+                if (timeUntilExpire <= 1)
                 {
                     double dx = bomb.X - _player!.X;
                     double dy = bomb.Y - _player.Y;
@@ -158,12 +189,63 @@ public class Engine
                     if (distance <= explosionRadius)
                     {
                         _player.TakeDamage(25);
-                        Console.WriteLine($" Player hit by bomb! Health: {_player.CurrentHealth}/{_player.MaxHealth}");
+                        Console.WriteLine($"Player hit by bomb! Health: {_player.CurrentHealth}/{_player.MaxHealth}");
                     }
 
                     bomb.HasDealtDamage = true;
                 }
             }
+        }
+
+        Random rand = new Random();
+        double spawnChance = 0.001; 
+        if (rand.NextDouble() < spawnChance)
+        {
+            int randomX = rand.Next(0, 500);
+            int randomY = rand.Next(0, 500);
+           
+            AddHealthPack(randomX, randomY);
+        }
+        Random randSpeed = new Random();
+        double spawnChanceSpeed = 0.003;
+        if (randSpeed.NextDouble() < spawnChanceSpeed)
+        {
+            int randomX = rand.Next(0, 500);
+            int randomY = rand.Next(0, 500);
+
+            AddSpeedPack(randomX, randomY);
+        }
+
+
+        var toRemove = new List<int>();
+        foreach (var obj in _gameObjects.Values)
+        {
+            if (obj is HealthPackObject healthPack && !healthPack.IsCollected)
+            {
+                if (healthPack.CheckCollision((_player!.X, _player.Y)))
+                {
+                    healthPack.Collect(_player);
+                    toRemove.Add(healthPack.Id);
+                    Console.WriteLine($"Collected health pack at ({healthPack.X}, {healthPack.Y})");
+                }
+            }
+        }
+        foreach (var obj in _gameObjects.Values)
+        {
+            if (obj is SpeedPackObject speedPack && !speedPack.IsCollected)
+            {
+                if (speedPack.CheckCollision((_player!.X, _player.Y)))
+                {
+                    speedPack.Collect(_player);
+                    toRemove.Add(speedPack.Id);
+                    Console.WriteLine($"Collected speed pack at ({speedPack.X}, {speedPack.Y})");
+                }
+            }
+        }
+
+        foreach (var id in toRemove)
+        {
+            _gameObjects.Remove(id);
         }
     }
 
@@ -268,6 +350,8 @@ public class Engine
         TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
         _gameObjects.Add(bomb.Id, bomb);
     }
+
+
 
     private void StartDeathSequence()
     {

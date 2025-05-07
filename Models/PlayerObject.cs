@@ -16,7 +16,7 @@ public class PlayerObject : GameObject
 
     private readonly int _textureId;
 
-    private const int Speed = 128; // pixels per second
+    private int Speed = 128; // pixels per second
 
     public event EventHandler OnPlayerDeath;
 
@@ -70,6 +70,11 @@ public class PlayerObject : GameObject
     public void Heal(int amount)
     {
         CurrentHealth = Math.Min(MaxHealth, CurrentHealth + amount);
+    }
+
+    public void SpeedBoost(int amount)
+    {
+        Speed += amount;
     }
     public void RestoreFullHealth()
     {
