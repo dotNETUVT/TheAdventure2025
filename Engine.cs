@@ -11,7 +11,6 @@ public class Engine
     private readonly Input _input;
 
     private readonly Dictionary<int, GameObject> _gameObjects = new();
-
     private readonly Dictionary<int, Tile> _tileIdMap = new();
 
     private Level _currentLevel = new();
@@ -31,52 +30,76 @@ public class Engine
         _input.OnMouseClick += (_, coords) => AddBomb(coords.x, coords.y);
     }
 
-    public void SetupWorld()
+   public void SetupWorld()
+{
+    _player = new(_renderer);
+
+ 
+    var flowerSpriteSheet = new SpriteSheet(
+        _renderer,
+        Path.Combine("Assets", "flowers.png"),
+        6, 12, 32, 32, (16, 16));
+
+    
+    var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
+    var level = JsonSerializer.Deserialize<Level>(levelContent);
+    if (level == null)
+        throw new Exception("Failed to load level");
+
+   
+    foreach (var tileSetRef in level.TileSets)
     {
-        _player = new(_renderer);
+        var tileSetContent = File.ReadAllText(Path.Combine("Assets", tileSetRef.Source));
+        var tileSet = JsonSerializer.Deserialize<TileSet>(tileSetContent);
+        if (tileSet == null)
+            throw new Exception("Failed to load tile set");
 
-        var flowerSpriteSheet = new SpriteSheet(
-            _renderer,
-            Path.Combine("Assets", "flowers.png"),
-            6, 12, 32, 32, (16, 16));
-
-        var flower1 = new HealingFlower(flowerSpriteSheet, (300, 200));
-        var flower2 = new DamagingFlower(flowerSpriteSheet, (400, 200));
-
-        _gameObjects.Add(flower1.Id, flower1);
-        _gameObjects.Add(flower2.Id, flower2);
-
-        var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
-        var level = JsonSerializer.Deserialize<Level>(levelContent);
-        if (level == null) throw new Exception("Failed to load level");
-
-        foreach (var tileSetRef in level.TileSets)
+        foreach (var tile in tileSet.Tiles)
         {
-            var tileSetContent = File.ReadAllText(Path.Combine("Assets", tileSetRef.Source));
-            var tileSet = JsonSerializer.Deserialize<TileSet>(tileSetContent);
-            if (tileSet == null) throw new Exception("Failed to load tile set");
-
-            foreach (var tile in tileSet.Tiles)
-            {
-                tile.TextureId = _renderer.LoadTexture(Path.Combine("Assets", tile.Image), out _);
-                _tileIdMap.Add(tile.Id!.Value, tile);
-            }
+            tile.TextureId = _renderer.LoadTexture(Path.Combine("Assets", tile.Image), out _);
+            _tileIdMap.Add(tile.Id!.Value, tile);
         }
-
-        if (level.Width == null || level.Height == null) throw new Exception("Invalid level dimensions");
-        if (level.TileWidth == null || level.TileHeight == null) throw new Exception("Invalid tile dimensions");
-
-        _renderer.SetWorldBounds(new Rectangle<int>(0, 0, level.Width.Value * level.TileWidth.Value,
-            level.Height.Value * level.TileHeight.Value));
-
-        _currentLevel = level;
-
-        _heartFullId = _renderer.LoadTexture(Path.Combine("Assets", "heart_full.png"), out _);
-        _heartHalfId = _renderer.LoadTexture(Path.Combine("Assets", "heart_half.png"), out _);
-        _heartEmptyId = _renderer.LoadTexture(Path.Combine("Assets", "heart_empty.png"), out _);
-        
-
     }
+
+   
+    if (level.Width == null || level.Height == null)
+        throw new Exception("Invalid level dimensions");
+
+    if (level.TileWidth == null || level.TileHeight == null)
+        throw new Exception("Invalid tile dimensions");
+
+    _currentLevel = level;
+
+  
+    _renderer.SetWorldBounds(new Rectangle<int>(
+        0, 0,
+        level.Width.Value * level.TileWidth.Value,
+        level.Height.Value * level.TileHeight.Value
+    ));
+
+   
+    _heartFullId = _renderer.LoadTexture(Path.Combine("Assets", "heart_full.png"), out _);
+    _heartHalfId = _renderer.LoadTexture(Path.Combine("Assets", "heart_half.png"), out _);
+    _heartEmptyId = _renderer.LoadTexture(Path.Combine("Assets", "heart_empty.png"), out _);
+
+   
+    var rand = new Random();
+    int levelWidth = level.Width.Value * level.TileWidth.Value;
+    int levelHeight = level.Height.Value * level.TileHeight.Value;
+
+    for (int i = 0; i < 6; i++)
+    {
+        int x = rand.Next(100, levelWidth - 100);
+        int y = rand.Next(100, levelHeight - 100);
+
+        GameObject flower = i % 2 == 0
+            ? new HealingFlower(flowerSpriteSheet, (x, y))
+            : new DamagingFlower(flowerSpriteSheet, (x, y));
+
+        _gameObjects.Add(flower.Id, flower);
+    }
+}
+
 
     public void ProcessFrame()
     {
@@ -94,7 +117,7 @@ public class Engine
         _player.UpdatePosition(up, down, left, right, (int)msSinceLastFrame);
 
         var toRemove = new List<int>();
-        var toSpawn = new List<bool>();  
+        var toSpawn = new List<bool>(); 
 
         foreach (var obj in GetRenderables())
         {
@@ -112,11 +135,23 @@ public class Engine
             }
         }
 
+   
+        foreach (var bomb in GetRenderables().OfType<TemporaryGameObject>())
+        {
+            foreach (var obj in GetRenderables())
+            {
+                if ((obj is HealingFlower || obj is DamagingFlower) && Intersects(bomb, obj))
+                {
+                    toRemove.Add(obj.Id);
+                }
+            }
+        }
+
         foreach (var id in toRemove)
         {
             _gameObjects.Remove(id);
         }
-        
+
         foreach (var isHealing in toSpawn)
         {
             var rand = new Random();
@@ -142,7 +177,6 @@ public class Engine
         }
     }
 
-
     public void RenderFrame()
     {
         _renderer.SetDrawColor(0, 0, 0, 255);
@@ -162,12 +196,9 @@ public class Engine
 
         if (_player is not null)
         {
-       
             int heartWidth = 36;
             int heartHeight = 32;
             int spacing = 2;
-
-        
             int xStart = 10;
             int yStart = 10;
 
@@ -176,7 +207,7 @@ public class Engine
             for (int i = 0; i < 3; i++)
             {
                 int drawX = xStart + i * (heartWidth + spacing);
-                int heartState = Math.Min(2, health); 
+                int heartState = Math.Min(2, health);
 
                 int textureId = heartState switch
                 {
@@ -192,8 +223,6 @@ public class Engine
                 health -= heartState;
             }
         }
-        
-
 
         _renderer.PresentFrame();
     }
@@ -261,6 +290,24 @@ public class Engine
                px + pw > ox &&
                py < oy + oh &&
                py + ph > oy;
+    }
+
+    private bool Intersects(RenderableGameObject a, RenderableGameObject b)
+    {
+        int ax = a.Position.X - 16;
+        int ay = a.Position.Y - 16;
+        int aw = 32;
+        int ah = 32;
+
+        int bx = b.Position.X - 16;
+        int by = b.Position.Y - 16;
+        int bw = 32;
+        int bh = 32;
+
+        return ax < bx + bw &&
+               ax + aw > bx &&
+               ay < by + bh &&
+               ay + ah > by;
     }
 
     public IEnumerable<RenderableGameObject> GetRenderables()
