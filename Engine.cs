@@ -78,12 +78,28 @@ public class Engine
         var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
         _lastUpdate = currentTime;
 
+        if (_player == null)
+        {
+            return;
+        }
+
         double up = _input.IsUpPressed() ? 1.0 : 0.0;
         double down = _input.IsDownPressed() ? 1.0 : 0.0;
         double left = _input.IsLeftPressed() ? 1.0 : 0.0;
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
+        bool isAttacking = _input.IsKeyAPressed() && (up + down + left + right <= 1);
+        bool addBomb = _input.IsKeyBPressed();
 
-        _player?.UpdatePosition(up, down, left, right, 48, 48,msSinceLastFrame);
+        _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame);
+        if (isAttacking)
+        {
+            _player.Attack();
+        }
+
+        if (addBomb)
+        {
+            AddBomb(_player.Position.X, _player.Position.Y, false);
+        }
     }
 
     public void RenderFrame()
@@ -114,7 +130,20 @@ public class Engine
 
         foreach (var id in toRemove)
         {
-            _gameObjects.Remove(id);
+            _gameObjects.Remove(id, out var gameObject);
+            
+            if (_player == null)
+            {
+                continue;
+            }
+            
+            var tempGameObject = (TemporaryGameObject)gameObject!;
+            var deltaX = Math.Abs(_player.Position.X - tempGameObject.Position.X);
+            var deltaY = Math.Abs(_player.Position.Y - tempGameObject.Position.Y);
+            if (deltaX < 32 && deltaY < 32)
+            {
+                _player.GameOver();
+            }
         }
 
         _player?.Render(_renderer);
@@ -164,9 +193,9 @@ public class Engine
         }
     }
 
-    private void AddBomb(int screenX, int screenY)
+    private void AddBomb(int X, int Y, bool translateCoordinates = true)
     {
-        var worldCoords = _renderer.ToWorldCoordinates(screenX, screenY);
+        var worldCoords = translateCoordinates ? _renderer.ToWorldCoordinates(X, Y) : new Vector2D<int>(X, Y);
 
         SpriteSheet spriteSheet = SpriteSheet.Load(_renderer, "BombExploding.json", "Assets");
         spriteSheet.ActivateAnimation("Explode");

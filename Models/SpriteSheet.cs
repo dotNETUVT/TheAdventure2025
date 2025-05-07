@@ -38,6 +38,8 @@ public class SpriteSheet
 
     public Animation? ActiveAnimation { get; set; }
     public Dictionary<string, Animation> Animations { get; set; } = new();
+    
+    public bool AnimationFinished { get; private set; }
 
     private int _textureId = -1;
     private DateTimeOffset _animationStart = DateTimeOffset.MinValue;
@@ -79,12 +81,20 @@ public class SpriteSheet
         return spriteSheet;
     }
 
-    public void ActivateAnimation(string name)
+    public void ActivateAnimation(string? name)
     {
+        if (string.IsNullOrEmpty(name))
+        {
+            AnimationFinished = true;
+            ActiveAnimation = null;
+            return;
+        }
+        
         if (!Animations.TryGetValue(name, out var animation)) return;
 
         ActiveAnimation = animation;
         _animationStart = DateTimeOffset.Now;
+        AnimationFinished = false;
     }
 
     public void Render(GameRenderer renderer, (int X, int Y) dest, double angle = 0.0, Point rotationCenter = new())
@@ -103,6 +113,8 @@ public class SpriteSheet
                                      (ActiveAnimation.DurationMs / (double)totalFrames));
             if (currentFrame > totalFrames)
             {
+                AnimationFinished = true;
+                
                 if (ActiveAnimation.Loop)
                 {
                     _animationStart = DateTimeOffset.Now;
