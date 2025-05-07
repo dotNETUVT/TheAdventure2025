@@ -78,6 +78,14 @@ public unsafe class GameRenderer
         return _textureId++;
     }
 
+    public void RenderScreenSpaceTexture(int textureId, Rectangle<int> src, Rectangle<int> dst)
+    {
+        if (_texturePointers.TryGetValue(textureId, out var tex))
+        {
+            _sdl.RenderCopyEx(_renderer, (Texture*)tex, in src, in dst, 0, null, RendererFlip.None);
+        }
+    }
+
     public void RenderTexture(int textureId, Rectangle<int> src, Rectangle<int> dst,
         RendererFlip flip = RendererFlip.None, double angle = 0.0, Point center = default)
     {

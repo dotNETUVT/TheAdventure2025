@@ -14,18 +14,21 @@ public class Engine
     private readonly Dictionary<string, TileSet> _loadedTileSets = new();
     private readonly Dictionary<int, Tile> _tileIdMap = new();
     private DateTime _lastBombTime = DateTime.MinValue;
+    private int? _cooldownTextureId = null;
+    private DateTime? _cooldownMessageStart = null;
+
     private Level _currentLevel = new();
     private PlayerObject? _player;
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
 
-    private const int BombCooldownMs = 1000; // 1 secundă
+    private const int BombCooldownMs = 600; // 0.6 sec
 
     public Engine(GameRenderer renderer, Input input)
     {
         _renderer = renderer;
         _input = input;
-
+        _cooldownTextureId = _renderer.LoadTexture(Path.Combine("Assets", "bomb_cooldown.png"), out _);
         _input.OnMouseClick += (_, coords) =>
         {
             if ((DateTime.Now - _lastBombTime).TotalMilliseconds >= BombCooldownMs)
@@ -36,6 +39,7 @@ public class Engine
             else
             {
                 // write smth on screen to let the user know the bomb s on cooldown
+                _cooldownMessageStart = DateTime.Now;
             }
         };
     }
@@ -109,6 +113,20 @@ public class Engine
 
         RenderTerrain();
         RenderAllObjects();
+
+        if (_cooldownTextureId.HasValue && _cooldownMessageStart.HasValue)
+{
+        if ((DateTime.Now - _cooldownMessageStart.Value).TotalMilliseconds < 600)
+        {
+            var dst = new Silk.NET.Maths.Rectangle<int>(20, 20, 200, 40);
+            var src = new Silk.NET.Maths.Rectangle<int>(0, 0, 200, 40);
+            _renderer.RenderScreenSpaceTexture(_cooldownTextureId.Value, src, dst);
+        }
+        else
+        {
+            _cooldownMessageStart = null; //stergem mesajuk
+        }
+    }
 
         _renderer.PresentFrame();
     }
