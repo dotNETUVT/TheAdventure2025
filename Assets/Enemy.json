@@ -1,0 +1,37 @@
+﻿{
+  "rowCount": 2,
+  "columnCount": 4,
+  "frameWidth": 32,
+  "frameHeight": 32,
+  "frameCenter": {
+    "offsetX": 16,
+    "offsetY": 16
+  },
+  "fileName": "Enemy.png",
+  "animations": {
+    "Walk": {
+      "startFrame": {
+        "row": 0,
+        "col": 0
+      },
+      "endFrame": {
+        "row": 0,
+        "col": 3
+      },
+      "durationMs": 600,
+      "loop": true
+    },
+    "Die": {
+      "startFrame": {
+        "row": 1,
+        "col": 0
+      },
+      "endFrame": {
+        "row": 1,
+        "col": 3
+      },
+      "durationMs": 400,
+      "loop": false
+    }
+  }
+}
