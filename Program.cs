@@ -5,6 +5,8 @@ namespace TheAdventure;
 
 public static class Program
 {
+
+
     public static void Main()
     {
         var sdl = new Sdl(new SdlContext());

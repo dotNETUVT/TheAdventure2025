@@ -13,6 +13,20 @@ public class PlayerObject : GameObject
     private readonly int _textureId;
 
     private const int Speed = 128; // pixels per second
+    
+    public int Health { get; private set; } = 6; // max 6
+    public int MaxHealth => 6;
+    public bool IsAlive => Health > 0;
+
+    public void Heal(int amount)
+    {
+        Health = Math.Min(MaxHealth, Health + amount);
+    }
+
+    public void TakeDamage(int amount)
+    {
+        Health = Math.Max(0, Health - amount);
+    }
 
     public PlayerObject(GameRenderer renderer)
     {

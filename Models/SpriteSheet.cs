@@ -25,6 +25,8 @@ public class SpriteSheet
     public Dictionary<string, Animation> Animations { get; init; } = new();
 
     private int _textureId;
+    public int TextureId => _textureId;
+
     private DateTimeOffset _animationStart = DateTimeOffset.MinValue;
 
     public SpriteSheet(GameRenderer renderer, string fileName, int rowCount, int columnCount, int frameWidth,
@@ -83,4 +85,6 @@ public class SpriteSheet
                 ActiveAnimation.Flip, angle, rotationCenter);
         }
     }
+    
+    
 }
