@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Silk.NET.Maths;
 using Silk.NET.SDL;
 
@@ -5,82 +6,134 @@ namespace TheAdventure.Models;
 
 public class SpriteSheet
 {
-    public class Animation
+    public struct Position
     {
-        public (int Row, int Col) StartFrame { get; init; }
-        public (int Row, int Col) EndFrame { get; init; }
-        public RendererFlip Flip { get; init; } = RendererFlip.None;
-        public int DurationMs { get; init; }
-        public bool Loop { get; init; }
+        public int Row { get; set; }
+        public int Col { get; set; }
     }
 
-    public int RowCount { get; init; }
-    public int ColumnCount { get; init; }
+    public struct Offset
+    {
+        public int OffsetX { get; set; }
+        public int OffsetY { get; set; }
+    }
 
-    public int FrameWidth { get; init; }
-    public int FrameHeight { get; init; }
-    public (int OffsetX, int OffsetY) FrameCenter { get; init; }
+    public class Animation
+    {
+        public Position StartFrame { get; set; }
+        public Position EndFrame { get; set; }
+        public RendererFlip Flip { get; set; } = RendererFlip.None;
+        public int DurationMs { get; set; } = 1000;
+        public bool Loop { get; set; } = true;
+    }
 
+    public int RowCount { get; set; }
+    public int ColumnCount { get; set; }
+
+    public int FrameWidth { get; set; }
+    public int FrameHeight { get; set; }
+    public Offset FrameCenter { get; set; }
+
+    public string? FileName { get; set; }
+
+    public Dictionary<string, Animation> Animations { get; set; } = new();
     public Animation? ActiveAnimation { get; private set; }
-    public Dictionary<string, Animation> Animations { get; init; } = new();
 
-    private int _textureId;
+    private int _textureId = -1;
     private DateTimeOffset _animationStart = DateTimeOffset.MinValue;
 
-    public SpriteSheet(GameRenderer renderer, string fileName, int rowCount, int columnCount, int frameWidth,
-        int frameHeight, (int OffsetX, int OffsetY) frameCenter)
+    // Constructor for hardcoded use
+    public SpriteSheet(GameRenderer renderer, string filePath, int rowCount, int columnCount,
+                       int frameWidth, int frameHeight, (int OffsetX, int OffsetY) frameCenter)
     {
-        _textureId = renderer.LoadTexture(fileName, out var textureData);
-
         RowCount = rowCount;
         ColumnCount = columnCount;
         FrameWidth = frameWidth;
         FrameHeight = frameHeight;
-        FrameCenter = frameCenter;
+        FrameCenter = new Offset { OffsetX = frameCenter.OffsetX, OffsetY = frameCenter.OffsetY };
+
+        _textureId = renderer.LoadTexture(filePath, out _);
+        if (_textureId == -1)
+            throw new Exception($"Failed to load texture: {filePath}");
+    }
+
+    public SpriteSheet() { }
+
+    public static SpriteSheet Load(GameRenderer renderer, string jsonFile, string directory)
+    {
+        var path = Path.Combine(directory, jsonFile);
+        var json = File.ReadAllText(path);
+
+        var spriteSheet = JsonSerializer.Deserialize<SpriteSheet>(json, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        }) ?? throw new Exception($"Failed to parse JSON: {jsonFile}");
+
+        if (spriteSheet.FileName == null)
+            throw new Exception($"Missing 'FileName' in sprite sheet JSON: {jsonFile}");
+
+        var fullTexturePath = Path.Combine(directory, spriteSheet.FileName);
+        spriteSheet._textureId = renderer.LoadTexture(fullTexturePath, out _);
+        if (spriteSheet._textureId == -1)
+            throw new Exception($"Failed to load texture: {spriteSheet.FileName}");
+
+        return spriteSheet;
     }
 
     public void ActivateAnimation(string name)
     {
-        if (!Animations.TryGetValue(name, out var animation)) return;
+        if (!Animations.TryGetValue(name, out var animation))
+            throw new Exception($"Animation '{name}' not found.");
 
         ActiveAnimation = animation;
         _animationStart = DateTimeOffset.Now;
     }
 
-    public void Render(GameRenderer renderer, (int X, int Y) dest, double angle = 0.0, Point rotationCenter = new())
+    public void Render(GameRenderer renderer, (int X, int Y) dest, double angle = 0.0,
+                       Point rotationCenter = new(), int? overrideWidth = null, int? overrideHeight = null)
     {
+        int width = overrideWidth ?? FrameWidth;
+        int height = overrideHeight ?? FrameHeight;
+
+        int dstX = dest.X - FrameCenter.OffsetX;
+        int dstY = dest.Y - FrameCenter.OffsetY;
+
         if (ActiveAnimation == null)
         {
-            renderer.RenderTexture(_textureId, new Rectangle<int>(0, 0, FrameWidth, FrameHeight),
-                new Rectangle<int>(dest.X - FrameCenter.OffsetX, dest.Y - FrameCenter.OffsetY, FrameWidth, FrameHeight),
-                RendererFlip.None, angle, rotationCenter);
-        }
-        else
-        {
-            var totalFrames = (ActiveAnimation.EndFrame.Row - ActiveAnimation.StartFrame.Row) * ColumnCount +
-                ActiveAnimation.EndFrame.Col - ActiveAnimation.StartFrame.Col;
-            var currentFrame = (int)((DateTimeOffset.Now - _animationStart).TotalMilliseconds /
-                                     (ActiveAnimation.DurationMs / (double)totalFrames));
-            if (currentFrame > totalFrames)
-            {
-                if (ActiveAnimation.Loop)
-                {
-                    _animationStart = DateTimeOffset.Now;
-                    currentFrame = 0;
-                }
-                else
-                {
-                    currentFrame = totalFrames;
-                }
-            }
-
-            var currentRow = ActiveAnimation.StartFrame.Row + currentFrame / ColumnCount;
-            var currentCol = ActiveAnimation.StartFrame.Col + currentFrame % ColumnCount;
-
             renderer.RenderTexture(_textureId,
-                new Rectangle<int>(currentCol * FrameWidth, currentRow * FrameHeight, FrameWidth, FrameHeight),
-                new Rectangle<int>(dest.X - FrameCenter.OffsetX, dest.Y - FrameCenter.OffsetY, FrameWidth, FrameHeight),
-                ActiveAnimation.Flip, angle, rotationCenter);
+                new Rectangle<int>(0, 0, FrameWidth, FrameHeight),
+                new Rectangle<int>(dstX, dstY, width, height),
+                RendererFlip.None, angle, rotationCenter);
+            return;
         }
+
+        var anim = ActiveAnimation;
+        int totalFrames = (anim.EndFrame.Row - anim.StartFrame.Row) * ColumnCount +
+                          (anim.EndFrame.Col - anim.StartFrame.Col);
+        totalFrames = Math.Max(totalFrames, 1);
+
+        double timeElapsed = (DateTimeOffset.Now - _animationStart).TotalMilliseconds;
+        int currentFrame = (int)(timeElapsed / (anim.DurationMs / (double)(totalFrames + 1)));
+
+        if (currentFrame > totalFrames)
+        {
+            if (anim.Loop)
+            {
+                _animationStart = DateTimeOffset.Now;
+                currentFrame = 0;
+            }
+            else
+            {
+                currentFrame = totalFrames;
+            }
+        }
+
+        int currentRow = anim.StartFrame.Row + currentFrame / ColumnCount;
+        int currentCol = anim.StartFrame.Col + currentFrame % ColumnCount;
+
+        renderer.RenderTexture(_textureId,
+            new Rectangle<int>(currentCol * FrameWidth, currentRow * FrameHeight, FrameWidth, FrameHeight),
+            new Rectangle<int>(dstX, dstY, width, height),
+            anim.Flip, angle, rotationCenter);
     }
 }

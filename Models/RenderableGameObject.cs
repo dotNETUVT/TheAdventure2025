@@ -9,9 +9,12 @@ public class RenderableGameObject : GameObject
     public double Angle { get; set; }
     public Point RotationCenter { get; set; }
 
+    // Allow specific object classes to define their own scale
+    public virtual float Scale => 1.0f;
+
     public RenderableGameObject(SpriteSheet spriteSheet, (int X, int Y) position, double angle = 0.0,
         Point rotationCenter = new())
-        : base()
+        : base(position)
     {
         SpriteSheet = spriteSheet;
         Position = position;
@@ -21,6 +24,9 @@ public class RenderableGameObject : GameObject
 
     public virtual void Render(GameRenderer renderer)
     {
-        SpriteSheet.Render(renderer, Position, Angle, RotationCenter);
+        int scaledWidth = (int)(SpriteSheet.FrameWidth * Scale);
+        int scaledHeight = (int)(SpriteSheet.FrameHeight * Scale);
+
+        SpriteSheet.Render(renderer, Position, Angle, RotationCenter, scaledWidth, scaledHeight);
     }
 }

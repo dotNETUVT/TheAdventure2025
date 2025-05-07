@@ -110,4 +110,9 @@ public unsafe class GameRenderer
     {
         _sdl.RenderPresent(_renderer);
     }
+
+    internal void FillRect(int v1, int v2, int v3, int v4)
+    {
+        throw new NotImplementedException();
+    }
 }

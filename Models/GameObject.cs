@@ -1,13 +1,16 @@
-namespace TheAdventure.Models;
-
-public class GameObject
+namespace TheAdventure.Models
 {
-    public int Id { get; private set; }
-    
-    private static int _nextId = -1;
-    
-    public GameObject()
+    public abstract class GameObject
     {
-        Id = Interlocked.Increment(ref _nextId);
+        private static int _nextId = 0;
+
+        public int Id { get; }
+        public (int X, int Y) Position { get; set; }
+
+        protected GameObject((int X, int Y) position)
+        {
+            Id = _nextId++;
+            Position = position;
+        }
     }
 }
