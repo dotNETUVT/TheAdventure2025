@@ -12,30 +12,31 @@ public unsafe class Input
     {
         _sdl = sdl;
     }
-    
+        
     public bool IsLeftPressed()
     {
         ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
-        return keyboardState[(int)KeyCode.Left] == 1;
+        return keyboardState[(int)KeyCode.Left] == 1 || keyboardState[(int)KeyCode.A] == 1;
     }
-        
+
     public bool IsRightPressed()
     {
         ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
-        return keyboardState[(int)KeyCode.Right] == 1;
+        return keyboardState[(int)KeyCode.Right] == 1 || keyboardState[(int)KeyCode.D] == 1;
     }
-        
+
     public bool IsUpPressed()
     {
         ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
-        return keyboardState[(int)KeyCode.Up] == 1;
+        return keyboardState[(int)KeyCode.Up] == 1 || keyboardState[(int)KeyCode.W] == 1;
     }
-        
+
     public bool IsDownPressed()
     {
         ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
-        return keyboardState[(int)KeyCode.Down] == 1;
+        return keyboardState[(int)KeyCode.Down] == 1 || keyboardState[(int)KeyCode.S] == 1;
     }
+
 
     public bool ProcessInput()
     {
