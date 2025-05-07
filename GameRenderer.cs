@@ -17,6 +17,7 @@ public unsafe class GameRenderer
     private Dictionary<int, IntPtr> _texturePointers = new();
     private Dictionary<int, TextureData> _textureData = new();
     private int _textureId;
+    private int _youDiedTextureId = -1;
 
     public GameRenderer(Sdl sdl, GameWindow window)
     {
@@ -29,6 +30,7 @@ public unsafe class GameRenderer
         var windowSize = window.Size;
         _camera = new Camera(windowSize.Width, windowSize.Height);
     }
+    public (int Width, int Height) WindowSize => _window.Size;
 
     public void SetWorldBounds(Rectangle<int> bounds)
     {
@@ -110,4 +112,70 @@ public unsafe class GameRenderer
     {
         _sdl.RenderPresent(_renderer);
     }
+
+    public void RenderFillRectangle(Rectangle<int> rect)
+    {
+        var translated = _camera.ToScreenCoordinates(rect);
+        _sdl.RenderFillRect(_renderer, in translated);
+    }
+
+    public void RenderRectangle(Rectangle<int> rect)
+    {
+        var translated = _camera.ToScreenCoordinates(rect);
+        _sdl.RenderDrawRect(_renderer, in translated);
+    }
+
+    public void ClearAllTextures()
+    {
+        foreach (var texturePtr in _texturePointers.Values)
+        {
+            _sdl.DestroyTexture((Texture*)texturePtr);
+        }
+        _texturePointers.Clear();
+        _textureData.Clear();
+        _textureId = 0;
+        _youDiedTextureId = -1;
+    }
+    public void RenderDeathScreen()
+    {
+        var size = WindowSize;
+
+        SetDrawColor(0, 0, 0, 255);
+        _sdl.RenderFillRect(_renderer, new Rectangle<int>(0, 0, size.Width, size.Height));
+
+        if (_youDiedTextureId != -1 && _texturePointers.TryGetValue(_youDiedTextureId, out var texturePtr))
+        {
+            var texInfo = _textureData[_youDiedTextureId];
+            var x = (size.Width - texInfo.Width) / 2;
+            var y = (size.Height - texInfo.Height) / 2;
+
+            var destRect = new Rectangle<int>(x, y, texInfo.Width, texInfo.Height);
+            _sdl.RenderCopy(_renderer, (Texture*)texturePtr, null, in destRect);
+        }
+
+        PresentFrame();
+    }
+
+    public void RenderFillRectangle(Rectangle<int> rect, bool useCamera = true)
+    {
+        if (useCamera)
+        {
+            var translated = _camera.ToScreenCoordinates(rect);
+            _sdl.RenderFillRect(_renderer, in translated);
+        }
+        else
+        {
+            _sdl.RenderFillRect(_renderer, in rect);
+        }
+    }
+
+    public void LoadDeathScreenTexture()
+    {
+        if (_youDiedTextureId == -1)
+        {
+            _youDiedTextureId = LoadTexture(Path.Combine("Assets", "you_died.png"), out _);
+        }
+    }
+
+
 }

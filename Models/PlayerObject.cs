@@ -4,6 +4,10 @@ namespace TheAdventure.Models;
 
 public class PlayerObject : GameObject
 {
+    private const int DefaultMaxHealth = 100;
+    public int CurrentHealth { get; private set; }
+    public int MaxHealth { get; private set; }
+    public bool IsAlive => CurrentHealth > 0;
     public int X { get; set; } = 100;
     public int Y { get; set; } = 100;
 
@@ -14,9 +18,13 @@ public class PlayerObject : GameObject
 
     private const int Speed = 128; // pixels per second
 
+    public event EventHandler OnPlayerDeath;
+
     public PlayerObject(GameRenderer renderer)
     {
         _textureId = renderer.LoadTexture(Path.Combine("Assets", "player.png"), out _);
+        MaxHealth = DefaultMaxHealth;
+        CurrentHealth = MaxHealth;
         if (_textureId < 0)
         {
             throw new Exception("Failed to load player texture");
@@ -46,4 +54,32 @@ public class PlayerObject : GameObject
     {
         _target = new(X + 24, Y - 42, 48, 48);
     }
+
+    public void TakeDamage(int damage)
+    {
+        if (!IsAlive) return;
+
+        CurrentHealth = Math.Max(0, CurrentHealth - damage);
+
+        if (CurrentHealth <= 0)
+        {
+            OnDeath();
+        }
+    }
+
+    public void Heal(int amount)
+    {
+        CurrentHealth = Math.Min(MaxHealth, CurrentHealth + amount);
+    }
+    public void RestoreFullHealth()
+    {
+        CurrentHealth = MaxHealth;
+    }
+
+
+    protected virtual void OnDeath()
+    {
+        OnPlayerDeath?.Invoke(this, EventArgs.Empty);
+    }
+
 }

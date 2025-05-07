@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Silk.NET.Maths;
+using Silk.NET.SDL;
 using TheAdventure.Models;
 using TheAdventure.Models.Data;
 
@@ -7,6 +8,10 @@ namespace TheAdventure;
 
 public class Engine
 {
+    private bool _shouldResetGame = false; // When hp goes to 0
+    private DateTimeOffset _deathTime;
+    private bool _isInDeathSequence = false;
+
     private readonly GameRenderer _renderer;
     private readonly Input _input;
 
@@ -19,6 +24,8 @@ public class Engine
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
 
+    private HealthBarRenderer? _healthBarRenderer;
+
     public Engine(GameRenderer renderer, Input input)
     {
         _renderer = renderer;
@@ -29,7 +36,17 @@ public class Engine
 
     public void SetupWorld()
     {
-        _player = new(_renderer);
+        _gameObjects.Clear();
+        _player = new PlayerObject(_renderer);
+        _healthBarRenderer = new HealthBarRenderer(
+            _renderer,
+            _player,
+            width: 50,
+            height: 5,
+            offsetY: -30,  
+            offsetX: 47      
+        );
+        _player.OnPlayerDeath += (sender, args) => _shouldResetGame = true;
 
         var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
         var level = JsonSerializer.Deserialize<Level>(levelContent);
@@ -70,10 +87,49 @@ public class Engine
             level.Height.Value * level.TileHeight.Value));
 
         _currentLevel = level;
+
+        _renderer.LoadDeathScreenTexture();
     }
 
+    private void ResetGame()
+    {
+        _renderer.ClearAllTextures();
+
+
+        _gameObjects.Clear();
+        _loadedTileSets.Clear();
+        _tileIdMap.Clear();
+
+        SetupWorld();
+        _shouldResetGame = false;
+
+
+    }
     public void ProcessFrame()
     {
+
+        if (_shouldResetGame && !_isInDeathSequence)
+        {
+            StartDeathSequence();
+        }
+
+        if (_isInDeathSequence)
+        {
+            var deathDuration = (DateTimeOffset.Now - _deathTime).TotalSeconds;
+            if (deathDuration >= 2.0) 
+            {
+                ResetGame();
+                _isInDeathSequence = false;
+            }
+            return; 
+        }
+
+        if (_shouldResetGame)
+        {
+            ResetGame();
+            return;
+        }
+
         var currentTime = DateTimeOffset.Now;
         var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
         _lastUpdate = currentTime;
@@ -84,10 +140,41 @@ public class Engine
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
 
         _player?.UpdatePosition(up, down, left, right, (int)msSinceLastFrame);
+
+        foreach (var obj in _gameObjects.Values)
+        {
+            if (obj is TemporaryGameObject bomb && !bomb.HasDealtDamage)
+            {
+                double timeSinceSpawn = (DateTimeOffset.Now - bomb.SpawnTime).TotalSeconds;
+                double timeUntilExpire = bomb.Ttl - timeSinceSpawn;
+
+                if (timeUntilExpire <= 1) 
+                {
+                    double dx = bomb.X - _player!.X;
+                    double dy = bomb.Y - _player.Y;
+                    double distance = Math.Sqrt(dx * dx + dy * dy);
+
+                    const double explosionRadius = 75.0;
+                    if (distance <= explosionRadius)
+                    {
+                        _player.TakeDamage(25);
+                        Console.WriteLine($" Player hit by bomb! Health: {_player.CurrentHealth}/{_player.MaxHealth}");
+                    }
+
+                    bomb.HasDealtDamage = true;
+                }
+            }
+        }
     }
 
     public void RenderFrame()
     {
+        if (_isInDeathSequence)
+        {
+            _renderer.RenderDeathScreen();
+            return;
+        }
+
         _renderer.SetDrawColor(0, 0, 0, 255);
         _renderer.ClearScreen();
 
@@ -95,6 +182,7 @@ public class Engine
 
         RenderTerrain();
         RenderAllObjects();
+        _healthBarRenderer?.Render();
 
         _renderer.PresentFrame();
     }
@@ -179,5 +267,12 @@ public class Engine
 
         TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
         _gameObjects.Add(bomb.Id, bomb);
+    }
+
+    private void StartDeathSequence()
+    {
+        _isInDeathSequence = true;
+        _deathTime = DateTimeOffset.Now;
+        Console.WriteLine("Player died - starting death sequence");
     }
 }
