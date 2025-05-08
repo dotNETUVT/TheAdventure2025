@@ -25,6 +25,11 @@ public class Engine
     public static Engine? Instance { get; private set; }
     public Input Input => _input;
 
+    private readonly Random _random = new Random();
+    private DateTimeOffset _lastBombSpawnTime = DateTimeOffset.Now;
+    private readonly double _bombSpawnInterval = 0.2; 
+    private readonly int _maxBombs = 20; 
+
     public Engine(GameRenderer renderer, Input input)
     {
         _renderer = renderer;
@@ -204,6 +209,8 @@ public class Engine
                 RestartGame();
             }
         }
+
+        SpawnRandomBombs();
     }
 
     private double CalculateDistance((int X, int Y) point1, (int X, int Y) point2)
@@ -253,6 +260,8 @@ public class Engine
         var playerPosition = _player.Position;
         _renderer.CameraLookAt(playerPosition.X, playerPosition.Y);
 
+        _lastBombSpawnTime = DateTimeOffset.Now;
+
     }
 
     private void RenderSprintMeter()
@@ -280,5 +289,49 @@ public class Engine
 
         _renderer.SetDrawColor(255, 255, 255, 255);
         _renderer.DrawRect(meterRect);
+    }
+
+    private void SpawnRandomBombs()
+    {
+        var timeSinceLastSpawn = (DateTimeOffset.Now - _lastBombSpawnTime).TotalSeconds;
+
+        int bombCount = _gameObjects.Values.Count(o => o is TemporaryGameObject);
+
+        if (timeSinceLastSpawn >= _bombSpawnInterval && bombCount < _maxBombs)
+        {
+            int worldWidth = 0;
+            int worldHeight = 0;
+
+            if (_currentLevel.Width.HasValue && _currentLevel.Height.HasValue &&
+                _currentLevel.TileWidth.HasValue && _currentLevel.TileHeight.HasValue)
+            {
+                worldWidth = _currentLevel.Width.Value * _currentLevel.TileWidth.Value;
+                worldHeight = _currentLevel.Height.Value * _currentLevel.TileHeight.Value;
+            }
+            else
+            {
+                worldWidth = 2000;
+                worldHeight = 2000;
+            }
+
+            int randomX = _random.Next(100, worldWidth - 100); 
+            int randomY = _random.Next(100, worldHeight - 100); 
+
+
+            
+            SpriteSheet spriteSheet = SpriteSheet.Load(_renderer, "BombExploding.json", "Assets");
+            spriteSheet.ActivateAnimation("Explode");
+
+            double explosionTime = 2.0 + _random.NextDouble() * 2.0;
+            TemporaryGameObject bomb = new(spriteSheet, explosionTime, (randomX, randomY),
+                                              explosionRadius: 100);
+            _gameObjects.Add(bomb.Id, bomb);
+
+
+            _lastBombSpawnTime = DateTimeOffset.Now;
+
+            Console.WriteLine($"Spawned bomb at ({randomX}, {randomY}) - will explode in {explosionTime:F1} seconds");
+            
+        }
     }
 }

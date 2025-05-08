@@ -9,7 +9,7 @@ public class TemporaryGameObject : RenderableGameObject
     
     private DateTimeOffset _spawnTime;
     public bool IsExploding { get; private set; } = false;
-    public double ExplosionRadius { get; set; } = 100;
+    public double ExplosionRadius { get; set; } = 10;
 
 
     public double TimeRemaining => Ttl - (DateTimeOffset.Now - _spawnTime).TotalSeconds;
