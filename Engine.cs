@@ -22,10 +22,14 @@ public class Engine
     private bool _gameOver = false;
     private DateTimeOffset _gameOverTime;
 
+    public static Engine? Instance { get; private set; }
+    public Input Input => _input;
+
     public Engine(GameRenderer renderer, Input input)
     {
         _renderer = renderer;
         _input = input;
+        Instance = this;
 
         _input.OnMouseClick += (_, coords) => AddBomb(coords.x, coords.y);
     }
@@ -86,6 +90,8 @@ public class Engine
 
         RenderTerrain();
         RenderAllObjects();
+
+        RenderSprintMeter();
 
         _renderer.PresentFrame();
     }
@@ -221,6 +227,8 @@ public class Engine
         _player?.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame);
 
         UpdateGameLogic();
+
+        RenderSprintMeter();
     }
 
     private void AddBomb(int screenX, int screenY)
@@ -245,5 +253,32 @@ public class Engine
         var playerPosition = _player.Position;
         _renderer.CameraLookAt(playerPosition.X, playerPosition.Y);
 
+    }
+
+    private void RenderSprintMeter()
+    {
+        if (_player == null) return;
+
+        var windowSize = _renderer.GetWindowSize();
+
+        int meterWidth = 200;
+        int meterHeight = 20;
+        int meterX = windowSize.Width - meterWidth - 20; // 20px from right edge
+        int meterY = 20; // 20px from top
+
+        var meterRect = new Rectangle<int>(meterX, meterY, meterWidth, meterHeight);
+
+        _renderer.SetDrawColor(100, 100, 100, 200);
+        _renderer.DrawRect(meterRect);
+
+        float fillPercentage = _player.GetSprintPercentage();
+        int fillWidth = (int)(meterWidth * fillPercentage);
+
+        var fillRect = new Rectangle<int>(meterX, meterY, fillWidth, meterHeight);
+        _renderer.SetDrawColor(0, 255, 0, 200);
+        _renderer.FillRect(fillRect);
+
+        _renderer.SetDrawColor(255, 255, 255, 255);
+        _renderer.DrawRect(meterRect);
     }
 }
