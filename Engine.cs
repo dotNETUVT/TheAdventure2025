@@ -23,6 +23,9 @@ public class Engine
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
 
     private const int BombCooldownMs = 600; // 0.6 sec
+    private RenderableGameObject? _speedPowerUp;
+    private DateTime _lastPowerUpSpawn = DateTime.MinValue;
+    private static readonly Random _rng = new();
 
     public Engine(GameRenderer renderer, Input input)
     {
@@ -101,6 +104,34 @@ public class Engine
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
 
         _player?.UpdatePosition(up, down, left, right, 48, 48,msSinceLastFrame);
+    
+        if ((DateTime.Now - _lastPowerUpSpawn).TotalSeconds >= 10 && _speedPowerUp == null)
+        {
+            _lastPowerUpSpawn = DateTime.Now;
+
+            var spriteSheet = SpriteSheet.Load(_renderer, "speed.json", "Assets");
+            spriteSheet.ActivateAnimation("Default");
+
+            int spawnX = _rng.Next(0, 500 - 48);
+            int spawnY = _rng.Next(0, 500 - 48);
+
+            _speedPowerUp = new TemporaryGameObject(spriteSheet, 9999, (spawnX, spawnY));
+        }
+
+
+        // Coliziune cu power-up
+        if (_speedPowerUp is not null && _player is not null)
+        {
+            var dx = _player.Position.X - _speedPowerUp.Position.X;
+            var dy = _player.Position.Y - _speedPowerUp.Position.Y;
+            var distance = Math.Sqrt(dx * dx + dy * dy);
+
+            if (distance < 40)
+            {
+                _player.ApplySpeedBoost(2.0, 3.0); // dublează viteza 3 secunde
+                _speedPowerUp = null;
+            }
+        }
     }
 
     public void RenderFrame()
@@ -147,7 +178,10 @@ public class Engine
         {
             _gameObjects.Remove(id);
         }
-
+        if (_speedPowerUp is not null)
+        {
+            _speedPowerUp.Render(_renderer);
+        }
         _player?.Render(_renderer);
     }
 

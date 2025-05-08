@@ -6,10 +6,18 @@ public class PlayerObject : RenderableGameObject
 {
     private const int _speed = 128; // pixels per second
     private string _currentAnimation = "IdleDown";
+    private double _speedMultiplier = 1.0;
+    private DateTime? _speedBoostEnd = null;
 
     public PlayerObject(SpriteSheet spriteSheet, int x, int y) : base(spriteSheet, (x, y))
     {
         SpriteSheet.ActivateAnimation(_currentAnimation);
+    }
+
+    public void ApplySpeedBoost(double multiplier, double durationSeconds)
+    {
+        _speedMultiplier = multiplier;
+        _speedBoostEnd = DateTime.Now.AddSeconds(durationSeconds);
     }
 
     public void UpdatePosition(double up, double down, double left, double right, int width, int height, double time)
@@ -19,7 +27,13 @@ public class PlayerObject : RenderableGameObject
             return;
         }
         
-        var pixelsToMove = _speed * (time / 1000.0);
+        if (_speedBoostEnd is { } end && DateTime.Now > end)
+        {
+            _speedMultiplier = 1.0;
+            _speedBoostEnd = null;
+        }
+
+        var pixelsToMove = _speed * _speedMultiplier * (time / 1000.0);
         
         var x = Position.X + (int)(right * pixelsToMove);
         x -= (int)(left * pixelsToMove);
