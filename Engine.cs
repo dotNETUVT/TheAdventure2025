@@ -1,7 +1,9 @@
+using System.Reflection;
 using System.Text.Json;
 using Silk.NET.Maths;
 using TheAdventure.Models;
 using TheAdventure.Models.Data;
+using TheAdventure.Scripting;
 
 namespace TheAdventure;
 
@@ -9,6 +11,7 @@ public class Engine
 {
     private readonly GameRenderer _renderer;
     private readonly Input _input;
+    private readonly ScriptEngine _scriptEngine = new();
 
     private readonly Dictionary<int, GameObject> _gameObjects = new();
     private readonly Dictionary<string, TileSet> _loadedTileSets = new();
@@ -70,6 +73,8 @@ public class Engine
             level.Height.Value * level.TileHeight.Value));
 
         _currentLevel = level;
+
+        _scriptEngine.LoadAll(Path.Combine("Assets", "Scripts"));
     }
 
     public void ProcessFrame()
@@ -95,6 +100,8 @@ public class Engine
         {
             _player.Attack();
         }
+        
+        _scriptEngine.ExecuteAll(this);
 
         if (addBomb)
         {
@@ -131,12 +138,12 @@ public class Engine
         foreach (var id in toRemove)
         {
             _gameObjects.Remove(id, out var gameObject);
-            
+
             if (_player == null)
             {
                 continue;
             }
-            
+
             var tempGameObject = (TemporaryGameObject)gameObject!;
             var deltaX = Math.Abs(_player.Position.X - tempGameObject.Position.X);
             var deltaY = Math.Abs(_player.Position.Y - tempGameObject.Position.Y);
@@ -193,7 +200,12 @@ public class Engine
         }
     }
 
-    private void AddBomb(int X, int Y, bool translateCoordinates = true)
+    public (int X, int Y) GetPlayerPosition()
+    {
+        return _player!.Position;
+    }
+
+    public void AddBomb(int X, int Y, bool translateCoordinates = true)
     {
         var worldCoords = translateCoordinates ? _renderer.ToWorldCoordinates(X, Y) : new Vector2D<int>(X, Y);
 
