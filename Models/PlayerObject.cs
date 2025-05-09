@@ -4,9 +4,11 @@ namespace TheAdventure.Models;
 
 public class PlayerObject : RenderableGameObject
 {
-    private const int _speed = 128; // pixels per second
+    private const int _speed = 128; 
     private string _currentAnimation = "IdleDown";
     public bool IsAlive { get; private set; } = true;
+
+    public int PowerLevel { get; private set; } = 0;
 
     public PlayerObject(SpriteSheet spriteSheet, int x, int y) : base(spriteSheet, (x, y))
     {
@@ -69,5 +71,10 @@ public class PlayerObject : RenderableGameObject
         }
         
         Position = (x, y);
+    }
+
+    public void AddPower(int amount)
+    {
+        PowerLevel += amount;
     }
 }
