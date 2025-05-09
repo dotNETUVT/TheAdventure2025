@@ -86,6 +86,70 @@ public class Engine
             throw new Exception("Invalid tile dimensions");
         }
 
+        int waterBlockCount = 12; // mai puține patch-uri, dar mai mari
+        Random rng = new Random();
+
+
+        int? waterTileId = 4;
+        foreach (var tileSet in _loadedTileSets.Values)
+        {
+            foreach (var tile in tileSet.Tiles)
+            {
+                if (!string.IsNullOrEmpty(tile.Image) && tile.Image.Contains("water"))
+                {
+                    waterTileId = tile.Id;
+                    break;
+                }
+            }
+            if (waterTileId.HasValue)
+                break;
+        }
+
+        if (!waterTileId.HasValue)
+        {
+            throw new Exception("Water tile not found in tilesets Assets folder");
+        }
+
+        foreach (var layer in level.Layers)
+        {
+            if (layer.Id == 4) continue;
+
+            if (layer.Width is null || layer.Height is null)
+                continue;
+
+            for (int i = 0; i < waterBlockCount; i++)
+            {
+                int waterBlockWidth = rng.Next(2, 5); 
+                int waterBlockHeight = rng.Next(2, 6);
+
+                int startX = rng.Next(0, layer.Width.Value - waterBlockWidth);
+                int startY = rng.Next(0, layer.Height.Value - waterBlockHeight);
+
+                for (int dy = 0; dy < waterBlockHeight; dy++)
+                {
+                    for (int dx = 0; dx < waterBlockWidth; dx++)
+                    {
+                        if (rng.NextDouble() < 0.15 && (dx == 0 || dy == 0 || dx == waterBlockWidth - 1 || dy == waterBlockHeight - 1))
+                            continue;
+
+                        int x = startX + dx;
+                        int y = startY + dy;
+                        int tileIndex = y * layer.Width.Value + x;
+
+                        if (tileIndex < 0 || tileIndex >= layer.Data.Count)
+                            continue;
+
+                        int? currentTile = layer.Data[tileIndex];
+
+                        // check if the current tile is a grass block
+                        if (currentTile >= 1 && currentTile <= 4)
+                        {
+                            layer.Data[tileIndex] = waterTileId.Value + 1;
+                        }
+                    }
+                }
+            }
+        }
         _renderer.SetWorldBounds(new Rectangle<int>(0, 0, level.Width.Value * level.TileWidth.Value,
             level.Height.Value * level.TileHeight.Value));
 
