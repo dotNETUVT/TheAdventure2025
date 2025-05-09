@@ -1,10 +1,15 @@
 using Silk.NET.Maths;
+using Silk.NET.SDL;
+using System;
 
 namespace TheAdventure.Models;
 
 public class PlayerObject : RenderableGameObject
 {
-    private const int _speed = 128; // pixels per second
+    private const int _speed = 128;
+    private const int TOP_OFFSET = 24;
+    private const int SIDE_OFFSET = 12;
+    private Rectangle<int> _worldBounds;
 
     public enum PlayerStateDirection
     {
@@ -29,6 +34,19 @@ public class PlayerObject : RenderableGameObject
     public PlayerObject(SpriteSheet spriteSheet, int x, int y) : base(spriteSheet, (x, y))
     {
         SetState(PlayerState.Idle, PlayerStateDirection.Down);
+        _worldBounds = new Rectangle<int>(0, 0, 1000, 1000);
+    }
+
+    public void SetWorldBounds(Rectangle<int> bounds)
+    {
+        _worldBounds = new Rectangle<int>(
+            bounds.Origin.X + SIDE_OFFSET,
+            bounds.Origin.Y + TOP_OFFSET,
+            bounds.Size.X - (SIDE_OFFSET * 2),
+            bounds.Size.Y - TOP_OFFSET
+        );
+        Console.WriteLine($"Player bounds set: X={_worldBounds.Origin.X}, Y={_worldBounds.Origin.Y}, " +
+                          $"Width={_worldBounds.Size.X}, Height={_worldBounds.Size.Y}");
     }
 
     public void SetState(PlayerState state)
@@ -52,7 +70,6 @@ public class PlayerObject : RenderableGameObject
         {
             SpriteSheet.ActivateAnimation(null);
         }
-
         else if (state == PlayerState.GameOver)
         {
             SpriteSheet.ActivateAnimation(Enum.GetName(state));
@@ -97,6 +114,9 @@ public class PlayerObject : RenderableGameObject
         var y = Position.Y + (int)(down * pixelsToMove);
         y -= (int)(up * pixelsToMove);
 
+        x = Math.Clamp(x, _worldBounds.Origin.X, _worldBounds.Origin.X + _worldBounds.Size.X);
+        y = Math.Clamp(y, _worldBounds.Origin.Y, _worldBounds.Origin.Y + _worldBounds.Size.Y);
+
         var newState = State.State;
         var newDirection = State.Direction;
 
@@ -117,23 +137,20 @@ public class PlayerObject : RenderableGameObject
         else
         {
             newState = PlayerState.Move;
-            
+
             if (y < Position.Y && newDirection != PlayerStateDirection.Up)
             {
                 newDirection = PlayerStateDirection.Up;
             }
-
-            if (y > Position.Y && newDirection != PlayerStateDirection.Down)
+            else if (y > Position.Y && newDirection != PlayerStateDirection.Down)
             {
                 newDirection = PlayerStateDirection.Down;
             }
-
-            if (x < Position.X && newDirection != PlayerStateDirection.Left)
+            else if (x < Position.X && newDirection != PlayerStateDirection.Left)
             {
                 newDirection = PlayerStateDirection.Left;
             }
-
-            if (x > Position.X && newDirection != PlayerStateDirection.Right)
+            else if (x > Position.X && newDirection != PlayerStateDirection.Right)
             {
                 newDirection = PlayerStateDirection.Right;
             }

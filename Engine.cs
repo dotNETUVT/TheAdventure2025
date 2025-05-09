@@ -1,9 +1,10 @@
-using System.Reflection;
+﻿using System.Reflection;
 using System.Text.Json;
 using Silk.NET.Maths;
 using TheAdventure.Models;
 using TheAdventure.Models.Data;
 using TheAdventure.Scripting;
+using static TheAdventure.Models.PlayerObject;
 
 namespace TheAdventure;
 
@@ -19,20 +20,26 @@ public class Engine
 
     private Level _currentLevel = new();
     private PlayerObject? _player;
+    private int _gameOverTextureId;
+    private TextureData _gameOverTextureData; 
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
+    private int _bombsRemaining = 5; 
 
     public Engine(GameRenderer renderer, Input input)
     {
         _renderer = renderer;
         _input = input;
 
-        _input.OnMouseClick += (_, coords) => AddBomb(coords.x, coords.y);
+        _input.OnMouseClick += (_, coords) => AddBomb(coords.x, coords.y, isPlayerPlaced: false);
     }
 
     public void SetupWorld()
     {
         _player = new(SpriteSheet.Load(_renderer, "Player.json", "Assets"), 100, 100);
+
+        // Load the game over image
+        _gameOverTextureId = _renderer.LoadTexture(Path.Combine("Assets", "gameover.jfif"), out _gameOverTextureData);
 
         var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
         var level = JsonSerializer.Deserialize<Level>(levelContent);
@@ -69,8 +76,11 @@ public class Engine
             throw new Exception("Invalid tile dimensions");
         }
 
-        _renderer.SetWorldBounds(new Rectangle<int>(0, 0, level.Width.Value * level.TileWidth.Value,
-            level.Height.Value * level.TileHeight.Value));
+        var worldBounds = new Rectangle<int>(0, 0, level.Width.Value * level.TileWidth.Value,
+            level.Height.Value * level.TileHeight.Value);
+
+        _renderer.SetWorldBounds(worldBounds);
+        _player.SetWorldBounds(worldBounds);
 
         _currentLevel = level;
 
@@ -83,7 +93,7 @@ public class Engine
         var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
         _lastUpdate = currentTime;
 
-        if (_player == null)
+        if (_player == null || _player.State.State == PlayerState.GameOver)
         {
             return;
         }
@@ -100,12 +110,12 @@ public class Engine
         {
             _player.Attack();
         }
-        
+
         _scriptEngine.ExecuteAll(this);
 
         if (addBomb)
         {
-            AddBomb(_player.Position.X, _player.Position.Y, false);
+            AddBomb(_player.Position.X, _player.Position.Y, translateCoordinates: false, isPlayerPlaced: true);
         }
     }
 
@@ -119,6 +129,24 @@ public class Engine
 
         RenderTerrain();
         RenderAllObjects();
+
+
+        if (_player?.State.State == PlayerState.GameOver)
+        {
+            var windowSize = _renderer.WindowSize;
+            const float scaleFactor = 2.5f; 
+            var scaledWidth = (int)(_gameOverTextureData.Width * scaleFactor);
+            var scaledHeight = (int)(_gameOverTextureData.Height * scaleFactor);
+
+            var dstRect = new Rectangle<int>(
+                (windowSize.Width - scaledWidth) / 2,
+                (windowSize.Height - scaledHeight) / 2, 
+                scaledWidth,
+                scaledHeight
+            );
+            var srcRect = new Rectangle<int>(0, 0, _gameOverTextureData.Width, _gameOverTextureData.Height);
+            _renderer.RenderTexture(_gameOverTextureId, srcRect, dstRect);
+        }
 
         _renderer.PresentFrame();
     }
@@ -205,10 +233,46 @@ public class Engine
         return _player!.Position;
     }
 
-    public void AddBomb(int X, int Y, bool translateCoordinates = true)
+    public void AddBomb(int X, int Y, bool translateCoordinates = true, bool isPlayerPlaced = true)
     {
         var worldCoords = translateCoordinates ? _renderer.ToWorldCoordinates(X, Y) : new Vector2D<int>(X, Y);
 
+        foreach (var obj in _gameObjects.Values)
+        {
+            if (obj is TemporaryGameObject temp)
+            {
+                var deltaX = Math.Abs(temp.Position.X - worldCoords.X);
+                var deltaY = Math.Abs(temp.Position.Y - worldCoords.Y);
+                if (deltaX < 20 && deltaY < 20)
+                {
+                    Console.WriteLine("Bomb too close to existing one. Not placing.");
+                    return;
+                }
+            }
+        }
+
+        if (!isPlayerPlaced)
+        {
+            if (_bombsRemaining <= 0)
+            {
+                Console.WriteLine("No random bombs remaining.");
+                return;
+            }
+
+            _bombsRemaining--;
+            PlaceBomb(worldCoords);
+            Console.WriteLine($"Random bomb placed. Remaining: {_bombsRemaining}");
+            Console.WriteLine($"Total bombs: {_bombsRemaining}");
+        }
+        else
+        {
+            PlaceBomb(worldCoords);
+            Console.WriteLine("Player bomb added.");
+        }
+    }
+
+    private void PlaceBomb(Vector2D<int> worldCoords)
+    {
         SpriteSheet spriteSheet = SpriteSheet.Load(_renderer, "BombExploding.json", "Assets");
         spriteSheet.ActivateAnimation("Explode");
 
