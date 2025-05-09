@@ -23,6 +23,8 @@ public class Engine
     private readonly List<EnemyObject> _enemies = new();
     private readonly Random _random = new();
 
+    private readonly List<CollectibleObject> _collectibles = new();
+
     
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
     private DateTimeOffset _lastEnemySpawn = DateTimeOffset.Now;
@@ -36,12 +38,12 @@ public class Engine
         _input.OnMouseClick += (_, coords) => AddBomb(coords.x, coords.y);
     }
 
-    public void SetupWorld()
-    {
-        _player = new(SpriteSheet.Load(_renderer, "Player.json", "Assets"), 100, 100);
+public void SetupWorld()
+{
+    _player = new(SpriteSheet.Load(_renderer, "Player.json", "Assets"), 100, 100);
 
-        var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
-        var level = JsonSerializer.Deserialize<Level>(levelContent);
+    var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
+    var level = JsonSerializer.Deserialize<Level>(levelContent);
         if (level == null)
         {
             throw new Exception("Failed to load level");
@@ -109,6 +111,11 @@ public void RenderFrame()
 
         RenderTerrain();
         RenderAllObjects();
+        
+        if (_player != null)
+        {
+            _renderer.RenderPowerupCounter(_player.Power);
+        }
     }
     
     _renderer.PresentFrame();
@@ -187,38 +194,57 @@ private void SpawnEnemy()
 
    
 
-    private void UpdateEnemies(double deltaTime)
+private void UpdateEnemies(double deltaTime)
+{
+    var currentTime = DateTimeOffset.Now;
+    if (_enemies.Count == 0 && (currentTime - _lastEnemySpawn).TotalMilliseconds >= EnemySpawnInterval)
     {
-        var currentTime = DateTimeOffset.Now;
-        if (_enemies.Count == 0 && (currentTime - _lastEnemySpawn).TotalMilliseconds >= EnemySpawnInterval)
-        {
-            SpawnEnemy();
-            _lastEnemySpawn = currentTime;
-        }
+        SpawnEnemy();
+        _lastEnemySpawn = currentTime;
+    }
 
-        var explodingBombs = _gameObjects.Values
-            .OfType<TemporaryGameObject>()
-            .Where(b => b.IsExploding)
-            .Select(b => new Rectangle<double>(b.Position.X - 50, b.Position.Y - 50, 100, 100));
+    var explodingBombs = _gameObjects.Values
+        .OfType<TemporaryGameObject>()
+        .Where(b => b.IsExploding)
+        .Select(b => new Rectangle<double>(b.Position.X - 50, b.Position.Y - 50, 100, 100))
+        .ToList();
+    
 
-        foreach (var enemy in _enemies.ToList())
+    foreach (var enemy in _enemies.ToList())
+    {
+        enemy.Update(deltaTime);
+        
+        if (enemy.IsAlive)
         {
-            enemy.Update(deltaTime);
-            
             foreach (var bombBound in explodingBombs)
             {
                 if (RectanglesIntersect(enemy.GetBounds(), bombBound))
                 {
+                    var (enemyX, enemyY) = enemy.Position;
+                    
                     enemy.Die();
-                    break;
+                    
+                    // Spawn only one collectible when the enemy dies
+                    SpawnCollectible((int)enemyX, (int)enemyY);
+                    break; // Exit the bomb loop once the enemy is killed
                 }
             }
+        }
 
         if (enemy.ShouldBeRemoved)
         {
             _enemies.Remove(enemy);
         }
     }
+}
+
+private void SpawnCollectible(int x, int y)
+{
+    // Only create one powerup per enemy
+    var powerupSheet = SpriteSheet.Load(_renderer, "Powerup.json", "Assets");
+    var collectible = new CollectibleObject(powerupSheet, x, y);
+    _collectibles.Add(collectible);
+    Console.WriteLine($"Collectibles count: {_collectibles.Count}");
 }
 
     private bool RectanglesIntersect(Rectangle<double> a, Rectangle<double> b)
@@ -252,6 +278,51 @@ public void ProcessFrame()
     _player?.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame);
     UpdateEnemies(msSinceLastFrame);
     
+    if (_player != null)
+    {
+        var explodingBombs = _gameObjects.Values
+            .OfType<TemporaryGameObject>()
+            .Where(b => b.IsExploding)
+            .ToList();
+            
+        foreach (var bomb in explodingBombs)
+        {
+            var explosionBounds = new Rectangle<double>(
+                bomb.Position.X - 50, 
+                bomb.Position.Y - 50, 
+                100, 
+                100
+            );
+            
+            var playerBounds = new Rectangle<double>(
+                _player.Position.X - 16, 
+                _player.Position.Y - 16, 
+                32, 
+                32
+            );
+            
+            if (RectanglesIntersect(playerBounds, explosionBounds))
+            {
+                _player.Die();
+                _isGameOver = true;
+                return;
+            }
+        }
+    }
+    
+    foreach (var collectible in _collectibles.ToList())
+    {
+        collectible.Update(msSinceLastFrame);
+        
+        if (_player != null && RectanglesIntersect(
+            new Rectangle<double>(_player.Position.X - 16, _player.Position.Y - 16, 32, 32),
+            collectible.GetBounds()))
+        {
+            _player.AddPower(collectible.PowerValue);
+            _collectibles.Remove(collectible);
+        }
+    }
+    
     foreach (var enemy in _enemies)
     {
         if (enemy.IsAlive && CheckCollision(_player, enemy))
@@ -268,51 +339,55 @@ private bool CheckCollision(RenderableGameObject obj1, EnemyObject enemy)
     var bounds1 = new Rectangle<double>(obj1.Position.X - 16, obj1.Position.Y - 16, 32, 32);
     var bounds2 = enemy.GetBounds();
     
-    // Using Origin and Size instead of Min/Max
     return bounds1.Origin.X < (bounds2.Origin.X + bounds2.Size.X) &&
            (bounds1.Origin.X + bounds1.Size.X) > bounds2.Origin.X &&
            bounds1.Origin.Y < (bounds2.Origin.Y + bounds2.Size.Y) &&
            (bounds1.Origin.Y + bounds1.Size.Y) > bounds2.Origin.Y;
 }
 
-    public void RenderAllObjects()
+public void RenderAllObjects()
+{
+    var toRemove = new List<int>();
+    foreach (var gameObject in GetRenderables())
     {
-        var toRemove = new List<int>();
-        foreach (var gameObject in GetRenderables())
+        gameObject.Render(_renderer);
+        if (gameObject is TemporaryGameObject { IsExpired: true } tempGameObject)
         {
-            gameObject.Render(_renderer);
-            if (gameObject is TemporaryGameObject { IsExpired: true } tempGameObject)
-            {
-                toRemove.Add(tempGameObject.Id);
-            }
+            toRemove.Add(tempGameObject.Id);
         }
-
-        foreach (var id in toRemove)
-        {
-            _gameObjects.Remove(id);
-        }
-
-        foreach (var enemy in _enemies)
-        {
-            enemy.Render(_renderer);
-        }
-
-        _player?.Render(_renderer);
     }
+
+    foreach (var id in toRemove)
+    {
+        _gameObjects.Remove(id);
+    }
+
+    foreach (var collectible in _collectibles)
+    {
+        collectible.Render(_renderer);
+    }
+
+    foreach (var enemy in _enemies)
+    {
+        enemy.Render(_renderer);
+    }
+
+    _player?.Render(_renderer);
+}
+
+private void RestartGame()
+{
+    _isGameOver = false;
+    _enemies.Clear();
+    _gameObjects.Clear();
+    _collectibles.Clear();
     
-
-    private void RestartGame()
-    {
-        _isGameOver = false;
-        _enemies.Clear();
-        _gameObjects.Clear();
-        
-        _loadedTileSets.Clear();
-        _tileIdMap.Clear();
-        
-        SetupWorld();
-        _lastUpdate = DateTimeOffset.Now;
-        _lastEnemySpawn = DateTimeOffset.Now;
-    }
+    _loadedTileSets.Clear();
+    _tileIdMap.Clear();
+    
+    SetupWorld();
+    _lastUpdate = DateTimeOffset.Now;
+    _lastEnemySpawn = DateTimeOffset.Now;
+}
     
 }

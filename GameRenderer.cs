@@ -163,4 +163,141 @@ public unsafe class GameRenderer
                 in destRect, 0.0, in centerPoint, RendererFlip.None);
         }
     }
+    
+    public void RenderPowerupCounter(int powerValue)
+    {
+        
+        int xPos = 10;
+        int yPos = 10;
+        
+        int bgWidth = 100;
+        int bgHeight = 30;
+        Rectangle<int> bgRect = new Rectangle<int>(xPos, yPos, bgWidth, bgHeight);
+        
+        _sdl.SetRenderDrawColor(_renderer, 0, 0, 0, 180);
+        _sdl.RenderFillRect(_renderer, in bgRect);
+        
+        _sdl.SetRenderDrawColor(_renderer, 255, 215, 0, 255); 
+        _sdl.RenderDrawRect(_renderer, in bgRect);
+        
+        int barStartX = xPos + 5;
+        int barStartY = yPos + 5;
+        int barWidth = 8;
+        int barHeight = 20;
+        int barSpacing = 2;
+        int maxBars = 10; 
+        
+        for (int i = 0; i < maxBars; i++)
+        {
+            Rectangle<int> barRect = new Rectangle<int>(
+                barStartX + (i * (barWidth + barSpacing)),
+                barStartY,
+                barWidth,
+                barHeight
+            );
+            
+            if (i < powerValue) 
+            {
+                _sdl.SetRenderDrawColor(_renderer, 255, 215, 0, 255); 
+                _sdl.RenderFillRect(_renderer, in barRect);
+                
+                _sdl.SetRenderDrawColor(_renderer, 255, 255, 255, 200);
+                _sdl.RenderDrawLine(
+                    _renderer,
+                    barStartX + (i * (barWidth + barSpacing)),
+                    barStartY,
+                    barStartX + (i * (barWidth + barSpacing)),
+                    barStartY + barHeight
+                );
+            }
+            else 
+            {
+                _sdl.SetRenderDrawColor(_renderer, 80, 80, 80, 255); // Dark gray
+                _sdl.RenderDrawRect(_renderer, in barRect);
+            }
+        }
+        
+        if (powerValue > maxBars)
+        {
+            int circleX = barStartX + (maxBars * (barWidth + barSpacing)) + 15;
+            int circleY = barStartY + barHeight / 2;
+            int circleRadius = 10;
+            
+            _sdl.SetRenderDrawColor(_renderer, 255, 0, 0, 255); // Red circle
+            DrawFilledCircle(circleX, circleY, circleRadius);
+            
+            _sdl.SetRenderDrawColor(_renderer, 255, 255, 255, 255); // White border
+            DrawCircle(circleX, circleY, circleRadius);
+            
+          
+            int plusSize = 6;
+            _sdl.SetRenderDrawColor(_renderer, 255, 255, 255, 255); // White plus
+            
+            _sdl.RenderDrawLine(
+                _renderer,
+                circleX - plusSize/2,
+                circleY,
+                circleX + plusSize/2,
+                circleY
+            );
+            
+            _sdl.RenderDrawLine(
+                _renderer,
+                circleX,
+                circleY - plusSize/2,
+                circleX,
+                circleY + plusSize/2
+            );
+        }
+    }
+    
+    private void DrawCircle(int centerX, int centerY, int radius)
+    {
+        int diameter = radius * 2;
+        int x = radius - 1;
+        int y = 0;
+        int tx = 1;
+        int ty = 1;
+        int error = tx - diameter;
+        
+        while (x >= y)
+        {
+            _sdl.RenderDrawPoint(_renderer, centerX + x, centerY - y);
+            _sdl.RenderDrawPoint(_renderer, centerX + x, centerY + y);
+            _sdl.RenderDrawPoint(_renderer, centerX - x, centerY - y);
+            _sdl.RenderDrawPoint(_renderer, centerX - x, centerY + y);
+            _sdl.RenderDrawPoint(_renderer, centerX + y, centerY - x);
+            _sdl.RenderDrawPoint(_renderer, centerX + y, centerY + x);
+            _sdl.RenderDrawPoint(_renderer, centerX - y, centerY - x);
+            _sdl.RenderDrawPoint(_renderer, centerX - y, centerY + x);
+            
+            if (error <= 0)
+            {
+                y++;
+                error += ty;
+                ty += 2;
+            }
+            
+            if (error > 0)
+            {
+                x--;
+                tx += 2;
+                error += tx - diameter;
+            }
+        }
+    }
+    
+    private void DrawFilledCircle(int centerX, int centerY, int radius)
+    {
+        for (int y = -radius; y <= radius; y++)
+        {
+            for (int x = -radius; x <= radius; x++)
+            {
+                if (x*x + y*y <= radius*radius)
+                {
+                    _sdl.RenderDrawPoint(_renderer, centerX + x, centerY + y);
+                }
+            }
+        }
+    }
 }
