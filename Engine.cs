@@ -111,6 +111,11 @@ public void RenderFrame()
 
         RenderTerrain();
         RenderAllObjects();
+        
+        if (_player != null)
+        {
+            _renderer.RenderPowerupCounter(_player.Power);
+        }
     }
     
     _renderer.PresentFrame();
@@ -209,16 +214,20 @@ private void UpdateEnemies(double deltaTime)
     {
         enemy.Update(deltaTime);
         
-        foreach (var bombBound in explodingBombs)
+        if (enemy.IsAlive)
         {
-            if (RectanglesIntersect(enemy.GetBounds(), bombBound))
+            foreach (var bombBound in explodingBombs)
             {
-                var (enemyX, enemyY) = enemy.Position;
-                
-                enemy.Die();
-                
-                SpawnCollectible((int)enemyX, (int)enemyY);
-                break;
+                if (RectanglesIntersect(enemy.GetBounds(), bombBound))
+                {
+                    var (enemyX, enemyY) = enemy.Position;
+                    
+                    enemy.Die();
+                    
+                    // Spawn only one collectible when the enemy dies
+                    SpawnCollectible((int)enemyX, (int)enemyY);
+                    break; // Exit the bomb loop once the enemy is killed
+                }
             }
         }
 
@@ -231,6 +240,7 @@ private void UpdateEnemies(double deltaTime)
 
 private void SpawnCollectible(int x, int y)
 {
+    // Only create one powerup per enemy
     var powerupSheet = SpriteSheet.Load(_renderer, "Powerup.json", "Assets");
     var collectible = new CollectibleObject(powerupSheet, x, y);
     _collectibles.Add(collectible);

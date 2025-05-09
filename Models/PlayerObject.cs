@@ -1,4 +1,3 @@
-using Silk.NET.Maths;
 
 namespace TheAdventure.Models;
 
@@ -9,6 +8,7 @@ public class PlayerObject : RenderableGameObject
     public bool IsAlive { get; private set; } = true;
 
     public int PowerLevel { get; private set; } = 0;
+    public int Power { get; private set; } = 0;
 
     public PlayerObject(SpriteSheet spriteSheet, int x, int y) : base(spriteSheet, (x, y))
     {
@@ -73,8 +73,8 @@ public class PlayerObject : RenderableGameObject
         Position = (x, y);
     }
 
-    public void AddPower(int amount)
+    public void AddPower(int value)
     {
-        PowerLevel += amount;
+        Power += value;
     }
 }
