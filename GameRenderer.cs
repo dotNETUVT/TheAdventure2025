@@ -1,4 +1,4 @@
-using Silk.NET.Maths;
+﻿using Silk.NET.Maths;
 using Silk.NET.SDL;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
@@ -9,22 +9,23 @@ namespace TheAdventure;
 
 public unsafe class GameRenderer
 {
-    private Sdl _sdl;
-    private Renderer* _renderer;
-    private GameWindow _window;
-    private Camera _camera;
+    private readonly Sdl _sdl;
+    private readonly Renderer* _renderer;
+    private readonly GameWindow _window;
+    private readonly Camera _camera;
 
     private Dictionary<int, IntPtr> _texturePointers = new();
     private Dictionary<int, TextureData> _textureData = new();
     private int _textureId;
 
+  
+    public (int Width, int Height) WindowSize => _window.Size;
+
     public GameRenderer(Sdl sdl, GameWindow window)
     {
         _sdl = sdl;
-        
         _renderer = (Renderer*)window.CreateRenderer();
         _sdl.SetRenderDrawBlendMode(_renderer, BlendMode.Blend);
-        
         _window = window;
         var windowSize = window.Size;
         _camera = new Camera(windowSize.Width, windowSize.Height);
@@ -60,16 +61,16 @@ public unsafe class GameRenderer
                 {
                     throw new Exception("Failed to create surface from image data.");
                 }
-                
+
                 var imageTexture = _sdl.CreateTextureFromSurface(_renderer, imageSurface);
                 if (imageTexture == null)
                 {
                     _sdl.FreeSurface(imageSurface);
                     throw new Exception("Failed to create texture from surface.");
                 }
-                
+
                 _sdl.FreeSurface(imageSurface);
-                
+
                 _textureData[_textureId] = textureInfo;
                 _texturePointers[_textureId] = (IntPtr)imageTexture;
             }
@@ -85,9 +86,7 @@ public unsafe class GameRenderer
         {
             var translatedDst = _camera.ToScreenCoordinates(dst);
             _sdl.RenderCopyEx(_renderer, (Texture*)imageTexture, in src,
-                in translatedDst,
-                angle,
-                in center, flip);
+                in translatedDst, angle, in center, flip);
         }
     }
 
@@ -109,5 +108,17 @@ public unsafe class GameRenderer
     public void PresentFrame()
     {
         _sdl.RenderPresent(_renderer);
+    }
+
+    public void Dispose()
+    {
+        foreach (var texture in _texturePointers.Values)
+        {
+            _sdl.DestroyTexture((Texture*)texture);
+        }
+        if (_renderer != null)
+        {
+            _sdl.DestroyRenderer(_renderer);
+        }
     }
 }
