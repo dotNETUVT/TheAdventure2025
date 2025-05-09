@@ -97,6 +97,14 @@ public class Engine
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
 
         _player?.UpdatePosition(up, down, left, right, 48, 48,msSinceLastFrame);
+        foreach (var gameObject in _gameObjects.Values)
+        {
+            if (gameObject is TemporaryGameObject bomb)
+            {
+                CheckBombCollisions(bomb);
+            }
+        }
+
     }
 
     public void RenderFrame()
@@ -186,5 +194,45 @@ public class Engine
 
         TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
         _gameObjects.Add(bomb.Id, bomb);
+    }
+
+    private void CheckBombCollisions(TemporaryGameObject bomb)
+    {
+        if (bomb.SpriteSheet.ActiveAnimation?.StartFrame.Row != bomb.SpriteSheet.ActiveAnimation?.EndFrame.Row)
+        {
+            return;
+        }
+
+        var bombRect = new Rectangle<int>(
+            (int)bomb.Position.X - bomb.SpriteSheet.FrameWidth / 2,
+            (int)bomb.Position.Y - bomb.SpriteSheet.FrameHeight / 2,
+            bomb.SpriteSheet.FrameWidth,
+            bomb.SpriteSheet.FrameHeight
+        );
+
+        var treesToRemove = new List<int>();
+        
+        foreach (var gameObject in _gameObjects.Values)
+        {
+            if (gameObject is RenderableGameObject renderable && gameObject.Type == "Tree")
+            {
+                var treeRect = new Rectangle<int>(
+                    (int)renderable.Position.X - renderable.SpriteSheet.FrameWidth / 2,
+                    (int)renderable.Position.Y - renderable.SpriteSheet.FrameHeight / 2,
+                    renderable.SpriteSheet.FrameWidth,
+                    renderable.SpriteSheet.FrameHeight
+                );
+
+                if (bombRect.Overlaps(treeRect))
+                {
+                    treesToRemove.Add(gameObject.Id);
+                }
+            }
+        }
+
+        foreach (var id in treesToRemove)
+        {
+            _gameObjects.Remove(id);
+        }
     }
 }
