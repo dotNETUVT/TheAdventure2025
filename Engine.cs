@@ -73,6 +73,8 @@ public class Engine
             level.Height.Value * level.TileHeight.Value));
 
         _currentLevel = level;
+
+        AddHouses();
     }
 
     public void ProcessFrame()
@@ -181,4 +183,31 @@ public class Engine
         TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
         _gameObjects.Add(bomb.Id, bomb);
     }
+
+private void AddHouses()
+{
+    string[] houseFiles = {
+        "house_2.png", "house_3.png", "house_4.png",
+        "house_1.png", "house_5.png", "house_6.png"
+    };
+
+    int startX = 150;
+    int startY = 300;
+    int spacing = 10;
+
+    int currentX = startX;
+    foreach (string fileName in houseFiles)
+    {
+        string fullPath = Path.Combine("Assets", fileName);
+        var textureId = _renderer.LoadTexture(fullPath, out var textureData);
+
+        var house = new StaticGameObject(textureId, currentX, startY, textureData.Width, textureData.Height);
+        _gameObjects.Add(house.Id, house);
+
+        currentX += textureData.Width + spacing;
+    }
+}
+
+
+
 }
