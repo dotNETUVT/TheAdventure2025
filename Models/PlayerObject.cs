@@ -20,7 +20,7 @@ public class PlayerObject : RenderableGameObject
         _speedBoostEnd = DateTime.Now.AddSeconds(durationSeconds);
     }
 
-    public void UpdatePosition(double up, double down, double left, double right, int width, int height, double time)
+    public void UpdatePosition(double up, double down, double left, double right, int width, int height, double time, Func<int, int, bool> canWalkTo)
     {
         if (up + down + left + right == 0)
         {
@@ -35,11 +35,17 @@ public class PlayerObject : RenderableGameObject
 
         var pixelsToMove = _speed * _speedMultiplier * (time / 1000.0);
         
-        var x = Position.X + (int)(right * pixelsToMove);
-        x -= (int)(left * pixelsToMove);
-        
-        var y = Position.Y + (int)(down * pixelsToMove);
-        y -= (int)(up * pixelsToMove);
+        var x = Position.X + (int)(right * pixelsToMove) - (int)(left * pixelsToMove);
+        var y = Position.Y + (int)(down * pixelsToMove) - (int)(up * pixelsToMove);
+
+        int tileX = x / 16; //divide by tileHeight
+        int tileY = y / 16;
+
+
+        if (!canWalkTo(tileX, tileY))
+        {
+            return; // collison, cancel movement
+        }
         
         var newAnimation = _currentAnimation;
 

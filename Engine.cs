@@ -58,22 +58,33 @@ public class Engine
             throw new Exception("Failed to load level");
         }
 
+        int? waterGid = null;
         foreach (var tileSetRef in level.TileSets)
         {
             var tileSetContent = File.ReadAllText(Path.Combine("Assets", tileSetRef.Source));
             var tileSet = JsonSerializer.Deserialize<TileSet>(tileSetContent);
             if (tileSet == null)
-            {
                 throw new Exception("Failed to load tile set");
-            }
+
+            int firstGid = tileSetRef.FirstGID!.Value;
 
             foreach (var tile in tileSet.Tiles)
             {
                 tile.TextureId = _renderer.LoadTexture(Path.Combine("Assets", tile.Image), out _);
-                _tileIdMap.Add(tile.Id!.Value, tile);
+
+                if (!string.IsNullOrEmpty(tile.Image) && tile.Image.Contains("water"))
+                {
+                    tile.IsWalkable = false;
+                    waterGid = firstGid + tile.Id!.Value;
+                }
+
+                _tileIdMap[firstGid + tile.Id!.Value] = tile;
             }
 
-            _loadedTileSets.Add(tileSet.Name, tileSet);
+            _loadedTileSets[tileSet.Name] = tileSet;
+
+            if (waterGid.HasValue)
+                break;
         }
 
         if (level.Width == null || level.Height == null)
@@ -142,19 +153,45 @@ public class Engine
                         int? currentTile = layer.Data[tileIndex];
 
                         // check if the current tile is a grass block
-                        if (currentTile >= 1 && currentTile <= 4)
+                        if (currentTile.HasValue && _tileIdMap.TryGetValue(currentTile.Value, out var tile) && tile.Image.Contains("grass"))
                         {
-                            layer.Data[tileIndex] = waterTileId.Value + 1;
+                            layer.Data[tileIndex] = waterGid.Value;
                         }
                     }
                 }
             }
         }
+
         _renderer.SetWorldBounds(new Rectangle<int>(0, 0, level.Width.Value * level.TileWidth.Value,
             level.Height.Value * level.TileHeight.Value));
 
         _currentLevel = level;
     }
+    private bool CanWalkTo(int tileX, int tileY)
+    {
+        //Console.WriteLine($"x=: {tileX}, y={tileY}");
+        var groundLayer = _currentLevel.Layers.FirstOrDefault(l => l.Type == "tilelayer" && l.Data != null);
+        if (groundLayer == null || groundLayer.Width is null)
+        {
+            return true;
+        }
+
+        int index = tileY * groundLayer.Width.Value + tileX;
+        if (index < 0 || index >= groundLayer.Data.Count)
+            return true;
+
+        int tileId = groundLayer.Data[index] ?? 0;
+
+        if (_tileIdMap.TryGetValue(tileId, out var tile))
+        {
+            //Console.WriteLine($"Tile ID: {tileId}, Walkable: {tile.IsWalkable}");
+            return tile.IsWalkable;
+        }
+
+        return true;
+    }
+
+
 
     public void ProcessFrame()
     {
@@ -167,7 +204,7 @@ public class Engine
         double left = _input.IsLeftPressed() ? 1.0 : 0.0;
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
 
-        _player?.UpdatePosition(up, down, left, right, 48, 48,msSinceLastFrame);
+        _player?.UpdatePosition(up, down, left, right, 48, 48,msSinceLastFrame, CanWalkTo);
     
         if ((DateTime.Now - _lastPowerUpSpawn).TotalSeconds >= 10 && _speedPowerUp == null)
         {
@@ -263,11 +300,10 @@ public class Engine
                         continue;
                     }
 
-                    var currentTileId = currentLayer.Data[dataIndex.Value] - 1;
-                    if (currentTileId == null)
-                    {
+                    var currentTileId = currentLayer.Data[dataIndex.Value];
+
+                    if (!currentTileId.HasValue || !_tileIdMap.ContainsKey(currentTileId.Value))
                         continue;
-                    }
 
                     var currentTile = _tileIdMap[currentTileId.Value];
 

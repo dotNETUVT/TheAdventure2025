@@ -18,4 +18,6 @@ public class Tile
 
     [JsonIgnore]
     public int TextureId { get; set; } = -1;
+
+    public bool IsWalkable { get; set; } = true;
 }
