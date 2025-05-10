@@ -17,12 +17,15 @@ namespace TheAdventure
         private readonly GameWindow _window;
         private readonly Camera _camera;
 
-        // texture storage
-        private readonly Dictionary<int, IntPtr> _texturePointers = new();
-        private readonly Dictionary<int, TextureData> _textureData = new();
+        private readonly Dictionary<int, IntPtr>      _texturePointers = new();
+        private readonly Dictionary<int, TextureData> _textureData     = new();
         private int _textureId = 0;
 
-        // digit‐sheet info
+        private readonly int _heartTexId;
+        private readonly int _heartW;
+        private readonly int _heartH;
+        private const int HEART_SCALE = 1;
+
         private readonly int _digitsTexId;
         private readonly int _digitW;
         private readonly int _digitH;
@@ -30,19 +33,21 @@ namespace TheAdventure
 
         public GameRenderer(Sdl sdl, GameWindow window)
         {
-            _sdl    = sdl;
-            _window = window;
-
+            _sdl      = sdl;
+            _window   = window;
             _renderer = (Renderer*)window.CreateRenderer();
             _sdl.SetRenderDrawBlendMode(_renderer, BlendMode.Blend);
 
             var (w, h) = window.Size;
             _camera = new Camera(w, h);
 
-            // load digit sprite‐sheet (10 cols in digits.png)
-            _digitsTexId = LoadTexture(Path.Combine("Assets", "digits.png"), out var td);
-            _digitW = td.Width  / 10;
-            _digitH = td.Height;
+            _heartTexId = LoadTexture(Path.Combine("Assets", "heart.png"), out var hd);
+            _heartW     = hd.Width;
+            _heartH     = hd.Height;
+
+            _digitsTexId = LoadTexture(Path.Combine("Assets", "digits.png"), out var dd);
+            _digitW      = dd.Width  / 10;
+            _digitH      = dd.Height;
         }
 
         public (int Width, int Height) WindowSize => _window.Size;
@@ -53,9 +58,6 @@ namespace TheAdventure
         public void CameraLookAt(int x, int y)
             => _camera.LookAt(x, y);
 
-        /// <summary>
-        /// Loads a PNG via ImageSharp into an SDL_Texture.
-        /// </summary>
         public int LoadTexture(string fileName, out TextureData textureInfo)
         {
             using var fs = new FileStream(fileName, FileMode.Open, FileAccess.Read);
@@ -75,50 +77,58 @@ namespace TheAdventure
                     ptr,
                     textureInfo.Width,
                     textureInfo.Height,
-                    8,                        // bit depth per channel
-                    textureInfo.Width * 4,    // pitch
+                    8,
+                    textureInfo.Width * 4,
                     (uint)PixelFormatEnum.Rgba32
                 );
                 if (surf == null)
                     throw new Exception("Failed to create surface from image data.");
 
                 var tex = _sdl.CreateTextureFromSurface(_renderer, surf);
-                if (tex == null)
-                {
-                    _sdl.FreeSurface(surf);
-                    throw new Exception("Failed to create texture from surface.");
-                }
-
                 _sdl.FreeSurface(surf);
+                if (tex == null)
+                    throw new Exception("Failed to create texture from surface.");
+
                 _textureData[_textureId]    = textureInfo;
                 _texturePointers[_textureId] = (IntPtr)tex;
             }
 
             return _textureId++;
         }
-        
-        public void RenderTexture(
-            int textureId,
-            Rectangle<int> src,
-            Rectangle<int> dst,
-            RendererFlip flip = RendererFlip.None,
-            double angle = 0.0,
-            Point rotationCenter = default
-        )
+
+        public void RenderTexture(int textureId,
+                                  Rectangle<int> src,
+                                  Rectangle<int> dst,
+                                  RendererFlip flip = RendererFlip.None,
+                                  double angle = 0.0,
+                                  Point rotationCenter = default)
         {
             if (!_texturePointers.TryGetValue(textureId, out var texPtr))
                 return;
 
             var screenDst = _camera.ToScreenCoordinates(dst);
-            _sdl.RenderCopyEx(
-                _renderer,
-                (Texture*)texPtr,
-                in src,
-                in screenDst,
-                angle,
-                in rotationCenter,
-                flip
-            );
+            _sdl.RenderCopyEx(_renderer,
+                              (Texture*)texPtr,
+                              in src,
+                              in screenDst,
+                              angle,
+                              in rotationCenter,
+                              flip);
+        }
+
+        public void RenderHearts(int health, int padding = 10)
+        {
+            for (int i = 0; i < health; i++)
+            {
+                var src = new Rectangle<int>(0, 0, 36, _heartH);
+                var dst = new Rectangle<int>(
+                    padding + i * (36 * HEART_SCALE + 4),
+                    padding,
+                    36 * HEART_SCALE,
+                    _heartH * HEART_SCALE
+                );
+                RenderTexture(_heartTexId, src, dst);
+            }
         }
 
         public void RenderScore(int score, int padding = 10)
@@ -154,7 +164,7 @@ namespace TheAdventure
         public void PresentFrame()
             => _sdl.RenderPresent(_renderer);
         
-        public Vector2D<int> ToWorldCoordinates(Vector2D<int> screenPoint)
-            => _camera.ToWorldCoordinates(screenPoint);
+        public Vector2D<int> ToWorldCoordinates(int x, int y)
+            => _camera.ToWorldCoordinates(new Vector2D<int>(x, y));
     }
 }
