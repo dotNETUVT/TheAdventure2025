@@ -1,7 +1,9 @@
+using System.Reflection;
 using System.Text.Json;
 using Silk.NET.Maths;
 using TheAdventure.Models;
 using TheAdventure.Models.Data;
+using TheAdventure.Scripting;
 
 namespace TheAdventure;
 
@@ -9,6 +11,7 @@ public class Engine
 {
     private readonly GameRenderer _renderer;
     private readonly Input _input;
+    private readonly ScriptEngine _scriptEngine = new();
 
     private readonly Dictionary<int, GameObject> _gameObjects = new();
     private readonly Dictionary<string, TileSet> _loadedTileSets = new();
@@ -166,6 +169,8 @@ public class Engine
             level.Height.Value * level.TileHeight.Value));
 
         _currentLevel = level;
+
+        _scriptEngine.LoadAll(Path.Combine("Assets", "Scripts"));
     }
     private bool CanWalkTo(int tileX, int tileY)
     {
@@ -199,14 +204,26 @@ public class Engine
         var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
         _lastUpdate = currentTime;
 
+        if (_player == null)
+        {
+            return;
+        }
+
         double up = _input.IsUpPressed() ? 1.0 : 0.0;
         double down = _input.IsDownPressed() ? 1.0 : 0.0;
         double left = _input.IsLeftPressed() ? 1.0 : 0.0;
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
+        bool isAttacking = _input.IsKeyAPressed() && (up + down + left + right <= 1);
+        bool addBomb = _input.IsKeyBPressed();
 
-        _player?.UpdatePosition(up, down, left, right, 48, 48,msSinceLastFrame, CanWalkTo);
-    
-        if ((DateTime.Now - _lastPowerUpSpawn).TotalSeconds >= 10 && _speedPowerUp == null)
+        _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame, CanWalkTo);
+        if (isAttacking)
+        {
+            _player.Attack();
+        }
+        
+        _scriptEngine.ExecuteAll(this);
+       if ((DateTime.Now - _lastPowerUpSpawn).TotalSeconds >= 10 && _speedPowerUp == null)
         {
             _lastPowerUpSpawn = DateTime.Now;
 
@@ -218,6 +235,12 @@ public class Engine
 
             _speedPowerUp = new TemporaryGameObject(spriteSheet, 9999, (spawnX, spawnY));
         }
+
+        if (addBomb)
+        {
+            AddBomb(_player.Position.X, _player.Position.Y, false);
+        }
+    
 
 
         // Coliziune cu power-up
@@ -329,9 +352,14 @@ public class Engine
         }
     }
 
-    private void AddBomb(int screenX, int screenY)
+    public (int X, int Y) GetPlayerPosition()
     {
-        var worldCoords = _renderer.ToWorldCoordinates(screenX, screenY);
+        return _player!.Position;
+    }
+
+    public void AddBomb(int X, int Y, bool translateCoordinates = true)
+    {
+        var worldCoords = translateCoordinates ? _renderer.ToWorldCoordinates(X, Y) : new Vector2D<int>(X, Y);
 
         SpriteSheet spriteSheet = SpriteSheet.Load(_renderer, "BombExploding.json", "Assets");
         spriteSheet.ActivateAnimation("Explode");
