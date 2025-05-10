@@ -214,7 +214,12 @@ public class Engine
         double left = _input.IsLeftPressed() ? 1.0 : 0.0;
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
         bool isAttacking = _input.IsKeyAPressed() && (up + down + left + right <= 1);
-        bool addBomb = _input.IsKeyBPressed();
+        bool addBomb = _input.IsKeyBPressed() && (DateTime.Now - _lastBombTime).TotalMilliseconds >= BombCooldownMs;
+
+        if(addBomb)
+            _lastBombTime = DateTime.Now;
+        if(_input.IsKeyBPressed() && addBomb == false)
+            _cooldownMessageStart = DateTime.Now;
 
         _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame, CanWalkTo);
         if (isAttacking)
@@ -270,18 +275,18 @@ public class Engine
         RenderAllObjects();
 
         if (_cooldownTextureId.HasValue && _cooldownMessageStart.HasValue)
-{
-        if ((DateTime.Now - _cooldownMessageStart.Value).TotalMilliseconds < 600)
         {
-            var dst = new Silk.NET.Maths.Rectangle<int>(20, 20, 200, 40);
-            var src = new Silk.NET.Maths.Rectangle<int>(0, 0, 200, 40);
-            _renderer.RenderScreenSpaceTexture(_cooldownTextureId.Value, src, dst);
+            if ((DateTime.Now - _cooldownMessageStart.Value).TotalMilliseconds < 600)
+            {
+                var dst = new Silk.NET.Maths.Rectangle<int>(20, 20, 200, 40);
+                var src = new Silk.NET.Maths.Rectangle<int>(0, 0, 200, 40);
+                _renderer.RenderScreenSpaceTexture(_cooldownTextureId.Value, src, dst);
+            }
+            else
+            {
+                _cooldownMessageStart = null; //stergem mesajuk
+            }
         }
-        else
-        {
-            _cooldownMessageStart = null; //stergem mesajuk
-        }
-    }
 
         _renderer.PresentFrame();
     }
