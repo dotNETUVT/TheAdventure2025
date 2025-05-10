@@ -1,27 +1,23 @@
-﻿using Silk.NET.SDL;
+﻿using System;
 using Thread = System.Threading.Thread;
+using Silk.NET.SDL;
 
-namespace TheAdventure;
-
-public static class Program
+namespace TheAdventure
 {
-    public static void Main()
+    public static class Program
     {
-        var sdl = new Sdl(new SdlContext());
-
-        var sdlInitResult = sdl.Init(Sdl.InitVideo | Sdl.InitAudio | Sdl.InitEvents | Sdl.InitTimer |
-                                     Sdl.InitGamecontroller |
-                                     Sdl.InitJoystick);
-        if (sdlInitResult < 0)
+        public static void Main()
         {
-            throw new InvalidOperationException("Failed to initialize SDL.");
-        }
+            var sdl = new Sdl(new SdlContext());
+            var flags = Sdl.InitVideo | Sdl.InitAudio | Sdl.InitEvents
+                        | Sdl.InitTimer | Sdl.InitGamecontroller | Sdl.InitJoystick;
+            if (sdl.Init(flags) < 0)
+                throw new InvalidOperationException("SDL_Init failed.");
 
-        using (var gameWindow = new GameWindow(sdl))
-        {
-            var input = new Input(sdl);
-            var gameRenderer = new GameRenderer(sdl, gameWindow);
-            var engine = new Engine(gameRenderer, input);
+            using var window   = new GameWindow(sdl);
+            var   renderer = new GameRenderer(sdl, window);
+            var   input    = new Input(sdl);
+            var   engine   = new Engine(renderer, input);
 
             engine.SetupWorld();
 
@@ -36,8 +32,8 @@ public static class Program
 
                 Thread.Sleep(13);
             }
-        }
 
-        sdl.Quit();
+            sdl.Quit();
+        }
     }
 }

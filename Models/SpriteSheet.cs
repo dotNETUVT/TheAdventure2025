@@ -97,42 +97,69 @@ public class SpriteSheet
         AnimationFinished = false;
     }
 
-    public void Render(GameRenderer renderer, (int X, int Y) dest, double angle = 0.0, Point rotationCenter = new())
+ public void Render(GameRenderer renderer, (int X, int Y) dest, double angle = 0.0, Point rotationCenter = new())
+{
+    const int SCALE = 2;
+    var w = FrameWidth * SCALE;
+    var h = FrameHeight * SCALE;
+    var cx = FrameCenter.OffsetX * SCALE;
+    var cy = FrameCenter.OffsetY * SCALE;
+
+    if (ActiveAnimation == null)
     {
-        if (ActiveAnimation == null)
-        {
-            renderer.RenderTexture(_textureId, new Rectangle<int>(0, 0, FrameWidth, FrameHeight),
-                new Rectangle<int>(dest.X - FrameCenter.OffsetX, dest.Y - FrameCenter.OffsetY, FrameWidth, FrameHeight),
-                RendererFlip.None, angle, rotationCenter);
-        }
-        else
-        {
-            var totalFrames = (ActiveAnimation.EndFrame.Row - ActiveAnimation.StartFrame.Row) * ColumnCount +
-                ActiveAnimation.EndFrame.Col - ActiveAnimation.StartFrame.Col;
-            var currentFrame = (int)((DateTimeOffset.Now - _animationStart).TotalMilliseconds /
-                                     (ActiveAnimation.DurationMs / (double)totalFrames));
-            if (currentFrame > totalFrames)
-            {
-                AnimationFinished = true;
-                
-                if (ActiveAnimation.Loop)
-                {
-                    _animationStart = DateTimeOffset.Now;
-                    currentFrame = 0;
-                }
-                else
-                {
-                    currentFrame = totalFrames;
-                }
-            }
-
-            var currentRow = ActiveAnimation.StartFrame.Row + currentFrame / ColumnCount;
-            var currentCol = ActiveAnimation.StartFrame.Col + currentFrame % ColumnCount;
-
-            renderer.RenderTexture(_textureId,
-                new Rectangle<int>(currentCol * FrameWidth, currentRow * FrameHeight, FrameWidth, FrameHeight),
-                new Rectangle<int>(dest.X - FrameCenter.OffsetX, dest.Y - FrameCenter.OffsetY, FrameWidth, FrameHeight),
-                ActiveAnimation.Flip, angle, rotationCenter);
-        }
+        renderer.RenderTexture(
+            _textureId,
+            new Rectangle<int>(0, 0, FrameWidth, FrameHeight),
+            new Rectangle<int>(dest.X - cx,
+                              dest.Y - cy,
+                              w,
+                              h),
+            RendererFlip.None,
+            angle,
+            rotationCenter
+        );
     }
+    else
+    {
+        var totalFrames = (ActiveAnimation.EndFrame.Row - ActiveAnimation.StartFrame.Row) * ColumnCount +
+                          ActiveAnimation.EndFrame.Col - ActiveAnimation.StartFrame.Col;
+        var currentFrame = (int)((DateTimeOffset.Now - _animationStart).TotalMilliseconds /
+                                 (ActiveAnimation.DurationMs / (double)totalFrames));
+        if (currentFrame > totalFrames)
+        {
+            AnimationFinished = true;
+            if (ActiveAnimation.Loop)
+            {
+                _animationStart = DateTimeOffset.Now;
+                currentFrame = 0;
+            }
+            else
+            {
+                currentFrame = totalFrames;
+            }
+        }
+
+        var currentRow = ActiveAnimation.StartFrame.Row + currentFrame / ColumnCount;
+        var currentCol = ActiveAnimation.StartFrame.Col + currentFrame % ColumnCount;
+
+        renderer.RenderTexture(
+            _textureId,
+            new Rectangle<int>(
+                currentCol * FrameWidth,
+                currentRow * FrameHeight,
+                FrameWidth,
+                FrameHeight
+            ),
+            new Rectangle<int>(
+                dest.X - cx,
+                dest.Y - cy,
+                w,
+                h
+            ),
+            ActiveAnimation.Flip,
+            angle,
+            rotationCenter
+        );
+    }
+}
 }
