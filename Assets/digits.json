@@ -1,0 +1,16 @@
+{
+  "FileName":   "digits.png",
+  "RowCount":    1,
+  "ColumnCount": 10,
+  "FrameWidth":  16,
+  "FrameHeight": 16,
+  "FrameCenter": { "OffsetX": 0, "OffsetY": 0 },
+  "Animations": {
+    "Idle": {
+      "StartFrame": { "Row": 0, "Col": 0 },
+      "EndFrame":   { "Row": 0, "Col": 9 },
+      "DurationMs": 1000,
+      "Loop":       false
+    }
+  }
+}

@@ -1,78 +1,62 @@
+using System;
 using Silk.NET.SDL;
 
-namespace TheAdventure;
-
-public unsafe class GameWindow : IDisposable
+namespace TheAdventure
 {
-    public (int Width, int Height) Size
+    public unsafe class GameWindow : IDisposable
     {
-        get
+        private readonly Sdl _sdl;
+        private IntPtr _window;
+
+        public (int Width, int Height) Size
         {
-            int width = 0;
-            int height = 0;
-            _sdl.GetWindowSize((Window*)_window, ref width, ref height);
-
-            return (width, height);
-        }
-    }
-
-    private IntPtr _window;
-    private readonly Sdl _sdl;
-
-    public GameWindow(Sdl sdl)
-    {
-        _sdl = sdl;
-        _window = (IntPtr)sdl.CreateWindow(
-            "The Adventure", Sdl.WindowposUndefined, Sdl.WindowposUndefined, 640, 400,
-            (uint)WindowFlags.Resizable | (uint)WindowFlags.AllowHighdpi
-        );
-
-        if (_window == IntPtr.Zero)
-        {
-            var ex = sdl.GetErrorAsException();
-            if (ex != null)
+            get
             {
-                throw ex;
+                int w = 0, h = 0;
+                _sdl.GetWindowSize((Window*)_window, ref w, ref h);
+                return (w, h);
             }
-
-            throw new Exception("Failed to create window.");
         }
-    }
 
-    public IntPtr CreateRenderer()
-    {
-        var renderer = (IntPtr)_sdl.CreateRenderer((Window*)_window, -1, (uint)RendererFlags.Accelerated);
-        if (renderer == IntPtr.Zero)
+        public GameWindow(Sdl sdl)
         {
-            var ex = _sdl.GetErrorAsException();
-            if (ex != null)
+            _sdl = sdl;
+            _window = (IntPtr)sdl.CreateWindow(
+                "The Adventure",
+                Sdl.WindowposUndefined, Sdl.WindowposUndefined,
+                480, 300,
+                (uint)(WindowFlags.Resizable | WindowFlags.AllowHighdpi)
+            );
+            if (_window == IntPtr.Zero)
+                throw _sdl.GetErrorAsException() ?? new Exception("Failed to create window.");
+        }
+
+        public IntPtr CreateRenderer()
+        {
+            var renderer = (IntPtr)_sdl.CreateRenderer(
+                (Window*)_window, -1,
+                (uint)RendererFlags.Accelerated
+            );
+            if (renderer == IntPtr.Zero)
+                throw _sdl.GetErrorAsException() ?? new Exception("Failed to create renderer.");
+            return renderer;
+        }
+
+        private void ReleaseUnmanagedResources()
+        {
+            if (_window != IntPtr.Zero)
             {
-                throw ex;
+                _sdl.DestroyWindow((Window*)_window);
+                _window = IntPtr.Zero;
             }
-
-            throw new Exception("Failed to create renderer.");
         }
 
-        return renderer;
-    }
-
-    private void ReleaseUnmanagedResources()
-    {
-        if (_window != IntPtr.Zero)
+        public void Dispose()
         {
-            _sdl.DestroyWindow((Window*)_window);
-            _window = IntPtr.Zero;
+            ReleaseUnmanagedResources();
+            GC.SuppressFinalize(this);
         }
-    }
 
-    public void Dispose()
-    {
-        ReleaseUnmanagedResources();
-        GC.SuppressFinalize(this);
-    }
-
-    ~GameWindow()
-    {
-        ReleaseUnmanagedResources();
+        ~GameWindow() => ReleaseUnmanagedResources();
     }
 }

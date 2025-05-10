@@ -1,0 +1,16 @@
+{
+  "FileName":   "gem.png",
+  "RowCount":    1,
+  "ColumnCount": 7,
+  "FrameWidth":  16,
+  "FrameHeight": 16,
+  "FrameCenter": { "OffsetX": 8, "OffsetY": 8 },
+  "Animations": {
+    "Idle": {
+      "StartFrame": { "Row": 0, "Col": 0 },
+      "EndFrame":   { "Row": 0, "Col": 6 },
+      "DurationMs": 1000,
+      "Loop":       true
+    }
+  }
+}
