@@ -1,3 +1,4 @@
+using Silk.NET.Input;
 using Silk.NET.SDL;
 
 namespace TheAdventure;
@@ -37,10 +38,40 @@ public unsafe class Input
         return keyboardState[(int)KeyCode.Down] == 1;
     }
 
+    public bool IsLeftPressed2()
+    {
+        ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
+        return keyboardState[(int)KeyCode.F] == 1;
+    }
+
+    public bool IsRightPressed2()
+    {
+        ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
+        return keyboardState[(int)KeyCode.H] == 1;
+    }
+
+    public bool IsUpPressed2()
+    {
+        ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
+        return keyboardState[(int)KeyCode.T] == 1;
+    }
+
+    public bool IsDownPressed2()
+    {
+        ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
+        return keyboardState[(int)KeyCode.G] == 1;
+    }
+
     public bool IsKeyAPressed()
     {
         ReadOnlySpan<byte> _keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
         return _keyboardState[(int)KeyCode.A] == 1;
+    }
+
+    public bool IsKeyYPressed()
+    {
+        ReadOnlySpan<byte> _keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
+        return _keyboardState[(int)KeyCode.Y] == 1;
     }
 
     public bool IsKeyBPressed()
@@ -48,6 +79,14 @@ public unsafe class Input
         ReadOnlySpan<byte> _keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
         return _keyboardState[(int)KeyCode.B] == 1;
     }
+
+    public bool IsKeyRPressed()
+    {
+        ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
+        return keyboardState[(int)KeyCode.R] == 1;
+    }
+
+
 
     public bool ProcessInput()
     {
