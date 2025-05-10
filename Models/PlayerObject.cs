@@ -12,7 +12,7 @@ public class PlayerObject : RenderableGameObject
         Down,
         Up,
         Left,
-        Right,
+        Right
     }
 
     public enum PlayerState
@@ -34,6 +34,11 @@ public class PlayerObject : RenderableGameObject
     public void SetState(PlayerState state)
     {
         SetState(state, State.Direction);
+    }
+    public void ResetPosition()
+    {
+        var vector = new Vector2D<int>(Position.X, Position.Y);
+
     }
 
     public void SetState(PlayerState state, PlayerStateDirection direction)

@@ -1,0 +1,181 @@
+{
+  "rowCount": 11,
+  "columnCount": 7,
+  "frameWidth": 50,
+  "frameHeight": 37,
+  "frameCenter": {
+    "offsetX": 25,
+    "offsetY": 33
+  },
+  "fileName": "player2.png",
+  "animations": {
+    "IdleUp": {
+      "startFrame": {
+        "row": 2,
+        "col": 0
+      },
+      "endFrame": {
+        "row": 2,
+        "col": 6
+      },
+      "durationMs": 1000,
+      "loop": true
+    },
+    "IdleDown": {
+      "startFrame": {
+        "row": 0,
+        "col": 0
+      },
+      "endFrame": {
+        "row": 0,
+        "col": 6
+      },
+      "durationMs": 1000,
+      "loop": true
+    },
+    "IdleLeft": {
+      "startFrame": {
+        "row": 1,
+        "col": 0
+      },
+      "endFrame": {
+        "row": 1,
+        "col": 0
+      },
+      "durationMs": 1000,
+      "loop": true,
+      "flip": 1
+    },
+    "IdleRight": {
+      "startFrame": {
+        "row": 1,
+        "col": 0
+      },
+      "endFrame": {
+        "row": 1,
+        "col": 0
+      },
+      "durationMs": 1000,
+      "loop": true
+    },
+    "MoveLeft": {
+      "startFrame": {
+        "row": 1,
+        "col": 1
+      },
+      "endFrame": {
+        "row": 1,
+        "col": 6
+      },
+      "durationMs": 1000,
+      "loop": true,
+      "flip": 1
+    },
+    "MoveRight": {
+      "startFrame": {
+        "row": 1,
+        "col": 1
+      },
+      "endFrame": {
+        "row": 1,
+        "col": 6
+      },
+      "durationMs": 1000,
+      "loop": true,
+      "flip": 0
+    },
+    "MoveDown": {
+      "startFrame": {
+        "row": 3,
+        "col": 3
+      },
+      "endFrame": {
+        "row": 3,
+        "col": 6
+      },
+      "durationMs": 1000,
+      "loop": true,
+      "flip": 0
+    },
+    "MoveUp": {
+      "startFrame": {
+        "row": 2,
+        "col": 4
+      },
+      "endFrame": {
+        "row": 3,
+        "col": 4
+      },
+      "durationMs": 1000,
+      "loop": true,
+      "flip": 0
+    },
+    "AttackLeft": {
+      "startFrame": {
+        "row": 7,
+        "col": 1
+      },
+      "endFrame": {
+        "row": 7,
+        "col": 3
+      },
+      "durationMs": 300,
+      "loop": true,
+      "flip": 1
+    },
+    "AttackRight": {
+      "startFrame": {
+        "row": 7,
+        "col": 1
+      },
+      "endFrame": {
+        "row": 7,
+        "col": 2
+      },
+      "durationMs": 300,
+      "loop": true,
+      "flip": 0
+    },
+    "AttackDown": {
+      "startFrame": {
+        "row": 8,
+        "col": 0
+      },
+      "endFrame": {
+        "row": 8,
+        "col": 1
+      },
+      "durationMs": 300,
+      "loop": true,
+      "flip": 0
+    },
+    "AttackUp": {
+      "startFrame": {
+        "row": 6,
+        "col": 4
+      },
+      "endFrame": {
+        "row": 6,
+        "col": 5
+      },
+      "durationMs": 300,
+      "loop": true,
+      "flip": 0
+    },
+
+    "GameOver": {
+      "startFrame": {
+        "row": 3,
+        "col": 0
+      },
+      "endFrame": {
+        "row": 3,
+        "col": 0
+      },
+      "durationMs": 300,
+      "loop": false,
+      "flip": 0
+    }
+
+  }
+}

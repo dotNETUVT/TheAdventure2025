@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 using System.Text.Json;
 using Silk.NET.Maths;
 using TheAdventure.Models;
@@ -19,6 +19,7 @@ public class Engine
 
     private Level _currentLevel = new();
     private PlayerObject? _player;
+    private PlayerObject? _player2;
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
 
@@ -33,6 +34,7 @@ public class Engine
     public void SetupWorld()
     {
         _player = new(SpriteSheet.Load(_renderer, "Player.json", "Assets"), 100, 100);
+        _player2 = new(SpriteSheet.Load(_renderer, "Player2.json", "Assets"), 400, 250);
 
         var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
         var level = JsonSerializer.Deserialize<Level>(levelContent);
@@ -83,7 +85,7 @@ public class Engine
         var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
         _lastUpdate = currentTime;
 
-        if (_player == null)
+        if (_player == null || _player2 == null)
         {
             return;
         }
@@ -94,20 +96,74 @@ public class Engine
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
         bool isAttacking = _input.IsKeyAPressed() && (up + down + left + right <= 1);
         bool addBomb = _input.IsKeyBPressed();
+        bool restartGame = _input.IsKeyRPressed();
+
+        if (restartGame)
+        {
+            RestartGame();
+        }
 
         _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame);
         if (isAttacking)
         {
             _player.Attack();
         }
-        
+
+        double player2Up = _input.IsUpPressed2() ? 1.0 : 0.0;
+        double player2Down = _input.IsDownPressed2() ? 1.0 : 0.0;
+        double player2Left = _input.IsLeftPressed2() ? 1.0 : 0.0;
+        double player2Right = _input.IsRightPressed2() ? 1.0 : 0.0;
+        bool isAttacking2 = _input.IsKeyYPressed() && (player2Up + player2Down + player2Left + player2Right <= 1);
+
+        _player2.UpdatePosition(player2Up, player2Down, player2Left, player2Right, 50, 37, msSinceLastFrame);
+        if (isAttacking2)
+        {
+            _player2.Attack();
+        }
+
+        if (isAttacking &&
+            Math.Abs(_player.Position.X - _player2.Position.X) < 32 &&
+            Math.Abs(_player.Position.Y - _player2.Position.Y) < 32)
+        {
+            _player2.GameOver();
+        }
+        if (isAttacking2 &&
+            Math.Abs(_player2.Position.X - _player.Position.X) < 32 &&
+            Math.Abs(_player2.Position.Y - _player.Position.Y) < 32)
+        {
+            _player.GameOver();
+        }
+
+
         _scriptEngine.ExecuteAll(this);
 
         if (addBomb)
         {
             AddBomb(_player.Position.X, _player.Position.Y, false);
         }
+
+        if (addBomb)
+        {
+            AddBomb(_player2.Position.X, _player2.Position.Y, false);
+        }
+
+
     }
+
+    public void RestartGame()
+    {
+        _gameObjects.Clear();
+        _tileIdMap.Clear();
+        _loadedTileSets.Clear();
+
+        SetupWorld();
+
+        if (_player != null)
+        {
+            _player.ResetPosition();
+        }
+    }
+
 
     public void RenderFrame()
     {
@@ -115,7 +171,9 @@ public class Engine
         _renderer.ClearScreen();
 
         var playerPosition = _player!.Position;
+        var playerPosition2 = _player2!.Position;
         _renderer.CameraLookAt(playerPosition.X, playerPosition.Y);
+        _renderer.CameraLookAt(playerPosition2.X, playerPosition2.Y);
 
         RenderTerrain();
         RenderAllObjects();
@@ -151,9 +209,25 @@ public class Engine
             {
                 _player.GameOver();
             }
+
+            if (_player2 == null)
+            {
+                continue;
+            }
+
+            var deltaX2 = Math.Abs(_player2.Position.X - tempGameObject.Position.X);
+            var deltaY2 = Math.Abs(_player2.Position.Y - tempGameObject.Position.Y);
+
+            if (deltaX2 < 32 && deltaY2 < 32)
+            {
+                _player2.GameOver();
+            }
+
+
         }
 
         _player?.Render(_renderer);
+        _player2?.Render(_renderer);
     }
 
     public void RenderTerrain()
