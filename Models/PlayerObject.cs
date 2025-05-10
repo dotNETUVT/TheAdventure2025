@@ -41,7 +41,6 @@ public class PlayerObject : RenderableGameObject
 
     }
 
-
     public void SetState(PlayerState state, PlayerStateDirection direction)
     {
         if (State.State == PlayerState.GameOver)

@@ -34,7 +34,7 @@ public class Engine
     public void SetupWorld()
     {
         _player = new(SpriteSheet.Load(_renderer, "Player.json", "Assets"), 100, 100);
-        _player2 = new(SpriteSheet.Load(_renderer, "Player2.json", "Assets"), 100, 170);
+        _player2 = new(SpriteSheet.Load(_renderer, "Player2.json", "Assets"), 400, 250);
 
         var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
         var level = JsonSerializer.Deserialize<Level>(levelContent);
@@ -121,6 +121,20 @@ public class Engine
             _player2.Attack();
         }
 
+        if (isAttacking &&
+            Math.Abs(_player.Position.X - _player2.Position.X) < 32 &&
+            Math.Abs(_player.Position.Y - _player2.Position.Y) < 32)
+        {
+            _player2.GameOver();
+        }
+        if (isAttacking2 &&
+            Math.Abs(_player2.Position.X - _player.Position.X) < 32 &&
+            Math.Abs(_player2.Position.Y - _player.Position.Y) < 32)
+        {
+            _player.GameOver();
+        }
+
+
         _scriptEngine.ExecuteAll(this);
 
         if (addBomb)
@@ -132,6 +146,8 @@ public class Engine
         {
             AddBomb(_player2.Position.X, _player2.Position.Y, false);
         }
+
+
     }
 
     public void RestartGame()
@@ -206,6 +222,8 @@ public class Engine
             {
                 _player2.GameOver();
             }
+
+
         }
 
         _player?.Render(_renderer);
