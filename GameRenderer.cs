@@ -14,6 +14,10 @@ public unsafe class GameRenderer
     private GameWindow _window;
     private Camera _camera;
 
+    private int width;
+    private int height;
+    
+
     private Dictionary<int, IntPtr> _texturePointers = new();
     private Dictionary<int, TextureData> _textureData = new();
     private int _textureId;
@@ -28,6 +32,15 @@ public unsafe class GameRenderer
         _window = window;
         var windowSize = window.Size;
         _camera = new Camera(windowSize.Width, windowSize.Height);
+        width = windowSize.Width;
+        height = windowSize.Height;
+    }
+
+    public int getHeight() {
+        return height;
+    }
+    public int getWidth() {
+        return width;
     }
 
     public void SetWorldBounds(Rectangle<int> bounds)

@@ -11,8 +11,10 @@ public class Engine
 {
     private readonly GameRenderer _renderer;
     private readonly Input _input;
-    private readonly ScriptEngine _scriptEngine = new();
+    private bool _gameOver = false;
 
+    private readonly ScriptEngine _scriptEngine = new();
+    private readonly List<EnemyObject> _enemies = new();    
     private readonly Dictionary<int, GameObject> _gameObjects = new();
     private readonly Dictionary<string, TileSet> _loadedTileSets = new();
     private readonly Dictionary<int, Tile> _tileIdMap = new();
@@ -49,10 +51,21 @@ public class Engine
             }
         };
     }
+    public void TriggerGameOver()
+    {
+        _gameOver = true;
+    }
 
     public void SetupWorld()
     {
         _player = new(SpriteSheet.Load(_renderer, "Player.json", "Assets"), 100, 100);
+
+
+        var enemySheet = SpriteSheet.Load(_renderer, "Enemy.json", "Assets");
+        enemySheet.ActivateAnimation("Move");
+
+        _enemies.Add(new EnemyObject(enemySheet, (120, 100)));
+
 
         var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
         var level = JsonSerializer.Deserialize<Level>(levelContent);
@@ -100,7 +113,7 @@ public class Engine
             throw new Exception("Invalid tile dimensions");
         }
 
-        int waterBlockCount = 12; // mai puține patch-uri, dar mai mari
+        int waterBlockCount = 12; 
         Random rng = new Random();
 
 
@@ -226,6 +239,25 @@ public class Engine
         {
             _player.Attack();
         }
+
+        var playerPos = _player.Position;
+
+        foreach (var e in _enemies)
+        {
+            e.Update(playerPos, msSinceLastFrame);
+
+            var enemyPos = e.GetPosition();
+            var dx = playerPos.X - enemyPos.X;
+            var dy = playerPos.Y - enemyPos.Y;
+            var distance = Math.Sqrt(dx * dx + dy * dy);
+            if (distance < 19)
+            {
+                Console.WriteLine("Game Over.");
+                _gameOver = true;
+                break;
+            }
+        }
+
         
         _scriptEngine.ExecuteAll(this);
        if ((DateTime.Now - _lastPowerUpSpawn).TotalSeconds >= 10 && _speedPowerUp == null)
@@ -265,6 +297,26 @@ public class Engine
 
     public void RenderFrame()
     {
+
+            if (_gameOver)
+            {
+                int? gameOverTexId = null;
+                TextureData gameOverTexData;
+
+                gameOverTexId = _renderer.LoadTexture("Assets/GameOver.png", out gameOverTexData);
+                
+
+                var screenWidth = _renderer.getWidth();
+                var screenHeight = _renderer.getHeight();
+
+                var src = new Rectangle<int>(0, 0, gameOverTexData.Width, gameOverTexData.Height);
+                var dst = new Rectangle<int>(0, 0, screenWidth, screenHeight);
+
+                _renderer.RenderScreenSpaceTexture(gameOverTexId.Value, src, dst);
+                _renderer.PresentFrame();
+                return;
+            }
+
         _renderer.SetDrawColor(0, 0, 0, 255);
         _renderer.ClearScreen();
 
@@ -311,7 +363,15 @@ public class Engine
         {
             _speedPowerUp.Render(_renderer);
         }
+
+        foreach (var e in _enemies)
+        {
+            if (!e.IsDead)
+                e.Render(_renderer);
+        }
+
         _player?.Render(_renderer);
+
     }
 
     public void RenderTerrain()
