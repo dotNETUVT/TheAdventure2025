@@ -14,6 +14,10 @@ public unsafe class GameRenderer
     private GameWindow _window;
     private Camera _camera;
 
+    private int width;
+    private int height;
+    
+
     private Dictionary<int, IntPtr> _texturePointers = new();
     private Dictionary<int, TextureData> _textureData = new();
     private int _textureId;
@@ -28,6 +32,15 @@ public unsafe class GameRenderer
         _window = window;
         var windowSize = window.Size;
         _camera = new Camera(windowSize.Width, windowSize.Height);
+        width = windowSize.Width;
+        height = windowSize.Height;
+    }
+
+    public int getHeight() {
+        return height;
+    }
+    public int getWidth() {
+        return width;
     }
 
     public void SetWorldBounds(Rectangle<int> bounds)
@@ -76,6 +89,14 @@ public unsafe class GameRenderer
         }
 
         return _textureId++;
+    }
+
+    public void RenderScreenSpaceTexture(int textureId, Rectangle<int> src, Rectangle<int> dst)
+    {
+        if (_texturePointers.TryGetValue(textureId, out var tex))
+        {
+            _sdl.RenderCopyEx(_renderer, (Texture*)tex, in src, in dst, 0, null, RendererFlip.None);
+        }
     }
 
     public void RenderTexture(int textureId, Rectangle<int> src, Rectangle<int> dst,

@@ -8,7 +8,7 @@
  "margin":0,
  "name":"grass",
  "spacing":0,
- "tilecount":4,
+ "tilecount":5,
  "tiledversion":"1.11.1",
  "tileheight":16,
  "tiles":[
@@ -33,6 +33,12 @@
         {
          "id":3,
          "image":"grass_004.png",
+         "imageheight":16,
+         "imagewidth":16
+        },
+        {
+         "id":4,
+         "image":"water.png",
          "imageheight":16,
          "imagewidth":16
         }],
