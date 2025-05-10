@@ -24,3 +24,17 @@ public class RenderableGameObject : GameObject
         SpriteSheet.Render(renderer, Position, Angle, RotationCenter);
     }
 }
+
+public class Wizard : RenderableGameObject
+{
+    public Wizard(SpriteSheet spriteSheet, (int X, int Y) position)
+        : base(spriteSheet, position)
+    {
+        SpriteSheet.ActivateAnimation("Idle");
+    }
+
+    public override void Render(GameRenderer renderer)
+    {
+        base.Render(renderer);
+    }
+}

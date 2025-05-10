@@ -1,0 +1,20 @@
+{
+    "rowCount": 1,
+    "columnCount": 1,
+    "frameWidth": 40,
+    "frameHeight": 40,
+    "frameCenter": {
+      "offsetX": 20,
+      "offsetY": 20
+    },
+    "fileName": "WizardSprite.png",
+    "animations": {
+      "Idle": {
+        "startFrame": { "row": 0, "col": 0 },
+        "endFrame": { "row": 0, "col": 0 },
+        "durationMs": 800,
+        "loop": false
+      }
+    }
+  }
+  

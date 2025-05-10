@@ -19,6 +19,10 @@ public class Engine
 
     private Level _currentLevel = new();
     private PlayerObject? _player;
+    private Wizard? _wizard;
+    private int? _messageTextureId;
+    private TextureData _messageTextureInfo;
+
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
 
@@ -27,7 +31,10 @@ public class Engine
         _renderer = renderer;
         _input = input;
 
-        _input.OnMouseClick += (_, coords) => AddBomb(coords.x, coords.y);
+        _input.OnMouseClick += (_, coords) =>
+        {
+            AddBomb(coords.x, coords.y);
+        };
     }
 
     public void SetupWorld()
@@ -75,6 +82,14 @@ public class Engine
         _currentLevel = level;
 
         _scriptEngine.LoadAll(Path.Combine("Assets", "Scripts"));
+
+        var wizardSheet = SpriteSheet.Load(_renderer, "Wizard.json", "Assets");
+        var playerPos = _player.Position;
+        _wizard = new Wizard(wizardSheet, (450, 300));
+        _gameObjects.Add(_wizard.Id, _wizard);
+
+        _messageTextureId = _renderer.LoadTexture(Path.Combine("Assets", "HelloMessage.png"), out _messageTextureInfo);
+
     }
 
     public void ProcessFrame()
@@ -100,7 +115,7 @@ public class Engine
         {
             _player.Attack();
         }
-        
+
         _scriptEngine.ExecuteAll(this);
 
         if (addBomb)
@@ -120,6 +135,27 @@ public class Engine
         RenderTerrain();
         RenderAllObjects();
 
+        if (_wizard != null && _messageTextureId.HasValue)
+        {
+            int distanceX = Math.Abs(playerPosition.X - _wizard.Position.X);
+            int distanceY = Math.Abs(playerPosition.Y - _wizard.Position.Y);
+
+            if (distanceX < 60 && distanceY < 60)
+            {
+                var screenWidth = _renderer.WindowSize.Width;
+                var screenHeight = _renderer.WindowSize.Height;
+
+                int messageWidth = _messageTextureInfo.Width;
+                int messageHeight = _messageTextureInfo.Height;
+
+                int posX = (screenWidth - messageWidth) / 2;
+                int posY = screenHeight - messageHeight - 10;
+
+                _renderer.RenderHUDTexture(_messageTextureId.Value,
+                    new Rectangle<int>(0, 0, messageWidth, messageHeight),
+                    new Rectangle<int>(posX, posY, messageWidth, messageHeight));
+            }
+        }
         _renderer.PresentFrame();
     }
 
