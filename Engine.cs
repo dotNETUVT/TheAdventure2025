@@ -1,9 +1,15 @@
-using System.Reflection;
 using System.Text.Json;
 using Silk.NET.Maths;
+using SixLabors.Fonts;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Drawing.Processing;
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
 using TheAdventure.Models;
 using TheAdventure.Models.Data;
 using TheAdventure.Scripting;
+using Color = System.Drawing.Color;
+
 
 namespace TheAdventure;
 
@@ -24,6 +30,7 @@ public class Engine
     
     private int _score = 0;
     private HighScore _highScoreData;
+    private const int ScorePerBombSurvival = 10;
 
     public Engine(GameRenderer renderer, Input input)
     {
@@ -135,6 +142,12 @@ public class Engine
         RenderTerrain();
         RenderAllObjects();
 
+        var scoreTex = CreateUITextTexture($"Score: {_score}", Color.White);
+        var highScoreTex = CreateUITextTexture($"High Score: {_highScoreData.Score}", Color.Yellow);
+
+        DrawUIText(scoreTex, 10, 10);
+        DrawUIText(highScoreTex, 10, 40);
+
         _renderer.PresentFrame();
     }
 
@@ -165,6 +178,10 @@ public class Engine
             if (deltaX < 32 && deltaY < 32)
             {
                 _player.GameOver();
+            }
+            else
+            {
+                _score += ScorePerBombSurvival;
             }
         }
 
@@ -254,5 +271,36 @@ public class Engine
         _score = 0;
         _gameObjects.Clear();
         SetupWorld();
+    }
+    
+    private (int textureId, int width, int height) CreateUITextTexture(string text, Color color)
+    {
+        using var image = new Image<Rgba32>(200, 50);
+        image.Mutate(ctx =>
+        {
+            ctx.Clear(new Rgba32(0, 0, 0, 0));
+            ctx.DrawText(text, SystemFonts.CreateFont("Arial", 24), new Rgba32(color.R, color.G, color.B, color.A), new PointF(0, 0));
+        });
+
+        var tmpPath = Path.GetTempFileName();
+        image.SaveAsPng(tmpPath);
+
+        var textureId = _renderer.LoadTexture(tmpPath, out var texData);
+        File.Delete(tmpPath);
+
+        return (textureId, texData.Width, texData.Height);
+    }
+
+    private void DrawUIText((int textureId, int width, int height) tex, int x, int y)
+    {
+        var originalCameraPos = _renderer.ToWorldCoordinates(0, 0);
+        _renderer.CameraLookAt(0, 0);
+
+        _renderer.RenderUITexture(
+            tex.textureId,
+            new Rectangle<int>(0, 0, tex.width, tex.height),
+            new Rectangle<int>(x, y, tex.width, tex.height));
+
+        _renderer.CameraLookAt(originalCameraPos.X, originalCameraPos.Y);
     }
 }
