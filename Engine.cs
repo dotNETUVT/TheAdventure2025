@@ -20,7 +20,13 @@ public class Engine
     private Level _currentLevel = new();
     private PlayerObject? _player;
 
+    // Track the player's active bomb to limit to one at a time
+    private int? _playerBombId = null;
+
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
+
+    // Property to check if the game should exit
+    public bool ShouldExit { get; private set; }
 
     public Engine(GameRenderer renderer, Input input)
     {
@@ -92,7 +98,7 @@ public class Engine
         double down = _input.IsDownPressed() ? 1.0 : 0.0;
         double left = _input.IsLeftPressed() ? 1.0 : 0.0;
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
-        bool isAttacking = _input.IsKeyAPressed() && (up + down + left + right <= 1);
+        bool isAttacking = _input.IsKeyAPressed();
         bool addBomb = _input.IsKeyBPressed();
 
         _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame);
@@ -100,12 +106,12 @@ public class Engine
         {
             _player.Attack();
         }
-        
+
         _scriptEngine.ExecuteAll(this);
 
         if (addBomb)
         {
-            AddBomb(_player.Position.X, _player.Position.Y, false);
+            AddBomb(_player.Position.X, _player.Position.Y, false, true);
         }
     }
 
@@ -139,6 +145,12 @@ public class Engine
         {
             _gameObjects.Remove(id, out var gameObject);
 
+            // If this was the player's bomb, clear the tracked ID
+            if (_playerBombId == id)
+            {
+                _playerBombId = null;
+            }
+
             if (_player == null)
             {
                 continue;
@@ -154,6 +166,12 @@ public class Engine
         }
 
         _player?.Render(_renderer);
+
+        // Check if the player is in GameOver state and if the animation is finished
+        if (_player != null && _player.State.State == PlayerObject.PlayerState.GameOver && _player.SpriteSheet.AnimationFinished)
+        {
+            ShouldExit = true;
+        }
     }
 
     public void RenderTerrain()
@@ -205,8 +223,14 @@ public class Engine
         return _player!.Position;
     }
 
-    public void AddBomb(int X, int Y, bool translateCoordinates = true)
+    public void AddBomb(int X, int Y, bool translateCoordinates = true, bool isPlayerBomb = false)
     {
+        // If this is a player bomb and there's already an active player bomb, don't create a new one
+        if (isPlayerBomb && _playerBombId != null)
+        {
+            return;
+        }
+
         var worldCoords = translateCoordinates ? _renderer.ToWorldCoordinates(X, Y) : new Vector2D<int>(X, Y);
 
         SpriteSheet spriteSheet = SpriteSheet.Load(_renderer, "BombExploding.json", "Assets");
@@ -214,5 +238,11 @@ public class Engine
 
         TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
         _gameObjects.Add(bomb.Id, bomb);
+
+        // If this is a player bomb, save its ID
+        if (isPlayerBomb)
+        {
+            _playerBombId = bomb.Id;
+        }
     }
 }

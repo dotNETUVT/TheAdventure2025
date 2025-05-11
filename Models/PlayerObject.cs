@@ -116,8 +116,12 @@ public class PlayerObject : RenderableGameObject
         }
         else
         {
-            newState = PlayerState.Move;
-            
+            // Only change to Move state if not currently attacking
+            if (State.State != PlayerState.Attack)
+            {
+                newState = PlayerState.Move;
+            }
+
             if (y < Position.Y && newDirection != PlayerStateDirection.Up)
             {
                 newDirection = PlayerStateDirection.Up;
