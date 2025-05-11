@@ -43,7 +43,10 @@ public class PlayerObject : RenderableGameObject
             return;
         }
 
-        if (State.State == state && State.Direction == direction)
+        // Allow changing from Attack to another state even if direction is the same
+        bool isChangingFromAttack = State.State == PlayerState.Attack && state != PlayerState.Attack;
+
+        if (State.State == state && State.Direction == direction && !isChangingFromAttack)
         {
             return;
         }
@@ -116,8 +119,12 @@ public class PlayerObject : RenderableGameObject
         }
         else
         {
-            newState = PlayerState.Move;
-            
+            // Only change to Move state if not currently attacking
+            if (State.State != PlayerState.Attack)
+            {
+                newState = PlayerState.Move;
+            }
+
             if (y < Position.Y && newDirection != PlayerStateDirection.Up)
             {
                 newDirection = PlayerStateDirection.Up;
