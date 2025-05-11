@@ -21,6 +21,9 @@ public class Engine
     private PlayerObject? _player;
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
+    
+    private int _score = 0;
+    private HighScore _highScoreData;
 
     public Engine(GameRenderer renderer, Input input)
     {
@@ -32,6 +35,9 @@ public class Engine
 
     public void SetupWorld()
     {
+        _tileIdMap.Clear();
+        _loadedTileSets.Clear();
+        LoadHighScore();
         _player = new(SpriteSheet.Load(_renderer, "Player.json", "Assets"), 100, 100);
 
         var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
@@ -87,7 +93,16 @@ public class Engine
         {
             return;
         }
-
+        
+        if (_player?.IsGameOver ?? false)
+        {
+            var gameOver = new GameOverScreen(_renderer, _input, _score, _highScoreData.Score);
+            if (gameOver.Run())
+                ResetGame();
+            else
+                Environment.Exit(0);
+        }
+        
         double up = _input.IsUpPressed() ? 1.0 : 0.0;
         double down = _input.IsDownPressed() ? 1.0 : 0.0;
         double left = _input.IsLeftPressed() ? 1.0 : 0.0;
@@ -214,5 +229,30 @@ public class Engine
 
         TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
         _gameObjects.Add(bomb.Id, bomb);
+    }
+    
+    private void LoadHighScore()
+    {
+        var path = "highscore.json";
+        _highScoreData = File.Exists(path)
+            ? JsonSerializer.Deserialize<HighScore>(File.ReadAllText(path))!
+            : new HighScore();
+    }
+
+    private void SaveHighScore()
+    {
+        if (_score > _highScoreData.Score)
+        {
+            _highScoreData.Score = _score;
+            File.WriteAllText("highscore.json", JsonSerializer.Serialize(_highScoreData));
+        }
+    }
+
+    private void ResetGame()
+    {
+        SaveHighScore();
+        _score = 0;
+        _gameObjects.Clear();
+        SetupWorld();
     }
 }
