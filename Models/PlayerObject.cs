@@ -43,7 +43,10 @@ public class PlayerObject : RenderableGameObject
             return;
         }
 
-        if (State.State == state && State.Direction == direction)
+        // Allow changing from Attack to another state even if direction is the same
+        bool isChangingFromAttack = State.State == PlayerState.Attack && state != PlayerState.Attack;
+
+        if (State.State == state && State.Direction == direction && !isChangingFromAttack)
         {
             return;
         }
