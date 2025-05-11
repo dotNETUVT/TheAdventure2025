@@ -15,4 +15,9 @@ public class TemporaryGameObject : RenderableGameObject
         Ttl = ttl;
         _spawnTime = DateTimeOffset.Now;
     }
+    
+    public void ActivateAnimation(string animationName)
+    {
+        SpriteSheet.ActivateAnimation(animationName);
+    }
 }

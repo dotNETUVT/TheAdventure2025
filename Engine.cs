@@ -31,6 +31,8 @@ public class Engine
     private int _score = 0;
     private HighScore _highScoreData;
     private const int ScorePerBombSurvival = 10;
+    
+    private readonly HashSet<int> _openedChests = new();
 
     public Engine(GameRenderer renderer, Input input)
     {
@@ -157,34 +159,51 @@ public class Engine
         foreach (var gameObject in GetRenderables())
         {
             gameObject.Render(_renderer);
-            if (gameObject is TemporaryGameObject { IsExpired: true } tempGameObject)
+            if (gameObject is TemporaryGameObject tempGameObject)
             {
-                toRemove.Add(tempGameObject.Id);
+                bool isBomb = tempGameObject.SpriteSheet.FileName.Contains("Bomb");
+                bool isChest = tempGameObject.SpriteSheet.FileName.Contains("TreasureChest");
+
+                var deltaX = Math.Abs(_player!.Position.X - tempGameObject.Position.X);
+                var deltaY = Math.Abs(_player.Position.Y - tempGameObject.Position.Y);
+
+                if (isBomb && tempGameObject.IsExpired)
+                {
+                    if (deltaX < 32 && deltaY < 32)
+                        _player.GameOver();
+                    else
+                        _score += ScorePerBombSurvival;
+
+                    toRemove.Add(tempGameObject.Id);
+                }
+                else if (isChest)
+                {
+                    bool inAttackRange = deltaX < 48 && deltaY < 48;
+                    bool idleAnimation = tempGameObject.SpriteSheet.ActiveAnimation == tempGameObject.SpriteSheet.Animations["Idle"];
+
+                    if (!_openedChests.Contains(tempGameObject.Id)
+                        && inAttackRange
+                        && _player.State.State == PlayerObject.PlayerState.Attack
+                        && idleAnimation)
+                    {
+                        tempGameObject.ActivateAnimation("Open");
+                        _score += 50;
+                        _openedChests.Add(tempGameObject.Id);
+                    }
+
+                    bool expiredUntouched = tempGameObject.IsExpired && !_openedChests.Contains(tempGameObject.Id);
+                    bool openedDone = _openedChests.Contains(tempGameObject.Id) && tempGameObject.SpriteSheet.AnimationFinished;
+                    if (expiredUntouched || openedDone)
+                        toRemove.Add(tempGameObject.Id);
+                }
             }
         }
 
         foreach (var id in toRemove)
         {
-            _gameObjects.Remove(id, out var gameObject);
-
-            if (_player == null)
-            {
-                continue;
-            }
-
-            var tempGameObject = (TemporaryGameObject)gameObject!;
-            var deltaX = Math.Abs(_player.Position.X - tempGameObject.Position.X);
-            var deltaY = Math.Abs(_player.Position.Y - tempGameObject.Position.Y);
-            if (deltaX < 32 && deltaY < 32)
-            {
-                _player.GameOver();
-            }
-            else
-            {
-                _score += ScorePerBombSurvival;
-            }
+            _gameObjects.Remove(id);
+            _openedChests.Remove(id);
         }
-
         _player?.Render(_renderer);
     }
 
@@ -246,6 +265,17 @@ public class Engine
 
         TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
         _gameObjects.Add(bomb.Id, bomb);
+    }
+    
+    public void AddTreasureChest(int X, int Y, bool translateCoordinates = true)
+    {
+        var worldCoords = translateCoordinates ? _renderer.ToWorldCoordinates(X, Y) : new Vector2D<int>(X, Y);
+
+        SpriteSheet spriteSheet = SpriteSheet.Load(_renderer, "TreasureChest.json", "Assets");
+        spriteSheet.ActivateAnimation("Idle");
+
+        TemporaryGameObject chest = new(spriteSheet, 10, (worldCoords.X, worldCoords.Y));
+        _gameObjects.Add(chest.Id, chest);
     }
     
     private void LoadHighScore()

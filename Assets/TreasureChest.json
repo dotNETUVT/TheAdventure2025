@@ -1,0 +1,25 @@
+﻿{
+  "rowCount": 1,
+  "columnCount": 3,
+  "frameWidth": 48,
+  "frameHeight": 32,
+  "frameCenter": {
+    "offsetX": 16,
+    "offsetY": 16
+  },
+  "fileName": "TreasureChest.png",
+  "animations": {
+    "Idle": {
+      "startFrame": { "row": 0, "col": 0 },
+      "endFrame": { "row": 0, "col": 0 },
+      "durationMs": 1000,
+      "loop": true
+    },
+    "Open": {
+      "startFrame": { "row": 0, "col": 1 },
+      "endFrame": { "row": 0, "col": 2 },
+      "durationMs": 1000,
+      "loop": false
+    }
+  }
+}
