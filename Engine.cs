@@ -31,6 +31,7 @@ public class Engine
     private int _score = 0;
     private HighScore _highScoreData;
     private const int ScorePerBombSurvival = 10;
+    private const int ScorePerChest = 50;
     
     private readonly HashSet<int> _openedChests = new();
     
@@ -207,7 +208,7 @@ public class Engine
                         && idleAnimation)
                     {
                         tempGameObject.ActivateAnimation("Open");
-                        _score += 50;
+                        _score += ScorePerChest;
                         _openedChests.Add(tempGameObject.Id);
                     }
 
