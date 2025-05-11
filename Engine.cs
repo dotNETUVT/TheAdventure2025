@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Text.Json;
 using Silk.NET.Maths;
+using TheAdventure.Generation;
 using TheAdventure.Models;
 using TheAdventure.Models.Data;
 using TheAdventure.Scripting;
@@ -12,6 +13,7 @@ public class Engine
     private readonly GameRenderer _renderer;
     private readonly Input _input;
     private readonly ScriptEngine _scriptEngine = new();
+    private readonly TerrainGenerator _terrainGenerator;
 
     private readonly Dictionary<int, GameObject> _gameObjects = new();
     private readonly Dictionary<string, TileSet> _loadedTileSets = new();
@@ -26,6 +28,7 @@ public class Engine
     {
         _renderer = renderer;
         _input = input;
+        _terrainGenerator = new TerrainGenerator(Random.Shared.Next());
 
         _input.OnMouseClick += (_, coords) => AddBomb(coords.x, coords.y);
     }
@@ -34,13 +37,36 @@ public class Engine
     {
         _player = new(SpriteSheet.Load(_renderer, "Player.json", "Assets"), 100, 100);
 
-        var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
-        var level = JsonSerializer.Deserialize<Level>(levelContent);
+        var level = new Level
+        {
+            Width = 256,
+            Height = 256,
+            TileWidth = 16,
+            TileHeight = 16,
+            Layers = new List<Layer>
+            {
+                new Layer
+                {
+                    Width = 256,
+                    Height = 256,
+                    Data = GenerateTerrainData().Select(x => (int?)x).ToList()
+                }
+            },
+            TileSets = new List<TileSetReference>
+            {
+                new TileSetReference { Source = "grass.tsj"}
+            }
+        };
+
         if (level == null)
         {
             throw new Exception("Failed to load level");
         }
+        
+        var (spawnX, spawnY) = _terrainGenerator.FindLandLocation();
+        _player = new(SpriteSheet.Load(_renderer, "Player.json", "Assets"), spawnX, spawnY);
 
+        
         foreach (var tileSetRef in level.TileSets)
         {
             var tileSetContent = File.ReadAllText(Path.Combine("Assets", tileSetRef.Source));
@@ -77,6 +103,20 @@ public class Engine
         _scriptEngine.LoadAll(Path.Combine("Assets", "Scripts"));
     }
 
+    private List<int?> GenerateTerrainData()
+    {
+        var data = new List<int?>(256 * 256);
+        for (int y = 0; y < 256; y++)
+        {
+            for (int x = 0; x < 256; x++)
+            {
+                var (tileId, height) = _terrainGenerator.GetTileAt(x, y);
+                data.Add(tileId);
+            }
+        }
+        return data;
+    }
+    
     public void ProcessFrame()
     {
         var currentTime = DateTimeOffset.Now;
@@ -93,9 +133,10 @@ public class Engine
         double left = _input.IsLeftPressed() ? 1.0 : 0.0;
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
         bool isAttacking = _input.IsKeyAPressed() && (up + down + left + right <= 1);
+        bool isSwimming = IsWaterTileAt(_player.Position.X, _player.Position.Y);
         bool addBomb = _input.IsKeyBPressed();
 
-        _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame);
+        _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame, isSwimming);
         if (isAttacking)
         {
             _player.Attack();
@@ -170,7 +211,7 @@ public class Engine
                         continue;
                     }
 
-                    var currentTileId = currentLayer.Data[dataIndex.Value] - 1;
+                    var currentTileId = currentLayer.Data[dataIndex.Value];
                     if (currentTileId == null)
                     {
                         continue;
@@ -214,5 +255,22 @@ public class Engine
 
         TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
         _gameObjects.Add(bomb.Id, bomb);
+    }
+    
+    private bool IsWaterTileAt(int x, int y)
+    {
+        int tileX = x / _currentLevel.TileWidth!.Value;
+        int tileY = y / _currentLevel.TileHeight!.Value;
+
+        if (tileX < 0 || tileY < 0 || tileX >= _currentLevel.Width || tileY >= _currentLevel.Height)
+            return false;
+
+        var index = tileY * _currentLevel.Width.Value + tileX;
+        var tileId = _currentLevel.Layers[0].Data[index];
+
+        if (tileId == null || !_tileIdMap.TryGetValue(tileId.Value, out var tile))
+            return false;
+
+        return tile.Id == 0 || tile.Id == 1 || tile.Id == 2;
     }
 }
