@@ -110,4 +110,45 @@ public unsafe class GameRenderer
     {
         _sdl.RenderPresent(_renderer);
     }
+    
+    public unsafe int LoadTextureFromMemory(byte[] pixelData, int width, int height)
+    {
+        fixed (byte* data = pixelData)
+        {
+            var surface = _sdl.CreateRGBSurfaceWithFormatFrom(data, width, height, 32, width * 4, (uint)PixelFormatEnum.Rgba32);
+            if (surface == null)
+                throw new Exception("Failed to create surface from memory.");
+
+            var texture = _sdl.CreateTextureFromSurface(_renderer, surface);
+            if (texture == null)
+            {
+                _sdl.FreeSurface(surface);
+                throw new Exception("Failed to create texture from surface.");
+            }
+
+            _sdl.FreeSurface(surface);
+            _texturePointers[_textureId] = (IntPtr)texture;
+
+            return _textureId++;
+        }
+    }
+    
+    public void RenderUITexture(int textureId, Rectangle<int> src, Rectangle<int> dst,
+        RendererFlip flip = RendererFlip.None, double angle = 0.0, Point center = default)
+    {
+        if (_texturePointers.TryGetValue(textureId, out var imageTexture))
+        {
+            _sdl.RenderCopyEx(_renderer, (Texture*)imageTexture, in src, in dst, angle, in center, flip);
+        }
+    }
+    
+    public void FreeTexture(int textureId)
+    {
+        if (_texturePointers.TryGetValue(textureId, out var texturePtr))
+        {
+            _sdl.DestroyTexture((Texture*)texturePtr);
+            _texturePointers.Remove(textureId);
+            _textureData.Remove(textureId);
+        }
+    }
 }
