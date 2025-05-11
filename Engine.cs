@@ -33,6 +33,9 @@ public class Engine
     private const int ScorePerBombSurvival = 10;
     
     private readonly HashSet<int> _openedChests = new();
+    
+    private bool _paused = false;
+    private bool _prevEscapePressed = false;
 
     public Engine(GameRenderer renderer, Input input)
     {
@@ -94,6 +97,14 @@ public class Engine
 
     public void ProcessFrame()
     {
+        bool esc = _input.IsKeyEscapePressed();
+        if (esc && !_prevEscapePressed)
+            _paused = !_paused;
+        _prevEscapePressed = esc;
+
+        if (_paused)
+            return;
+        
         var currentTime = DateTimeOffset.Now;
         var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
         _lastUpdate = currentTime;
@@ -149,7 +160,16 @@ public class Engine
 
         DrawUIText(scoreTex, 10, 10);
         DrawUIText(highScoreTex, 10, 40);
+        
+        if (_paused)
+        {
+            var pauseTex = CreateUITextTexture("PAUSED", Color.White);
+            var resumeTex = CreateUITextTexture("Press ESC to resume", Color.White);
 
+            DrawUIText(pauseTex, 640/2 - pauseTex.width/2, 400/2 - pauseTex.height);
+            DrawUIText(resumeTex, 640/2 - resumeTex.width/2, 400/2 + 10);
+        }
+        
         _renderer.PresentFrame();
     }
 
@@ -305,7 +325,7 @@ public class Engine
     
     private (int textureId, int width, int height) CreateUITextTexture(string text, Color color)
     {
-        using var image = new Image<Rgba32>(200, 50);
+        using var image = new Image<Rgba32>(300, 50);
         image.Mutate(ctx =>
         {
             ctx.Clear(new Rgba32(0, 0, 0, 0));

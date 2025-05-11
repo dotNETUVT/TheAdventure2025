@@ -54,6 +54,12 @@ public unsafe class Input
         ReadOnlySpan<byte> _keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
         return _keyboardState[(int)KeyCode.R] == 1;
     }
+    
+    public bool IsKeyEscapePressed()
+    {
+        ReadOnlySpan<byte> _keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
+        return _keyboardState[(int)KeyCode.Escape] == 1;
+    }
 
     public bool ProcessInput()
     {
