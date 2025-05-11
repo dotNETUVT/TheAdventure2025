@@ -100,6 +100,7 @@ public class ScriptEngine
         switch (e.ChangeType)
         {
             case WatcherChangeTypes.Changed:
+                Task.Delay(100).Wait();
                 _scripts.Remove(e.FullPath, out _);
                 Load(e.FullPath);
                 break;
@@ -119,26 +120,23 @@ public class ScriptEngine
         var compilation = CSharpCompilation.Create(fileInfo.Name.Replace(fileInfo.Extension, string.Empty),
             new[] { syntaxTree },
             _scriptReferences, new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-        using (var compiledScriptAssembly = new FileStream(fileOutput, FileMode.OpenOrCreate))
-        {
-            var result = compilation.Emit(compiledScriptAssembly);
-            if (!result.Success)
-            {
-                foreach (var diag in result.Diagnostics)
-                {
-                    if (diag.Severity == DiagnosticSeverity.Error)
-                    {
-                        Console.WriteLine(string.Join(";", diag.Descriptor.CustomTags));
-                        Console.WriteLine(
-                            $"{diag.Descriptor.MessageFormat.ToString()} - {code.Substring(diag.Location.SourceSpan.Start, diag.Location.SourceSpan.Length)} - {diag.Descriptor.HelpLinkUri.ToString()} - {diag.Location.ToString()}");
-                    }
-                }
 
-                throw new FileLoadException(file);
+        using var ms = new MemoryStream();
+        var result = compilation.Emit(ms);
+
+        if (!result.Success)
+        {
+            foreach (var diag in result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error))
+            {
+                Console.WriteLine($"{diag.GetMessage()} at {diag.Location}");
             }
+            throw new FileLoadException(file);
         }
 
-        foreach (var type in Assembly.LoadFile(fileOutput).GetTypes())
+        ms.Seek(0, SeekOrigin.Begin);
+        var assembly = Assembly.Load(ms.ToArray());
+
+        foreach (var type in assembly.GetTypes())
         {
             if (type.IsAssignableTo(typeof(IScript)))
             {
@@ -146,7 +144,7 @@ public class ScriptEngine
                 if (instance != null)
                 {
                     instance.Initialize();
-                    _scripts.Add(file, instance);
+                    _scripts[file] = instance;
                 }
 
                 return instance;
