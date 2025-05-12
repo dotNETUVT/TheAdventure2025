@@ -7,7 +7,7 @@
     "offsetX": 24,
     "offsetY": 42
   },
-  "fileName": "player.png",
+  "fileName": "player-1.png",
   "animations": {
     "IdleUp": {
       "startFrame": {
@@ -173,6 +173,107 @@
       },
       "durationMs": 300,
       "loop": false,
+      "flip": 0
+    },
+    "IdleSwimmingUp": {
+      "startFrame": {
+        "row": 9,
+        "col": 2
+      },
+      "endFrame": {
+        "row": 9,
+        "col": 2
+      },
+      "durationMs": 1000,
+      "loop": true
+    },
+    "IdleSwimmingDown": {
+      "startFrame": {
+        "row": 9,
+        "col": 2
+      },
+      "endFrame": {
+        "row": 9,
+        "col": 2
+      },
+      "durationMs": 1000,
+      "loop": true
+    },
+    "IdleSwimmingLeft": {
+      "startFrame": {
+        "row": 9,
+        "col": 2
+      },
+      "endFrame": {
+        "row": 9,
+        "col": 2
+      },
+      "durationMs": 1000,
+      "loop": true,
+      "flip": 1
+    },
+    "IdleSwimmingRight": {
+      "startFrame": {
+        "row": 9,
+        "col": 2
+      },
+      "endFrame": {
+        "row": 9,
+        "col": 2
+      },
+      "durationMs": 1000,
+      "loop": true
+    },
+    "SwimmingLeft": {
+      "startFrame": {
+        "row": 8,
+        "col": 4
+      },
+      "endFrame": {
+        "row": 8,
+        "col": 5
+      },
+      "durationMs": 1000,
+      "loop": true,
+      "flip": 1
+    },
+    "SwimmingRight": {
+      "startFrame": {
+        "row": 8,
+        "col": 4
+      },
+      "endFrame": {
+        "row": 8,
+        "col": 5
+      },
+      "durationMs": 1000,
+      "loop": true,
+      "flip": 0
+    },
+    "SwimmingDown": {
+      "startFrame": {
+        "row": 6,
+        "col": 4
+      },
+      "endFrame": {
+        "row": 6,
+        "col": 5
+      },
+      "durationMs": 1000,
+      "loop": true,
+      "flip": 0
+    },
+    "SwimmingUp": {
+      "startFrame": {
+        "row": 7,
+        "col": 4
+      },
+      "endFrame": {
+        "row": 7,
+        "col": 5
+      },
+      "durationMs": 1000,
+      "loop": true,
       "flip": 0
     }
   }
