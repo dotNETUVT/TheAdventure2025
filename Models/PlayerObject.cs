@@ -4,7 +4,9 @@ namespace TheAdventure.Models;
 
 public class PlayerObject : RenderableGameObject
 {
-    private const int _speed = 128; // pixels per second
+    public const int _speed = 128; 
+    private int _oreCount;
+
 
     public enum PlayerStateDirection
     {
@@ -13,6 +15,10 @@ public class PlayerObject : RenderableGameObject
         Up,
         Left,
         Right,
+        SwimmingUp,
+        SwimmingDown,
+        SwimmingLeft,
+        SwimmingRight,
     }
 
     public enum PlayerState
@@ -21,15 +27,26 @@ public class PlayerObject : RenderableGameObject
         Idle,
         Move,
         Attack,
-        GameOver
+        GameOver,
+        Swimming
     }
 
     public (PlayerState State, PlayerStateDirection Direction) State { get; private set; }
 
     public PlayerObject(SpriteSheet spriteSheet, int x, int y) : base(spriteSheet, (x, y))
     {
+        _oreCount = 0;
         SetState(PlayerState.Idle, PlayerStateDirection.Down);
     }
+    
+    public void CollectOre()
+    {
+        _oreCount++;
+    }
+    
+    public int OreCount => _oreCount;
+
+
 
     public void SetState(PlayerState state)
     {
@@ -52,14 +69,39 @@ public class PlayerObject : RenderableGameObject
         {
             SpriteSheet.ActivateAnimation(null);
         }
-
         else if (state == PlayerState.GameOver)
         {
             SpriteSheet.ActivateAnimation(Enum.GetName(state));
         }
         else
         {
-            var animationName = Enum.GetName(state) + Enum.GetName(direction);
+            string animationName;
+            if (state == PlayerState.Swimming)
+            {
+                switch (direction)
+                {
+                    case PlayerStateDirection.SwimmingUp:
+                        animationName = "SwimmingUp";
+                        break;
+                    case PlayerStateDirection.SwimmingDown:
+                        animationName = "SwimmingDown";
+                        break;
+                    case PlayerStateDirection.SwimmingLeft:
+                        animationName = "SwimmingLeft";
+                        break;
+                    case PlayerStateDirection.SwimmingRight:
+                        animationName = "SwimmingRight";
+                        break;
+                    default:
+                        animationName = null;
+                        break;
+                }
+            }
+            else
+            {
+                animationName = Enum.GetName(state) + Enum.GetName(direction);
+            }
+
             SpriteSheet.ActivateAnimation(animationName);
         }
 
@@ -82,7 +124,8 @@ public class PlayerObject : RenderableGameObject
         SetState(PlayerState.Attack, direction);
     }
 
-    public void UpdatePosition(double up, double down, double left, double right, int width, int height, double time)
+    public void UpdatePosition(double up, double down, double left, double right, int width, int height, double time,
+        bool isSwimming)
     {
         if (State.State == PlayerState.GameOver)
         {
@@ -99,43 +142,70 @@ public class PlayerObject : RenderableGameObject
 
         var newState = State.State;
         var newDirection = State.Direction;
-
-        if (x == Position.X && y == Position.Y)
+        
+        if (isSwimming)
         {
-            if (State.State == PlayerState.Attack)
+            newState = PlayerState.Swimming;
+
+            if (y < Position.Y && newDirection != PlayerStateDirection.SwimmingUp)
             {
-                if (SpriteSheet.AnimationFinished)
+                newDirection = PlayerStateDirection.SwimmingUp;
+            }
+
+            if (y > Position.Y && newDirection != PlayerStateDirection.SwimmingDown)
+            {
+                newDirection = PlayerStateDirection.SwimmingDown;
+            }
+
+            if (x < Position.X && newDirection != PlayerStateDirection.SwimmingLeft)
+            {
+                newDirection = PlayerStateDirection.SwimmingLeft;
+            }
+
+            if (x > Position.X && newDirection != PlayerStateDirection.SwimmingRight)
+            {
+                newDirection = PlayerStateDirection.SwimmingRight;
+            }
+        }
+        else
+        {
+            if (x == Position.X && y == Position.Y)
+            {
+                if (State.State == PlayerState.Attack)
+                {
+                    if (SpriteSheet.AnimationFinished)
+                    {
+                        newState = PlayerState.Idle;
+                    }
+                }
+                else
                 {
                     newState = PlayerState.Idle;
                 }
             }
             else
             {
-                newState = PlayerState.Idle;
-            }
-        }
-        else
-        {
-            newState = PlayerState.Move;
-            
-            if (y < Position.Y && newDirection != PlayerStateDirection.Up)
-            {
-                newDirection = PlayerStateDirection.Up;
-            }
+                newState = PlayerState.Move;
 
-            if (y > Position.Y && newDirection != PlayerStateDirection.Down)
-            {
-                newDirection = PlayerStateDirection.Down;
-            }
+                if (y < Position.Y && newDirection != PlayerStateDirection.Up)
+                {
+                    newDirection = PlayerStateDirection.Up;
+                }
 
-            if (x < Position.X && newDirection != PlayerStateDirection.Left)
-            {
-                newDirection = PlayerStateDirection.Left;
-            }
+                if (y > Position.Y && newDirection != PlayerStateDirection.Down)
+                {
+                    newDirection = PlayerStateDirection.Down;
+                }
 
-            if (x > Position.X && newDirection != PlayerStateDirection.Right)
-            {
-                newDirection = PlayerStateDirection.Right;
+                if (x < Position.X && newDirection != PlayerStateDirection.Left)
+                {
+                    newDirection = PlayerStateDirection.Left;
+                }
+
+                if (x > Position.X && newDirection != PlayerStateDirection.Right)
+                {
+                    newDirection = PlayerStateDirection.Right;
+                }
             }
         }
 
