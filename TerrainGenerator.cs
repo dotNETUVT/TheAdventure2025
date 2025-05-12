@@ -12,7 +12,7 @@ public class TerrainGenerator
     {
         _seed = seed;
         _random = new Random(seed);
-        _heightMap = new float[256, 256];  // Match your level size
+        _heightMap = new float[256, 256]; 
         
         GenerateHeightMap();
     }
@@ -30,7 +30,7 @@ public class TerrainGenerator
 
     private float GenerateHeight(int x, int y)
     {
-        float scale = 50f; // Adjust this to change the size of terrain features
+        float scale = 50f; 
         return PerlinNoise(x / scale, y / scale);
     }
 
@@ -89,18 +89,16 @@ public class TerrainGenerator
 
         if (height < 0.03f)
         {
-            // Water: ID 0 is most common
             return (GetWeightedRandomTile(new[]
             {
-                (0, 11f), // 66% chance
-                (1, 1f), // 16.5%
-                (2, 1f)  // 16.5%
+                (0, 11f), 
+                (1, 1f), 
+                (2, 1f)  
             }), height);
         }
 
         if (height < 0.12f)
         {
-            // Sand: even chance for all
             return (GetWeightedRandomTile(new[]
             {
                 (3, 11f),
@@ -108,8 +106,7 @@ public class TerrainGenerator
                 (5, 1f)
             }), height);
         }
-
-        // Grass: slightly biased toward tile 6
+        
         return (GetWeightedRandomTile(new[]
         {
             (6, 3f),
@@ -133,7 +130,7 @@ public class TerrainGenerator
                 return tile.TileId;
         }
 
-        return tiles.Last().TileId; // Fallback in edge case
+        return tiles.Last().TileId; 
     }
     public bool IsLand(int x, int y)
     {
@@ -141,16 +138,14 @@ public class TerrainGenerator
             return false;
         
         float height = _heightMap[x, y];
-        return height >= 0.03f; // Same threshold as in GetTileAt for water
+        return height >= 0.03f; 
     }
 
     public (int X, int Y) FindLandLocation()
     {
-        // Start from the middle of the map for better chances
         int centerX = _heightMap.GetLength(0) / 2;
         int centerY = _heightMap.GetLength(1) / 2;
-    
-        // Search in expanding circles
+        
         for (int radius = 0; radius < 256; radius++)
         {
             for (int x = centerX - radius; x <= centerX + radius; x++)
@@ -159,7 +154,7 @@ public class TerrainGenerator
                 {
                     if (IsLand(x, y))
                     {
-                        return (x * 16, y * 16); // Multiply by tile size
+                        return (x * 16, y * 16); 
                     }
                 }
             }

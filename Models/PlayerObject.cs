@@ -4,7 +4,9 @@ namespace TheAdventure.Models;
 
 public class PlayerObject : RenderableGameObject
 {
-    private const int _speed = 128; // pixels per second
+    public const int _speed = 128; 
+    private int _oreCount;
+
 
     public enum PlayerStateDirection
     {
@@ -33,8 +35,18 @@ public class PlayerObject : RenderableGameObject
 
     public PlayerObject(SpriteSheet spriteSheet, int x, int y) : base(spriteSheet, (x, y))
     {
+        _oreCount = 0;
         SetState(PlayerState.Idle, PlayerStateDirection.Down);
     }
+    
+    public void CollectOre()
+    {
+        _oreCount++;
+    }
+    
+    public int OreCount => _oreCount;
+
+
 
     public void SetState(PlayerState state)
     {
@@ -130,8 +142,7 @@ public class PlayerObject : RenderableGameObject
 
         var newState = State.State;
         var newDirection = State.Direction;
-
-        // Switch to swimming if player is in water
+        
         if (isSwimming)
         {
             newState = PlayerState.Swimming;
@@ -158,7 +169,6 @@ public class PlayerObject : RenderableGameObject
         }
         else
         {
-            // Handle normal movement (not swimming)
             if (x == Position.X && y == Position.Y)
             {
                 if (State.State == PlayerState.Attack)

@@ -1,0 +1,25 @@
+﻿{
+  "rowCount": 1,
+  "columnCount": 1,
+  "frameWidth": 16,
+  "frameHeight": 16,
+  "frameCenter": {
+    "offsetX": 8,
+    "offsetY": 8
+  },
+  "fileName": "copper_node.png",
+  "animations": {
+    "Explode": {
+      "startFrame": {
+        "row": 0,
+        "col": 0
+      },
+      "endFrame": {
+        "row": 0,
+        "col": 0
+      },
+      "durationMs": 2000,
+      "loop": true
+    }
+  }
+}

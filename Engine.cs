@@ -119,6 +119,19 @@ public class Engine
     
     public void ProcessFrame()
     {
+        var playerPos = GetPlayerPosition();
+        foreach (var gameObject in _gameObjects.Values)
+        {
+            if (gameObject is ItemObject item && !item.IsCollected)
+            {
+                if (item.CanBeCollected(playerPos))
+                {
+                    item.Collect();
+                    _player?.CollectOre();
+                }
+            }
+        }
+
         var currentTime = DateTimeOffset.Now;
         var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
         _lastUpdate = currentTime;
@@ -136,7 +149,21 @@ public class Engine
         bool isSwimming = IsWaterTileAt(_player.Position.X, _player.Position.Y);
         bool addBomb = _input.IsKeyBPressed();
 
-        _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame, isSwimming);
+        // Calculate new position before updating
+        var currentPos = _player.Position;
+        var pixelsToMove = PlayerObject._speed * (msSinceLastFrame / 1000.0);
+        var newX = currentPos.X + (int)((right - left) * pixelsToMove);
+        var newY = currentPos.Y + (int)((down - up) * pixelsToMove);
+        
+        if (CanPlayerMove((newX, newY)))
+        {
+            _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame, isSwimming);
+        }
+        else
+        {
+            _player.UpdatePosition(0, 0, 0, 0, 48, 48, msSinceLastFrame, isSwimming);
+        }
+
         if (isAttacking)
         {
             _player.Attack();
@@ -160,6 +187,13 @@ public class Engine
 
         RenderTerrain();
         RenderAllObjects();
+        
+        if (_player != null)
+        {
+            _renderer.RenderText($"Ores: {_player.OreCount}", 10, 10);
+        }
+
+
 
         _renderer.PresentFrame();
     }
@@ -255,8 +289,48 @@ public class Engine
 
         TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
         _gameObjects.Add(bomb.Id, bomb);
+
+        // Schedule ore breaking when bomb expires
+        Task.Delay(TimeSpan.FromSeconds(2.1)).ContinueWith(_ =>
+        {
+            CheckAndBreakOresNearBomb((worldCoords.X, worldCoords.Y));
+        });
+    }
+
+    private void CheckAndBreakOresNearBomb((int X, int Y) bombPosition)
+    {
+        foreach (var gameObject in _gameObjects.Values)
+        {
+            if (gameObject is OreObject ore && !ore.IsDestroyed)
+            {
+                if (ore.IsNearBomb(bombPosition))
+                {
+                    ore.Break();
+                    AddItem(ore.Position.X, ore.Position.Y);
+                }
+            }
+        }
+    }
+
+    public void AddOre(int x, int y, bool translateCoordinates = true)
+    {
+        var worldCoords = translateCoordinates ? _renderer.ToWorldCoordinates(x, y) : new Vector2D<int>(x, y);
+        
+        SpriteSheet spriteSheet = SpriteSheet.Load(_renderer, "Ore.json", "Assets");
+        
+        OreObject ore = new(spriteSheet, worldCoords.X,worldCoords.Y);
+        _gameObjects.Add(ore.Id, ore);
+        Console.WriteLine("Ore added");
     }
     
+    public void AddItem(int x, int y)
+    {
+        SpriteSheet spriteSheet = SpriteSheet.Load(_renderer, "OreItem.json", "Assets");
+        ItemObject item = new(spriteSheet, (x, y));
+        _gameObjects.Add(item.Id, item);
+    }
+
+
     private bool IsWaterTileAt(int x, int y)
     {
         int tileX = x / _currentLevel.TileWidth!.Value;
@@ -272,5 +346,46 @@ public class Engine
             return false;
 
         return tile.Id == 0 || tile.Id == 1 || tile.Id == 2;
+    }
+    
+    public Dictionary<int, Tile> getTileMap()
+    {
+        return this._tileIdMap;
+    }
+    
+    public bool CanPlayerMove((int X, int Y) newPosition)
+    {
+        foreach (var gameObject in _gameObjects.Values)
+        {
+            if (gameObject is OreObject ore && !ore.IsDestroyed)
+            {
+                if (ore.IsColliding(newPosition))
+                {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+    public void MovePlayer(double up, double down, double left, double right, double speedX, double speedY, double deltaTime, bool isSwimming)
+    {
+        if (_player == null) return;
+
+        var currentPos = _player.Position;
+        int moveX = (int)(((right - left) * speedX * deltaTime) / 1000.0);
+        int moveY = (int)(((down - up) * speedY * deltaTime) / 1000.0);
+        
+        if (isSwimming)
+        {
+            moveX /= 2;
+            moveY /= 2;
+        }
+
+        var newPos = (currentPos.X + moveX, currentPos.Y + moveY);
+    
+        if (CanPlayerMove(newPos))
+        {
+            _player.Position = newPos;
+        }
     }
 }
