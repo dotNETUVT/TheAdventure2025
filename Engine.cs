@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Silk.NET.Maths;
 using TheAdventure.Models;
 using TheAdventure.Models.Data;
@@ -14,8 +14,10 @@ public class Engine
     private readonly Dictionary<string, TileSet> _loadedTileSets = new();
     private readonly Dictionary<int, Tile> _tileIdMap = new();
 
+    private Rectangle<int> _worldBounds;
     private Level _currentLevel = new();
     private PlayerObject? _player;
+    private PlayerObject2? _player2;
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
 
@@ -26,13 +28,25 @@ public class Engine
 
         _input.OnMouseClick += (_, coords) => AddBomb(coords.x, coords.y);
     }
-
+     
     public void SetupWorld()
     {
-        _player = new(_renderer);
-
         var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
         var level = JsonSerializer.Deserialize<Level>(levelContent);
+
+        var centerX = _worldBounds.Size.X / 2;
+        var centerY = _worldBounds.Size.Y / 2;
+
+        var worldBounds = new Rectangle<int>(0, 0, level.Width.Value * level.TileWidth.Value, level.Height.Value * level.TileHeight.Value);
+        _player = new PlayerObject(_renderer, worldBounds);
+        _player.X = centerX + 50;
+        _player.Y = centerY + 200;
+
+        _player2 = new PlayerObject2(_renderer, worldBounds);
+        _player2.X = centerX + 480;
+        _player2.Y = centerY + 200;
+        _gameObjects.Add(_player2.Id, _player2);
+
         if (level == null)
         {
             throw new Exception("Failed to load level");
@@ -70,20 +84,98 @@ public class Engine
             level.Height.Value * level.TileHeight.Value));
 
         _currentLevel = level;
+
+        _worldBounds = new Rectangle<int>(0, 0,
+        level.Width.Value * level.TileWidth.Value,
+        level.Height.Value * level.TileHeight.Value);
+
+        centerX = _worldBounds.Size.X / 2;
+        centerY = _worldBounds.Size.Y / 2;
+
+        var houseSprite = new SpriteSheet(_renderer, Path.Combine("Assets", "House.png"), 1, 1, 170, 150, (0, 0));
+        var house = new RenderableGameObject(houseSprite, (centerX - 90, centerY - 190)); 
+
+        _gameObjects.Add(house.Id, house);
     }
+
+    private bool _isSpacePressed = false;
 
     public void ProcessFrame()
     {
         var currentTime = DateTimeOffset.Now;
         var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
         _lastUpdate = currentTime;
+        int ms = (int)msSinceLastFrame;
 
         double up = _input.IsUpPressed() ? 1.0 : 0.0;
         double down = _input.IsDownPressed() ? 1.0 : 0.0;
         double left = _input.IsLeftPressed() ? 1.0 : 0.0;
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
 
-        _player?.UpdatePosition(up, down, left, right, (int)msSinceLastFrame);
+        _player?.UpdatePosition(up, down, left, right, ms);
+
+        _player2?.Update(ms);
+        var toRemove = new List<int>();
+
+        // Verificare coliziune între afine și lup
+        foreach (var obj in _gameObjects.Values)
+        {
+            if (obj is Blueberry blueberry && _player2 != null)
+            {
+                var blueberryRect = blueberry.GetBounds();
+                var player2Rect = _player2.GetBounds();
+
+                var blueberryMin = blueberryRect.Origin;
+                var blueberryMax = blueberryRect.Origin + blueberryRect.Size;
+
+                var player2Min = player2Rect.Origin;
+                var player2Max = player2Rect.Origin + player2Rect.Size;
+
+                if (blueberryMin.X < player2Max.X &&
+                    blueberryMax.X > player2Min.X &&
+                    blueberryMin.Y < player2Max.Y &&
+                    blueberryMax.Y > player2Min.Y)
+                {
+                    if (_player2.CanTakeDamage())
+                    {
+                        _player2.TakeDamage();
+                        toRemove.Add(blueberry.Id);
+                    }
+                }
+            }
+
+
+            if (obj is TemporaryGameObject tempObj)
+            {
+                tempObj.Update(ms);
+            }
+        }
+
+        // Ștergem obiectele ce trebuie eliminate (afină)
+        foreach (var id in toRemove)
+        {
+            _gameObjects.Remove(id);
+        }
+
+
+        if (_input.IsSpacePressed() && !_isSpacePressed) 
+        {
+            ThrowBlueberry();
+            _isSpacePressed = true;
+        }
+        else if (!_input.IsSpacePressed()) 
+        {
+            _isSpacePressed = false; 
+        }
+
+        foreach (var obj in _gameObjects.Values)
+        {
+            if (obj is TemporaryGameObject tempObj)
+            {
+                tempObj.Update(ms);
+            }
+        }
+
     }
 
     public void RenderFrame()
@@ -109,6 +201,7 @@ public class Engine
             {
                 toRemove.Add(tempGameObject.Id);
             }
+
         }
 
         foreach (var id in toRemove)
@@ -117,6 +210,7 @@ public class Engine
         }
 
         _player?.Render(_renderer);
+        _player2?.Render(_renderer);
     }
 
     public void RenderTerrain()
@@ -180,4 +274,17 @@ public class Engine
         TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
         _gameObjects.Add(bomb.Id, bomb);
     }
+
+    private void ThrowBlueberry()
+    {
+        if (_player == null) return;
+
+        var direction = _player.GetDirectionVector();
+        var startX = _player.X + 24; 
+        var startY = _player.Y + 24;
+
+        var blueberry = new Blueberry(_renderer, (startX, startY), direction);
+        _gameObjects.Add(blueberry.Id, blueberry);
+    }
+
 }
