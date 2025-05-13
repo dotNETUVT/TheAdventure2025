@@ -25,6 +25,11 @@ public class Engine
     private Level _currentLevel = new();
     private PlayerObject? _player;
 
+    private SpriteSheet _enemySheet;
+    private DateTimeOffset _lastEnemySpawn = DateTimeOffset.MinValue;
+    private double EnemySpawnIntervalSec = 4.0;
+
+
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
 
     private const int BombCooldownMs = 600; // 0.6 sec
@@ -61,10 +66,13 @@ public class Engine
         _player = new(SpriteSheet.Load(_renderer, "Player.json", "Assets"), 100, 100);
 
 
+
         var enemySheet = SpriteSheet.Load(_renderer, "Enemy.json", "Assets");
         enemySheet.ActivateAnimation("Move");
+        _enemySheet = enemySheet;
 
-        _enemies.Add(new EnemyObject(enemySheet, (120, 100)));
+        _enemies.Add(new EnemyObject(_enemySheet, (120, 100)));
+
 
 
         var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
@@ -216,6 +224,24 @@ public class Engine
         var currentTime = DateTimeOffset.Now;
         var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
         _lastUpdate = currentTime;
+
+        int worldPixelWidth  = _currentLevel.Width.Value  * _currentLevel.TileWidth.Value;
+        int worldPixelHeight = _currentLevel.Height.Value * _currentLevel.TileHeight.Value;
+        //spawn enemy every 2sec
+        if ((DateTimeOffset.Now - _lastEnemySpawn).TotalSeconds >= EnemySpawnIntervalSec)
+        {
+        _lastEnemySpawn = DateTimeOffset.Now;     
+                int spawnX = _rng.Next(0, worldPixelWidth);
+                int spawnY = _rng.Next(0, worldPixelHeight);
+        _enemies.Add(new EnemyObject(_enemySheet, (spawnX, spawnY)));
+                //now decrease the interval at which the mobs spawn
+        
+        
+        EnemySpawnIntervalSec -= 0.4;
+
+        if (EnemySpawnIntervalSec < 0.5) 
+            EnemySpawnIntervalSec = 0.5;
+        }
 
         if (_player == null)
         {
