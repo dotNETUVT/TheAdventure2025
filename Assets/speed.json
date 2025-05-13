@@ -1,0 +1,17 @@
+{
+  "RowCount": 1,
+  "ColumnCount": 1,
+  "FrameWidth": 48,
+  "FrameHeight": 48,
+  "FrameCenter": { "OffsetX": 24, "OffsetY": 24 },
+  "FileName": "speed.png",
+  "Animations": {
+    "Default": {
+      "StartFrame": { "Row": 0, "Col": 0 },
+      "EndFrame": { "Row": 0, "Col": 0 },
+      "DurationMs": 1000,
+      "Loop": false,
+      "Flip": 0
+    }
+  }
+}
