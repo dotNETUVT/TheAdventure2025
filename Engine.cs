@@ -19,6 +19,22 @@ public class Engine
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
 
+    private bool _bombExploding = false;
+    private DateTimeOffset _bombEndTime;
+
+    private SpriteSheet? _heartsSpriteSheet;
+
+    private List<RenderableGameObject> _heartIcons = new();
+
+    private bool _shouldKillPlayerAfterExplosion = false;
+
+    private int _appleTextureId;
+    private List<RenderableGameObject> _apples = new();
+
+    private SpriteSheet? _appleSpriteSheet;
+
+
+
     public Engine(GameRenderer renderer, Input input)
     {
         _renderer = renderer;
@@ -30,6 +46,13 @@ public class Engine
     public void SetupWorld()
     {
         _player = new(_renderer);
+
+        _heartsSpriteSheet = new SpriteSheet(_renderer, Path.Combine("Assets", "hearts.png"), 1, 3, 32, 32, (48, 16));
+        RenderableGameObject hearts = new(_heartsSpriteSheet, (60, 30));
+
+
+        _gameObjects.Add(hearts.Id, hearts);
+
 
         var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
         var level = JsonSerializer.Deserialize<Level>(levelContent);
@@ -70,6 +93,10 @@ public class Engine
             level.Height.Value * level.TileHeight.Value));
 
         _currentLevel = level;
+
+        _appleSpriteSheet = new SpriteSheet(_renderer, Path.Combine("Assets", "apple.png"), 1, 1, 32, 38, (16, 16));
+
+        SpawnApple();
     }
 
     public void ProcessFrame()
@@ -84,6 +111,61 @@ public class Engine
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
 
         _player?.UpdatePosition(up, down, left, right, (int)msSinceLastFrame);
+
+
+        if (_player != null)
+        {
+            var collected = new List<RenderableGameObject>();
+            foreach (var apple in _apples)
+            {
+                var dx = _player.X - apple.Position.X;
+                var dy = _player.Y - apple.Position.Y;
+                var distance = Math.Sqrt(dx * dx + dy * dy);
+
+                if (distance < 40 && _player.Health == 1)
+                {
+                    _player.Health++;
+
+                    if (_player.Health == 2)
+                    {
+                        _heartsSpriteSheet.Animations["Hearts"] = new SpriteSheet.Animation
+                        {
+                            StartFrame = (0, 0),
+                            EndFrame = (0, 0),
+                            DurationMs = 2000,
+                            Loop = false
+                        };
+                    }
+                    Console.WriteLine($"Viata jucatorului a crescut la {_player.Health}.");
+
+
+                    _heartsSpriteSheet.ActivateAnimation("Hearts");
+
+                    collected.Add(apple);
+                }
+            }
+
+            foreach (var apple in collected)
+            {
+                _apples.Remove(apple);
+                _gameObjects.Remove(apple.Id);
+
+                SpawnApple();
+            }
+        }
+
+
+        if (_bombExploding && DateTimeOffset.Now > _bombEndTime)
+        {
+            _bombExploding = false;
+
+            if (_shouldKillPlayerAfterExplosion && _player != null)
+            {
+                _player.Die();
+                _shouldKillPlayerAfterExplosion = false;
+            }
+
+        }
     }
 
     public void RenderFrame()
@@ -92,6 +174,7 @@ public class Engine
         _renderer.ClearScreen();
 
         _renderer.CameraLookAt(_player!.X, _player!.Y);
+
 
         RenderTerrain();
         RenderAllObjects();
@@ -152,6 +235,17 @@ public class Engine
         }
     }
 
+    public void TriggerBomb()
+    {
+        if (_player == null) return;
+
+        var screenX = (int)(_player.X); 
+        var screenY = (int)(_player.Y);
+
+        AddBomb(screenX, screenY);  
+    }
+
+
     public IEnumerable<RenderableGameObject> GetRenderables()
     {
         foreach (var gameObject in _gameObjects.Values)
@@ -177,7 +271,90 @@ public class Engine
         };
         spriteSheet.ActivateAnimation("Explode");
 
+        if (_player != null)
+        {
+            int dx = _player.X - worldCoords.X;
+            int dy = _player.Y - worldCoords.Y;
+            double distance = Math.Sqrt(dx * dx + dy * dy);
+
+            const double bombDamageRadius = 50.0; 
+
+            if (distance <= bombDamageRadius)
+            {
+                _player.Health--;
+                Console.WriteLine($"Jucatorul a primit daune! Viata actuala: {_player.Health}");
+
+                if (_player.Health <= 0)
+                {
+                    _shouldKillPlayerAfterExplosion = true;
+                }
+
+
+                if (_player.Health == 1)
+                {
+                    _heartsSpriteSheet.Animations["Hearts"] = new SpriteSheet.Animation
+                    {
+                        StartFrame = (0, 0),
+                        EndFrame = (0, 1),
+                        DurationMs = 2000,
+                        Loop = false
+                    };
+                }
+                else if (_player.Health == 0)
+                {
+                    _heartsSpriteSheet.Animations["Hearts"] = new SpriteSheet.Animation
+                    {
+                        StartFrame = (0, 1),
+                        EndFrame = (0, 2),
+                        DurationMs = 2000,
+                        Loop = false
+                    };
+                }
+
+                _heartsSpriteSheet.ActivateAnimation("Hearts");
+            }
+        }
+
+
         TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
         _gameObjects.Add(bomb.Id, bomb);
+
+        _bombExploding = true;
+        _bombEndTime = DateTimeOffset.Now.AddSeconds(2.1);
+    }
+
+
+    private void SpawnApple()
+    {
+        if (_player == null || _appleSpriteSheet == null) return;
+
+        var random = new Random();
+
+        int camCenterX = _player.X;
+        int camCenterY = _player.Y;
+
+        int viewportWidth = _renderer.ViewportWidth;
+        int viewportHeight = _renderer.ViewportHeight;
+
+        int halfW = viewportWidth / 2;
+        int halfH = viewportHeight / 2;
+
+        int minX = camCenterX - halfW;
+        int maxX = camCenterX + halfW;
+
+        int minY = camCenterY - halfH;
+        int maxY = camCenterY + halfH;
+
+        minX = Math.Max(minX, 0);
+        minY = Math.Max(minY, 0);
+        maxX = Math.Min(maxX, _currentLevel.Width!.Value * _currentLevel.TileWidth!.Value);
+        maxY = Math.Min(maxY, _currentLevel.Height!.Value * _currentLevel.TileHeight!.Value);
+
+        int x = random.Next(minX, maxX);
+        int y = random.Next(minY, maxY);
+
+        var apple = new RenderableGameObject(_appleSpriteSheet, (x, y));
+        _gameObjects.Add(apple.Id, apple);
+        _apples.Add(apple);
     }
 }

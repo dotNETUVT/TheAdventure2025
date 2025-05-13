@@ -83,4 +83,20 @@ public class SpriteSheet
                 ActiveAnimation.Flip, angle, rotationCenter);
         }
     }
+
+    public void RenderFrame(GameRenderer renderer, (int X, int Y) dest, int col, int row = 0, double angle = 0.0, Point rotationCenter = new())
+    {
+        renderer.RenderTexture(_textureId,
+            new Rectangle<int>(col * FrameWidth, row * FrameHeight, FrameWidth, FrameHeight),
+            new Rectangle<int>(dest.X - FrameCenter.OffsetX, dest.Y - FrameCenter.OffsetY, FrameWidth, FrameHeight),
+            RendererFlip.None, angle, rotationCenter);
+    }
+
+    private (int row, int column)? _manualFrame = null;
+
+    public void SetManualFrame((int row, int column) frame)
+    {
+        _manualFrame = frame;
+    }
+
 }

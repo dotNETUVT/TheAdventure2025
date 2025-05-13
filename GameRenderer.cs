@@ -4,6 +4,7 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using TheAdventure.Models;
 using Point = Silk.NET.SDL.Point;
+using Rectangle = Silk.NET.Maths.Rectangle<int>;
 
 namespace TheAdventure;
 
@@ -17,6 +18,10 @@ public unsafe class GameRenderer
     private Dictionary<int, IntPtr> _texturePointers = new();
     private Dictionary<int, TextureData> _textureData = new();
     private int _textureId;
+
+    public int ViewportWidth => _camera.Width;
+    public int ViewportHeight => _camera.Height;
+
 
     public GameRenderer(Sdl sdl, GameWindow window)
     {

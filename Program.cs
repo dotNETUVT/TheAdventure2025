@@ -23,6 +23,9 @@ public static class Program
             var gameRenderer = new GameRenderer(sdl, gameWindow);
             var engine = new Engine(gameRenderer, input);
 
+
+            input.OnBombKeyPressed += (_, _) => engine.TriggerBomb();
+
             engine.SetupWorld();
 
             bool quit = false;
