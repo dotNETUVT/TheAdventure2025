@@ -5,6 +5,9 @@ namespace TheAdventure.Models;
 public class TemporaryGameObject : RenderableGameObject
 {
     public double Ttl { get; init; }
+
+    public bool IsBomb { get; set; } = false;
+
     public bool IsExpired => (DateTimeOffset.Now - _spawnTime).TotalSeconds >= Ttl;
     
     private DateTimeOffset _spawnTime;

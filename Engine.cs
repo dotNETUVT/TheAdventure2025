@@ -242,8 +242,40 @@ public class Engine
 
         var playerPos = _player.Position;
 
+
+// kill enemies only during the last 6 frames of the 13-frame animation
+foreach (var gameObject in _gameObjects.Values)
+{
+    if (gameObject is TemporaryGameObject bomb
+        && bomb.IsBomb
+        && bomb.SpriteSheet.ActiveAnimation is { } anim)
+    {
+        // total frames and explosion frames
+        const int totalFrames = 13;
+        const int explosionStartFrame = 7;
+        double elapsedMs = (DateTimeOffset.Now - bomb.SpriteSheet.AnimationStartTime).TotalMilliseconds;
+        double frameDuration = anim.DurationMs / (double) totalFrames;
+        int currentFrame = (int)(elapsedMs / frameDuration);
+
+        if (currentFrame >= explosionStartFrame && currentFrame < totalFrames)
+        {
+            foreach (var e in _enemies)
+            {
+                if (e.IsDead) continue;
+                var dx = e.GetPosition().X - bomb.Position.X;
+                var dy = e.GetPosition().Y - bomb.Position.Y;
+                if (Math.Sqrt(dx*dx + dy*dy) < 48)
+                    e.Kill();
+            }
+        }
+    }
+}
+
+
+
         foreach (var e in _enemies)
         {
+
             e.Update(playerPos, msSinceLastFrame);
 
             var enemyPos = e.GetPosition();
@@ -369,6 +401,7 @@ public class Engine
             if (!e.IsDead)
                 e.Render(_renderer);
         }
+        
 
         _player?.Render(_renderer);
 
@@ -421,7 +454,6 @@ public class Engine
     {
         return _player!.Position;
     }
-
     public void AddBomb(int X, int Y, bool translateCoordinates = true)
     {
         var worldCoords = translateCoordinates ? _renderer.ToWorldCoordinates(X, Y) : new Vector2D<int>(X, Y);
@@ -430,6 +462,8 @@ public class Engine
         spriteSheet.ActivateAnimation("Explode");
 
         TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
+        bomb.IsBomb = true;
+
         _gameObjects.Add(bomb.Id, bomb);
     }
 }

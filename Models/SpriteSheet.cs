@@ -81,6 +81,7 @@ public class SpriteSheet
         return spriteSheet;
         
     }
+    public DateTimeOffset AnimationStartTime => _animationStart;
 
     
 
