@@ -13,6 +13,7 @@ public unsafe class GameRenderer
     private Renderer* _renderer;
     private GameWindow _window;
     private Camera _camera;
+    public Camera Camera => _camera;
 
     private Dictionary<int, IntPtr> _texturePointers = new();
     private Dictionary<int, TextureData> _textureData = new();

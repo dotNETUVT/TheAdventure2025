@@ -14,6 +14,15 @@ public class Camera
     public readonly int Width;
     public readonly int Height;
     
+    private double _zoom = 1.0;
+
+    public double Zoom => _zoom;
+
+    public void ToggleZoom()
+    {
+        _zoom = (_zoom == 1.0) ? 0.5 : 1.0;
+    }
+
     public Camera(int width, int height)
     {
         Width = width;
@@ -55,7 +64,14 @@ public class Camera
 
     public Rectangle<int> ToScreenCoordinates(Rectangle<int> rect)
     {
-        return rect.GetTranslated(new Vector2D<int>(Width / 2 - X, Height / 2 - Y));
+        var translated = rect.GetTranslated(new Vector2D<int>(Width / 2 - X, Height / 2 - Y));
+        var zoomed = new Rectangle<int>(
+            (int)(translated.Origin.X * _zoom),
+            (int)(translated.Origin.Y * _zoom),
+            (int)(translated.Size.X * _zoom),
+            (int)(translated.Size.Y * _zoom)
+        );
+        return zoomed;
     }
 
     public Vector2D<int> ToWorldCoordinates(Vector2D<int> point)

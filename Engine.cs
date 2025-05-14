@@ -12,6 +12,7 @@ public class Engine
     private readonly GameRenderer _renderer;
     private readonly Input _input;
     private readonly ScriptEngine _scriptEngine = new();
+    private bool _zoomToggledLastFrame = false;
 
     private readonly Dictionary<int, GameObject> _gameObjects = new();
     private readonly Dictionary<string, TileSet> _loadedTileSets = new();
@@ -107,6 +108,22 @@ public class Engine
         {
             AddBomb(_player.Position.X, _player.Position.Y, false);
         }
+        
+        bool zoomKey = _input.IsKeyZPressed();
+
+        if (zoomKey)
+        {
+            Console.WriteLine("Z key is detected as pressed");
+        }
+
+
+        if (zoomKey && !_zoomToggledLastFrame)
+        {
+            Console.WriteLine("Z key pressed — toggling zoom");
+            _renderer.Camera.ToggleZoom(); 
+        }
+
+        _zoomToggledLastFrame = zoomKey;
     }
 
     public void RenderFrame()
