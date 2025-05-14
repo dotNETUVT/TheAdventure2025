@@ -138,6 +138,8 @@ public class PlayerObject : GameObject
         );
     }
 
+
+    // animatie moarte
     public void Die()
     {
         _isDead = true;
