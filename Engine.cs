@@ -22,12 +22,43 @@ public class Engine
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
 
+    //New
+    
+    private DateTime _lastClickTime = DateTime.MinValue;
+
+    private bool _clickPending = false;
+
+    private const int DoubleClickThresholdMs = 300;
+
     public Engine(GameRenderer renderer, Input input)
     {
         _renderer = renderer;
         _input = input;
 
-        _input.OnMouseClick += (_, coords) => AddBomb(coords.x, coords.y);
+        _input.OnMouseClick += async (_, coords) =>
+        {
+            DateTime now = DateTime.Now;
+            TimeSpan diff = now - _lastClickTime;
+
+            if (diff.TotalMilliseconds <= DoubleClickThresholdMs)
+            {
+                _clickPending = false;
+                AddFlower(coords.x, coords.y); 
+            }
+            else
+            {
+                _clickPending = true;
+                _lastClickTime = now;
+
+                await Task.Delay(DoubleClickThresholdMs);
+
+                if (_clickPending)
+                {
+                    AddBomb(coords.x, coords.y); 
+                    _clickPending = false;
+                }
+            }
+        };
     }
 
     public void SetupWorld()
@@ -214,5 +245,16 @@ public class Engine
 
         TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
         _gameObjects.Add(bomb.Id, bomb);
+    }
+
+    private void AddFlower(int screenX, int screenY)
+    {
+        var worldCoords = _renderer.ToWorldCoordinates(screenX, screenY);
+
+        SpriteSheet spriteSheet = SpriteSheet.Load(_renderer, "flower.json", "Assets");
+        spriteSheet.ActivateAnimation("Evolve");
+
+        TemporaryGameObject flower = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
+        _gameObjects.Add(flower.Id, flower);
     }
 }
