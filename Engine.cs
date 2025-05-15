@@ -4,7 +4,8 @@ using Silk.NET.Maths;
 using TheAdventure.Models;
 using TheAdventure.Models.Data;
 using TheAdventure.Scripting;
-
+using System.IO;
+using System.Collections.Generic;
 namespace TheAdventure;
 
 public class Engine
@@ -19,7 +20,7 @@ public class Engine
 
     private Level _currentLevel = new();
     private PlayerObject? _player;
-
+    private readonly List<RobotObject> _robots = new();
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
 
     public Engine(GameRenderer renderer, Input input)
@@ -33,6 +34,15 @@ public class Engine
     public void SetupWorld()
     {
         _player = new(SpriteSheet.Load(_renderer, "Player.json", "Assets"), 100, 100);
+
+        var playerStart = _player.Position;
+        var robotStart = (X: playerStart.X + 300, Y: playerStart.Y);
+
+        var robot = new RobotObject(SpriteSheet.Load(_renderer, "Robot.json", "Assets"),robotStart);
+
+        _robots.Add(robot);
+
+        _gameObjects.Add(robot.Id, robot);
 
         var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
         var level = JsonSerializer.Deserialize<Level>(levelContent);
@@ -96,6 +106,16 @@ public class Engine
         bool addBomb = _input.IsKeyBPressed();
 
         _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame);
+
+        foreach (var r in _robots)
+        {
+            r.UpdateTowards(_player.Position, msSinceLastFrame);
+            if (Math.Abs(r.Position.X - _player.Position.X) < 32 && Math.Abs(r.Position.Y - _player.Position.Y) < 32)
+            {
+                _player.GameOver();
+            } 
+        }
+
         if (isAttacking)
         {
             _player.Attack();

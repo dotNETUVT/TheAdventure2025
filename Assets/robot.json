@@ -1,0 +1,37 @@
+{
+    "RowCount": 1,
+    "ColumnCount": 1,
+    "FrameWidth": 32,
+    "FrameHeight": 32,
+    "FrameCenter": {
+        "OffsetX": 16,
+        "OffsetY": 16
+    },
+    "FileName": "robot.png",
+    "Animations": {
+        "MoveUp": {
+            "StartFrame": {"Row": 0, "Col": 0},
+            "EndFrame":   {"Row": 0, "Col": 0},
+            "DurationMs": 100,
+            "Loop":      true
+        },
+        "MoveDown": {
+            "StartFrame": {"Row": 0, "Col": 0},
+            "EndFrame":   {"Row": 0, "Col": 0},
+            "DurationMs": 100,
+            "Loop":      true
+        },
+        "MoveLeft": {
+            "StartFrame": {"Row": 0, "Col": 0},
+            "EndFrame":   {"Row": 0, "Col": 0},
+            "DurationMs": 100,
+            "Loop":      true
+        },
+        "MoveRight": {
+            "StartFrame": {"Row": 0, "Col": 0},
+            "EndFrame":   {"Row": 0, "Col": 0},
+            "DurationMs": 100,
+            "Loop":      true
+        }
+    }
+}
