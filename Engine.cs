@@ -4,6 +4,7 @@ using Silk.NET.Maths;
 using TheAdventure.Models;
 using TheAdventure.Models.Data;
 using TheAdventure.Scripting;
+using System.Threading;
 
 namespace TheAdventure;
 
@@ -11,7 +12,9 @@ public class Engine
 {
     private readonly GameRenderer _renderer;
     private readonly Input _input;
-    private readonly ScriptEngine _scriptEngine = new();
+
+    // trebuie sa primim instanta de scriptengine din afara, ca sa recompilam dll-urile de script la fiecare restart
+    private readonly ScriptEngine _scriptEngine;
 
     private readonly Dictionary<int, GameObject> _gameObjects = new();
     private readonly Dictionary<string, TileSet> _loadedTileSets = new();
@@ -22,17 +25,25 @@ public class Engine
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
 
-    public Engine(GameRenderer renderer, Input input)
+    public Engine(GameRenderer renderer, Input input, ScriptEngine scriptEngine)
     {
         _renderer = renderer;
         _input = input;
-
+        _scriptEngine   = scriptEngine;
         _input.OnMouseClick += (_, coords) => AddBomb(coords.x, coords.y);
     }
+
+    // texturi pt inimioare full si empty
+    private int _texHeartFull;
+    private int _texHeartEmpty;
 
     public void SetupWorld()
     {
         _player = new(SpriteSheet.Load(_renderer, "Player.json", "Assets"), 100, 100);
+
+    //incarca iconitele inimioarelor ca texturi SDL 
+        _texHeartFull  = _renderer.LoadTexture(Path.Combine("Assets","UI","heart_full.png"),  out _);
+        _texHeartEmpty = _renderer.LoadTexture(Path.Combine("Assets","UI","heart_empty.png"), out _);
 
         var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
         var level = JsonSerializer.Deserialize<Level>(levelContent);
@@ -77,7 +88,7 @@ public class Engine
         _scriptEngine.LoadAll(Path.Combine("Assets", "Scripts"));
     }
 
-    public void ProcessFrame()
+    public bool ProcessFrame()
     {
         var currentTime = DateTimeOffset.Now;
         var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
@@ -85,8 +96,9 @@ public class Engine
 
         if (_player == null)
         {
-            return;
+            return false;
         }
+
 
         double up = _input.IsUpPressed() ? 1.0 : 0.0;
         double down = _input.IsDownPressed() ? 1.0 : 0.0;
@@ -107,7 +119,38 @@ public class Engine
         {
             AddBomb(_player.Position.X, _player.Position.Y, false);
         }
+
+        if (_player.State.State == PlayerObject.PlayerState.GameOver &&
+         _player.SpriteSheet.AnimationFinished)
+     {
+         Thread.Sleep(500);          
+         return true;                
+     }
+
+     return false;    
     }
+
+//desenam bara de vieti de deasupra jocului
+private void RenderHUD()
+{
+    const int spacing   = 6;   
+    const int targetW   = 24;  
+    const int targetH   = 24;  
+
+    for (int i = 0; i < _player!.MaxHealth; i++)
+    {
+        int tex = i < _player.Health ? _texHeartFull : _texHeartEmpty;
+        
+        var dst = new Rectangle<int>(
+            8 + i * (targetW + spacing),   
+            8,                             
+            targetW, targetH);             
+        (int srcW, int srcH) = _renderer.GetTextureSize(tex);
+        var src = new Rectangle<int>(0, 0, srcW, srcH);
+
+        _renderer.RenderTextureScreen(tex, src, dst);
+    }
+}
 
     public void RenderFrame()
     {
@@ -119,7 +162,7 @@ public class Engine
 
         RenderTerrain();
         RenderAllObjects();
-
+        RenderHUD();
         _renderer.PresentFrame();
     }
 
@@ -147,9 +190,10 @@ public class Engine
             var tempGameObject = (TemporaryGameObject)gameObject!;
             var deltaX = Math.Abs(_player.Position.X - tempGameObject.Position.X);
             var deltaY = Math.Abs(_player.Position.Y - tempGameObject.Position.Y);
+            //la coliziune nu mai avem game over direct, ci damage
             if (deltaX < 32 && deltaY < 32)
             {
-                _player.GameOver();
+                _player.TakeDamage(1);
             }
         }
 

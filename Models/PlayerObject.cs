@@ -26,9 +26,15 @@ public class PlayerObject : RenderableGameObject
 
     public (PlayerState State, PlayerStateDirection Direction) State { get; private set; }
 
+    //numarul maxim de vieti
+    public  int  MaxHealth { get; } = 3;
+    private int  _health;
+    public  int  Health    => _health;
+
     public PlayerObject(SpriteSheet spriteSheet, int x, int y) : base(spriteSheet, (x, y))
     {
         SetState(PlayerState.Idle, PlayerStateDirection.Down);
+        _health = MaxHealth; //initializeaza viata
     }
 
     public void SetState(PlayerState state)
@@ -146,4 +152,17 @@ public class PlayerObject : RenderableGameObject
 
         Position = (x, y);
     }
+
+    //metoda de damage
+    public void TakeDamage(int amount)
+  {
+       if (State.State == PlayerState.GameOver) return;
+
+       _health = Math.Max(0, _health - amount);
+
+       if (_health == 0)
+       {
+           GameOver(); //cand nu mai sunt vieti, game over
+       }
+   }
 }
