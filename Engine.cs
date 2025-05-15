@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
 using Silk.NET.Maths;
+using Silk.NET.SDL;
 using TheAdventure.Models;
 using TheAdventure.Models.Data;
 
@@ -20,6 +21,7 @@ public class Engine
     private PlayerObject2? _player2;
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
+    private bool _isRPressed = false;
 
     public Engine(GameRenderer renderer, Input input)
     {
@@ -34,16 +36,16 @@ public class Engine
         var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
         var level = JsonSerializer.Deserialize<Level>(levelContent);
 
-        var centerX = _worldBounds.Size.X / 2;
-        var centerY = _worldBounds.Size.Y / 2;
-
         var worldBounds = new Rectangle<int>(0, 0, level.Width.Value * level.TileWidth.Value, level.Height.Value * level.TileHeight.Value);
+        var centerX = 0;
+        var centerY = 0;
+
         _player = new PlayerObject(_renderer, worldBounds);
-        _player.X = centerX + 50;
+        _player.X = centerX + 480;
         _player.Y = centerY + 200;
 
         _player2 = new PlayerObject2(_renderer, worldBounds);
-        _player2.X = centerX + 480;
+        _player2.X = centerX + 50;
         _player2.Y = centerY + 200;
         _gameObjects.Add(_player2.Id, _player2);
 
@@ -98,7 +100,9 @@ public class Engine
         _gameObjects.Add(house.Id, house);
     }
 
+
     private bool _isSpacePressed = false;
+    private bool _isFPressed = false;
 
     public void ProcessFrame()
     {
@@ -114,10 +118,15 @@ public class Engine
 
         _player?.UpdatePosition(up, down, left, right, ms);
 
-        _player2?.Update(ms);
+        double upW = _input.IsWPressed() ? 1 : 0;
+        double downS = _input.IsSPressed() ? 1 : 0;
+        double leftA = _input.IsAPressed() ? 1 : 0;
+        double rightD = _input.IsDPressed() ? 1 : 0;
+
+        _player2?.UpdatePosition(upW, downS, leftA, rightD, ms);
+
         var toRemove = new List<int>();
 
-        // Verificare coliziune între afine și lup
         foreach (var obj in _gameObjects.Values)
         {
             if (obj is Blueberry blueberry && _player2 != null)
@@ -144,14 +153,37 @@ public class Engine
                 }
             }
 
+            if (obj is Stick stick && _player != null)
+            {
+                var stickRect = stick.GetBounds();
+                var playerRect = _player.GetBounds();
+
+                var stickMin = stickRect.Origin;
+                var stickMax = stickRect.Origin + stickRect.Size;
+
+                var playerMin = playerRect.Origin;
+                var playerMax = playerRect.Origin + playerRect.Size;
+
+                if (stickMin.X < playerMax.X &&
+                    stickMax.X > playerMin.X &&
+                    stickMin.Y < playerMax.Y &&
+                    stickMax.Y > playerMin.Y)
+                {
+                    if (_player.CanTakeDamage())
+                    {
+                        _player.TakeDamage();
+                        toRemove.Add(stick.Id); 
+                    }
+                }
+            }
 
             if (obj is TemporaryGameObject tempObj)
             {
                 tempObj.Update(ms);
             }
+
         }
 
-        // Ștergem obiectele ce trebuie eliminate (afină)
         foreach (var id in toRemove)
         {
             _gameObjects.Remove(id);
@@ -168,6 +200,28 @@ public class Engine
             _isSpacePressed = false; 
         }
 
+        if (_input.IsFPressed() && !_isFPressed)
+        {
+            ThrowStick();
+            _isFPressed = true;
+        }
+        else if (!_input.IsFPressed())
+        {
+            _isFPressed = false;
+        }
+
+        if (_input.IsRPressed() && !_isRPressed)
+        {
+            ResetGame();
+            _isRPressed = true;
+        }
+        else if (!_input.IsRPressed())
+        {
+            _isRPressed = false;
+        }
+
+
+
         foreach (var obj in _gameObjects.Values)
         {
             if (obj is TemporaryGameObject tempObj)
@@ -177,6 +231,26 @@ public class Engine
         }
 
     }
+
+    private static bool RectanglesOverlap(Rectangle<int> a, Rectangle<int> b)
+    {
+        return a.Origin.X < b.Origin.X + b.Size.X &&
+               a.Origin.X + a.Size.X > b.Origin.X &&
+               a.Origin.Y < b.Origin.Y + b.Size.Y &&
+               a.Origin.Y + a.Size.Y > b.Origin.Y;
+    }
+
+    private void ResetGame()
+    {
+        _gameObjects.Clear();
+        _loadedTileSets.Clear();
+        _tileIdMap.Clear();
+        _player = null;
+        _player2 = null;
+
+        SetupWorld();
+    }
+
 
     public void RenderFrame()
     {
@@ -209,8 +283,22 @@ public class Engine
             _gameObjects.Remove(id);
         }
 
-        _player?.Render(_renderer);
-        _player2?.Render(_renderer);
+        if (_player.IsGameOver())
+        {
+            _player2.Render(_renderer);
+            _player.Render(_renderer);
+        }
+        else if (_player2.IsGameOver())
+        {
+            _player.Render(_renderer);
+            _player2.Render(_renderer);
+        }
+        else
+        {
+            _player.Render(_renderer);
+            _player2.Render(_renderer);
+        }
+
     }
 
     public void RenderTerrain()
@@ -285,6 +373,18 @@ public class Engine
 
         var blueberry = new Blueberry(_renderer, (startX, startY), direction);
         _gameObjects.Add(blueberry.Id, blueberry);
+    }
+
+    private void ThrowStick()
+    {
+        if (_player2 == null) return;
+
+        var direction = _player2.GetDirectionVector();
+        var startX = _player2.X + 24;
+        var startY = _player2.Y + 24;
+
+        var stick = new Stick(_renderer, (startX, startY), direction);
+        _gameObjects.Add(stick.Id, stick);
     }
 
 }

@@ -1,4 +1,4 @@
-using Silk.NET.SDL;
+﻿using Silk.NET.SDL;
 
 namespace TheAdventure.Models;
 
@@ -20,4 +20,5 @@ public class TemporaryGameObject : RenderableGameObject
     {
        
     }
+
 }

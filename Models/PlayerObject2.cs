@@ -19,7 +19,7 @@ namespace TheAdventure.Models
 
         private readonly int _textureId;
 
-        private const int Speed = 80; // pixels per second
+        private const int Speed = 140; // pixels per second
         private enum Direction { Down, Up, Left, Right }
         private Direction _currentDirection = Direction.Down;
 
@@ -29,12 +29,11 @@ namespace TheAdventure.Models
         private List<int> _heartTextures = new List<int>(); 
 
         private bool _gameOver = false;
-        private Random _random = new();
-        private double _directionChangeCooldown = 0;
 
         private int _gameOverTextureId = -1;
         private Rectangle<int> _gameOverSourceRect;
 
+        private double _damageCooldown = 0;
         public PlayerObject2(GameRenderer renderer, Rectangle<int> worldBounds)
         {
             _worldBounds = worldBounds;
@@ -52,33 +51,26 @@ namespace TheAdventure.Models
             UpdateTarget();
         }
 
-        public void Update(int time)
+        public void UpdatePosition(double up, double down, double left, double right, int time)
         {
             if (_gameOver) return;
-            var deltaSeconds = time / 1000.0;
+
             var pixelsToMove = Speed * (time / 1000.0);
-            _damageCooldown -= deltaSeconds;
+            _damageCooldown -= (time / 1000.0);
 
-            _directionChangeCooldown -= deltaSeconds;
-            if (_directionChangeCooldown <= 0)
-            {
-                _currentDirection = (Direction)_random.Next(0, 4);
-                _directionChangeCooldown = 1 + _random.NextDouble() * 2; 
-            }
+            if (up > 0)
+                _currentDirection = Direction.Up;
+            else if (down > 0)
+                _currentDirection = Direction.Down;
+            else if (left > 0)
+                _currentDirection = Direction.Left;
+            else if (right > 0)
+                _currentDirection = Direction.Right;
 
-            switch (_currentDirection)
-            {
-                case Direction.Up: Y -= (int)pixelsToMove; break;
-                case Direction.Down: Y += (int)pixelsToMove; break;
-                case Direction.Left: X -= (int)pixelsToMove; break;
-                case Direction.Right: X += (int)pixelsToMove; break;
-            }
-
-            if (X <= 0 || X >= _worldBounds.Size.X - _target.Size.X ||
-                Y <= 0 || Y >= _worldBounds.Size.Y - _target.Size.Y)
-            {
-                _currentDirection = (Direction)_random.Next(0, 4);
-            }
+            Y -= (int)(pixelsToMove * up);
+            Y += (int)(pixelsToMove * down);
+            X -= (int)(pixelsToMove * left);
+            X += (int)(pixelsToMove * right);
 
             X = Math.Clamp(X, 0, _worldBounds.Size.X - _target.Size.X);
             Y = Math.Clamp(Y, 0, _worldBounds.Size.Y - _target.Size.Y);
@@ -86,6 +78,7 @@ namespace TheAdventure.Models
             UpdateTarget();
             UpdateSource();
         }
+
 
         public void Render(GameRenderer renderer)
         {
@@ -101,7 +94,7 @@ namespace TheAdventure.Models
 
                 for (int i = 0; i < _lives; i++)
                 {
-                    var heartX = _worldBounds.Size.X - (i + 1) * 40;
+                    var heartX = 10 + i * 40;
                     var heartY = 10;
                     renderer.RenderTexture(_heartTextures[0], new Rectangle<int>(0, 0, 32, 32), new Rectangle<int>(heartX, heartY, 32, 32));
                 }
@@ -125,6 +118,17 @@ namespace TheAdventure.Models
                 _ => _source
             };
         }
+        public (int dx, int dy) GetDirectionVector()
+        {
+            return _currentDirection switch
+            {
+                Direction.Up => (0, -1),
+                Direction.Down => (0, 1),
+                Direction.Left => (-1, 0),
+                Direction.Right => (1, 0),
+                _ => (0, 0)
+            };
+        }
         public void TakeDamage()
         {
             if (_lives > 0)
@@ -143,12 +147,11 @@ namespace TheAdventure.Models
             return new Rectangle<int>(X, Y, 48, 48);
         }
 
-        private double _damageCooldown = 0;
-
         public bool CanTakeDamage()
         {
             return _damageCooldown <= 0;
         }
+        public bool IsGameOver() => _gameOver;
 
     }
 }

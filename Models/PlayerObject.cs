@@ -1,5 +1,10 @@
 using Silk.NET.Maths;
 using Silk.NET.SDL;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace TheAdventure.Models;
 
@@ -19,21 +24,41 @@ public class PlayerObject : GameObject
     private enum Direction { Down, Left, Right, Up }
     private Direction _currentDirection = Direction.Down;
 
+    private int _directionSign = 1;
+
+    private int _lives = 3;
+    private List<int> _heartTextures = new List<int>();
+    private bool _gameOver = false;
+
+    private int _gameOverTextureId = -1;
+    private Rectangle<int> _gameOverSourceRect;
+
+    private double _damageCooldown = 0;
+    private int _blueberryCount = 0;
+    private readonly int _blueberryIconTexId;
     public PlayerObject(GameRenderer renderer, Rectangle<int> worldBounds)
     {
         _worldBounds = worldBounds;
         _textureId = renderer.LoadTexture(Path.Combine("Assets", "RedRidingHoodSpriteSheet.png"), out _);
+        _gameOverTextureId = renderer.LoadTexture(Path.Combine("Assets", "WolfWon.png"), out var gameOverSize);
+        _gameOverSourceRect = new Rectangle<int>(0, 0, 3000, 3000);
+
         if (_textureId < 0)
         {
             throw new Exception("Failed to load player texture");
         }
 
+        _heartTextures.Add(renderer.LoadTexture(Path.Combine("Assets", "Heart.png"), out _));
+        _blueberryIconTexId = renderer.LoadTexture(Path.Combine("Assets", "Blueberry.png"), out _);
         UpdateTarget();
     }
 
     public void UpdatePosition(double up, double down, double left, double right, int time)
     {
+        if (_gameOver) return;
+
         var pixelsToMove = Speed * (time / 1000.0);
+        _damageCooldown -= (time / 1000.0);
 
         if (up > 0)
             _currentDirection = Direction.Up;
@@ -59,8 +84,23 @@ public class PlayerObject : GameObject
 
     public void Render(GameRenderer renderer)
     {
-        var flip = _currentDirection == Direction.Left ? RendererFlip.FlipHorizontal : RendererFlip.None;
-        renderer.RenderTexture(_textureId, _source, _target, flip);
+        if (_gameOver)
+        {
+            var destRect = new Rectangle<int>(0, 0, _worldBounds.Size.X, _worldBounds.Size.Y);
+            renderer.RenderTexture(_gameOverTextureId, _gameOverSourceRect, destRect);
+        }
+        else
+        {
+            var flip = _currentDirection == Direction.Left ? RendererFlip.FlipHorizontal : RendererFlip.None;
+            renderer.RenderTexture(_textureId, _source, _target, flip);
+
+            for (int i = 0; i < _lives; i++)
+            {
+                var heartX = _worldBounds.Size.X - (i + 1) * 40;
+                var heartY = 10;
+                renderer.RenderTexture(_heartTextures[0], new Rectangle<int>(0, 0, 32, 32), new Rectangle<int>(heartX, heartY, 32, 32));
+            }
+        }
     }
 
     private void UpdateTarget()
@@ -91,5 +131,29 @@ public class PlayerObject : GameObject
             _ => (0, 0)
         };
     }
+    public void TakeDamage()
+    {
+        if (_lives > 0)
+        {
+            _lives--;
+            _damageCooldown = 1.0;
+            if (_lives == 0)
+            {
+                _gameOver = true;
+            }
+        }
+    }
+
+    public Rectangle<int> GetBounds()
+    {
+        return new Rectangle<int>(X, Y, 48, 48);
+    }
+
+    public bool CanTakeDamage()
+    {
+        return _damageCooldown <= 0;
+    }
+    public bool IsGameOver() => _gameOver;
+    public void CollectBlueberry() => _blueberryCount++;
 
 }
