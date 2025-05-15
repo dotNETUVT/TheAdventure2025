@@ -1,11 +1,12 @@
 using System.Reflection;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-
+using System.Collections.Generic;
 namespace TheAdventure.Scripting;
 
 public class ScriptEngine
 {
+    private readonly HashSet<string> _loadedScripts = new();
     private PortableExecutableReference[] _scriptReferences;
     private Dictionary<string, IScript> _scripts = new Dictionary<string, IScript>();
     private FileSystemWatcher? _watcher;
@@ -52,23 +53,21 @@ public class ScriptEngine
             return;
         }
 
-        foreach (var file in dirInfo.GetFiles())
+        foreach (var file in Directory.GetFiles(scriptFolder, "*.script.cs"))
+    {
+        if (_loadedScripts.Contains(file))
+            continue;                     
+        Console.WriteLine($"Loading script {file}");
+        try
         {
-            if (!file.Name.EndsWith(".script.cs"))
-            {
-                continue;
-            }
-
-            try
-            {
-                Load(file.FullName);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Exception trying to load {file.FullName}");
-                Console.WriteLine(ex);
-            }
+            Load(file);
+            _loadedScripts.Add(file);   
         }
+        catch (IOException ex)
+        {
+            Console.WriteLine($"Exception trying to load {file}\n{ex}");
+        }
+    }
     }
 
     public void ExecuteAll(Engine engine)

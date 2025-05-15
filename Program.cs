@@ -1,6 +1,6 @@
 ﻿using Silk.NET.SDL;
 using Thread = System.Threading.Thread;
-
+using TheAdventure.Scripting;
 namespace TheAdventure;
 
 public static class Program
@@ -9,33 +9,39 @@ public static class Program
     {
         var sdl = new Sdl(new SdlContext());
 
-        var sdlInitResult = sdl.Init(Sdl.InitVideo | Sdl.InitAudio | Sdl.InitEvents | Sdl.InitTimer |
-                                     Sdl.InitGamecontroller |
-                                     Sdl.InitJoystick);
-        if (sdlInitResult < 0)
-        {
+        if (sdl.Init(Sdl.InitVideo | Sdl.InitAudio | Sdl.InitEvents | Sdl.InitTimer |
+                     Sdl.InitGamecontroller | Sdl.InitJoystick) < 0)
             throw new InvalidOperationException("Failed to initialize SDL.");
+
+        using var gameWindow = new GameWindow(sdl);
+        var input        = new Input(sdl);
+        var gameRenderer = new GameRenderer(sdl, gameWindow);
+        var scriptEngine = new ScriptEngine();
+        Engine CreateEngine()
+        {
+            var eng = new Engine(gameRenderer, input, scriptEngine);
+            eng.SetupWorld();            
+            return eng;
         }
 
-        using (var gameWindow = new GameWindow(sdl))
+        Engine engine = CreateEngine();
+
+        bool quit = false;
+        while (!quit)
         {
-            var input = new Input(sdl);
-            var gameRenderer = new GameRenderer(sdl, gameWindow);
-            var engine = new Engine(gameRenderer, input);
+            quit = input.ProcessInput();
+            if (quit) break;
 
-            engine.SetupWorld();
+            bool restart = engine.ProcessFrame();  
 
-            bool quit = false;
-            while (!quit)
+            if (restart)
             {
-                quit = input.ProcessInput();
-                if (quit) break;
-
-                engine.ProcessFrame();
-                engine.RenderFrame();
-
-                Thread.Sleep(13);
+                engine = CreateEngine();            
+                continue;              
             }
+
+            engine.RenderFrame();
+            Thread.Sleep(13);
         }
 
         sdl.Quit();
