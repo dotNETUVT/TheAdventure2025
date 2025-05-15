@@ -30,6 +30,10 @@ public class PlayerObject : GameObject
     private const int DeathFrameCount = 3;
     private const double DeathFrameDuration = 0.3;
 
+    public bool IsDead => _isDead;
+    public bool IsDeathAnimationFinished => _deathFrame == DeathFrameCount - 1 && _deathAnimationTimer >= DeathFrameDuration;
+
+    public Direction DirectionFacing => _direction;
 
 
     public enum Direction
@@ -139,7 +143,6 @@ public class PlayerObject : GameObject
     }
 
 
-    // animatie moarte
     public void Die()
     {
         _isDead = true;

@@ -3,6 +3,7 @@ using Silk.NET.SDL;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using TheAdventure.Models;
+//using static System.Net.Mime.MediaTypeNames;
 using Point = Silk.NET.SDL.Point;
 using Rectangle = Silk.NET.Maths.Rectangle<int>;
 
@@ -21,6 +22,8 @@ public unsafe class GameRenderer
 
     public int ViewportWidth => _camera.Width;
     public int ViewportHeight => _camera.Height;
+
+    public Rectangle<int> WorldBounds => _camera._worldBounds;
 
 
     public GameRenderer(Sdl sdl, GameWindow window)

@@ -1,3 +1,4 @@
+using System;
 using System.Text.Json;
 using Silk.NET.Maths;
 using TheAdventure.Models;
@@ -16,6 +17,8 @@ public class Engine
 
     private Level _currentLevel = new();
     private PlayerObject? _player;
+    private PlayerObjectEnemy? _enemy;
+
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
 
@@ -33,6 +36,13 @@ public class Engine
 
     private SpriteSheet? _appleSpriteSheet;
 
+    private bool _isGameOver = false;
+
+    private int _gameOverTextureId;
+    private TextureData _gameOverTextureInfo;
+
+
+
 
 
     public Engine(GameRenderer renderer, Input input)
@@ -46,12 +56,17 @@ public class Engine
     public void SetupWorld()
     {
         _player = new(_renderer);
+        _enemy = new(_renderer);
+        _enemy.WorldBounds = new Rectangle<int>(0, 0, 1000, 1000);
+
 
         _heartsSpriteSheet = new SpriteSheet(_renderer, Path.Combine("Assets", "hearts.png"), 1, 3, 32, 32, (48, 16));
         RenderableGameObject hearts = new(_heartsSpriteSheet, (60, 30));
 
 
         _gameObjects.Add(hearts.Id, hearts);
+
+        _gameOverTextureId = _renderer.LoadTexture(Path.Combine("Assets", "game_over.png"), out _gameOverTextureInfo);
 
 
         var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
@@ -110,7 +125,33 @@ public class Engine
         double left = _input.IsLeftPressed() ? 1.0 : 0.0;
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
 
+        if (_isGameOver)
+            return;
+
         _player?.UpdatePosition(up, down, left, right, (int)msSinceLastFrame);
+        _enemy.FollowPlayer(_player, (int)msSinceLastFrame);
+
+        if (_player != null && _enemy != null && !_player.IsDead)
+        {
+            double dx = _player.X - _enemy.X;
+            double dy = _player.Y - _enemy.Y;
+            double distance = Math.Sqrt(dx * dx + dy * dy);
+
+            if (distance < 15)
+            {
+                _player.Die();
+                Console.WriteLine("Player a murit din cauza coliziunii cu inamicul!");
+            }
+        }
+
+        if (_player?.IsDead == true && _player.IsDeathAnimationFinished)
+        {
+            if (!_isGameOver)
+            {
+                Console.WriteLine("Animatia de moarte s-a terminat. Game over!");
+                _isGameOver = true;
+            }
+        }
 
 
         if (_player != null)
@@ -166,6 +207,15 @@ public class Engine
             }
 
         }
+        if (_player?.IsDead == true && _player.IsDeathAnimationFinished)
+        {
+            if (!_isGameOver)
+            {
+                Console.WriteLine("Animatia de moarte s-a terminat. Game over!");
+                _isGameOver = true;
+            }
+        }
+
     }
 
     public void RenderFrame()
@@ -179,6 +229,18 @@ public class Engine
         RenderTerrain();
         RenderAllObjects();
 
+        
+
+        if (_isGameOver)
+        {
+            int x = (_renderer.ViewportWidth - _gameOverTextureInfo.Width) / 2;
+            int y = (_renderer.ViewportHeight - _gameOverTextureInfo.Height) / 2;
+
+            var src = new Rectangle<int>(0, 0, _gameOverTextureInfo.Width, _gameOverTextureInfo.Height);
+            var dst = new Rectangle<int>(x, y, _gameOverTextureInfo.Width, _gameOverTextureInfo.Height);
+            _renderer.RenderTexture(_gameOverTextureId, src, dst);
+
+        }
         _renderer.PresentFrame();
     }
 
@@ -200,6 +262,8 @@ public class Engine
         }
 
         _player?.Render(_renderer);
+        _enemy?.Render(_renderer);
+
     }
 
     public void RenderTerrain()
