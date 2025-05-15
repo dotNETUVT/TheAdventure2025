@@ -9,6 +9,18 @@
   },
   "fileName": "player.png",
   "animations": {
+    "IdleUp": {
+      "startFrame": {
+        "row": 2,
+        "col": 0
+      },
+      "endFrame": {
+        "row": 2,
+        "col": 5
+      },
+      "durationMs": 1000,
+      "loop": true
+    },
     "IdleDown": {
       "startFrame": {
         "row": 0,
@@ -16,6 +28,31 @@
       },
       "endFrame": {
         "row": 0,
+        "col": 5
+      },
+      "durationMs": 1000,
+      "loop": true
+    },
+    "IdleLeft": {
+      "startFrame": {
+        "row": 1,
+        "col": 0
+      },
+      "endFrame": {
+        "row": 1,
+        "col": 5
+      },
+      "durationMs": 1000,
+      "loop": true,
+      "flip": 1
+    },
+    "IdleRight": {
+      "startFrame": {
+        "row": 1,
+        "col": 0
+      },
+      "endFrame": {
+        "row": 1,
         "col": 5
       },
       "durationMs": 1000,
@@ -71,6 +108,71 @@
       },
       "durationMs": 1000,
       "loop": true,
+      "flip": 0
+    },
+    "AttackLeft": {
+      "startFrame": {
+        "row": 7,
+        "col": 0
+      },
+      "endFrame": {
+        "row": 7,
+        "col": 3
+      },
+      "durationMs": 300,
+      "loop": true,
+      "flip": 1
+    },
+    "AttackRight": {
+      "startFrame": {
+        "row": 7,
+        "col": 0
+      },
+      "endFrame": {
+        "row": 7,
+        "col": 3
+      },
+      "durationMs": 300,
+      "loop": true,
+      "flip": 0
+    },
+    "AttackDown": {
+      "startFrame": {
+        "row": 6,
+        "col": 0
+      },
+      "endFrame": {
+        "row": 6,
+        "col": 3
+      },
+      "durationMs": 300,
+      "loop": true,
+      "flip": 0
+    },
+    "AttackUp": {
+      "startFrame": {
+        "row": 8,
+        "col": 0
+      },
+      "endFrame": {
+        "row": 8,
+        "col": 3
+      },
+      "durationMs": 300,
+      "loop": true,
+      "flip": 0
+    },
+    "GameOver": {
+      "startFrame": {
+        "row": 9,
+        "col": 0
+      },
+      "endFrame": {
+        "row": 9,
+        "col": 2
+      },
+      "durationMs": 300,
+      "loop": false,
       "flip": 0
     }
   }
