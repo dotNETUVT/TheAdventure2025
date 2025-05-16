@@ -3,6 +3,7 @@ using Silk.NET.SDL;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using TheAdventure.Models;
+using NAudio.Wave;
 using Point = Silk.NET.SDL.Point;
 
 namespace TheAdventure;
@@ -18,16 +19,20 @@ public unsafe class GameRenderer
     private Dictionary<int, TextureData> _textureData = new();
     private int _textureId;
 
+    private byte[] _explosionAudioData;
+
     public GameRenderer(Sdl sdl, GameWindow window)
     {
         _sdl = sdl;
-        
         _renderer = (Renderer*)window.CreateRenderer();
         _sdl.SetRenderDrawBlendMode(_renderer, BlendMode.Blend);
-        
         _window = window;
+
         var windowSize = window.Size;
         _camera = new Camera(windowSize.Width, windowSize.Height);
+
+        string explosionPath = Path.Combine("Assets", "game-explosion-sound-effect.wav");
+        _explosionAudioData = File.ReadAllBytes(explosionPath);
     }
 
     public void SetWorldBounds(Rectangle<int> bounds)
@@ -60,16 +65,16 @@ public unsafe class GameRenderer
                 {
                     throw new Exception("Failed to create surface from image data.");
                 }
-                
+
                 var imageTexture = _sdl.CreateTextureFromSurface(_renderer, imageSurface);
                 if (imageTexture == null)
                 {
                     _sdl.FreeSurface(imageSurface);
                     throw new Exception("Failed to create texture from surface.");
                 }
-                
+
                 _sdl.FreeSurface(imageSurface);
-                
+
                 _textureData[_textureId] = textureInfo;
                 _texturePointers[_textureId] = (IntPtr)imageTexture;
             }
@@ -109,5 +114,22 @@ public unsafe class GameRenderer
     public void PresentFrame()
     {
         _sdl.RenderPresent(_renderer);
+    }
+
+    public void PlayExplosionSound()
+    {
+        var stream = new MemoryStream(_explosionAudioData);
+        var reader = new WaveFileReader(stream);
+        var outputDevice = new WaveOutEvent();
+
+        outputDevice.Init(reader);
+        outputDevice.Play();
+
+        outputDevice.PlaybackStopped += (s, e) =>
+        {
+            outputDevice.Dispose();
+            reader.Dispose();
+            stream.Dispose();
+        };
     }
 }

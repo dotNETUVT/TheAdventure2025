@@ -38,7 +38,7 @@ public class SpriteSheet
 
     public Animation? ActiveAnimation { get; set; }
     public Dictionary<string, Animation> Animations { get; set; } = new();
-    
+
     public bool AnimationFinished { get; private set; }
 
     private int _textureId = -1;
@@ -89,7 +89,7 @@ public class SpriteSheet
             ActiveAnimation = null;
             return;
         }
-        
+
         if (!Animations.TryGetValue(name, out var animation)) return;
 
         ActiveAnimation = animation;
@@ -101,20 +101,29 @@ public class SpriteSheet
     {
         if (ActiveAnimation == null)
         {
-            renderer.RenderTexture(_textureId, new Rectangle<int>(0, 0, FrameWidth, FrameHeight),
-                new Rectangle<int>(dest.X - FrameCenter.OffsetX, dest.Y - FrameCenter.OffsetY, FrameWidth, FrameHeight),
-                RendererFlip.None, angle, rotationCenter);
+            renderer.RenderTexture(_textureId,
+                new Rectangle<int>(0, 0, FrameWidth, FrameHeight),
+                new Rectangle<int>(
+                    dest.X - FrameCenter.OffsetX,
+                    dest.Y - FrameCenter.OffsetY,
+                    FrameWidth,
+                    FrameHeight
+                ),
+                RendererFlip.None,
+                angle,
+                rotationCenter);
         }
         else
         {
             var totalFrames = (ActiveAnimation.EndFrame.Row - ActiveAnimation.StartFrame.Row) * ColumnCount +
-                ActiveAnimation.EndFrame.Col - ActiveAnimation.StartFrame.Col;
+                              (ActiveAnimation.EndFrame.Col - ActiveAnimation.StartFrame.Col);
             var currentFrame = (int)((DateTimeOffset.Now - _animationStart).TotalMilliseconds /
                                      (ActiveAnimation.DurationMs / (double)totalFrames));
+
             if (currentFrame > totalFrames)
             {
                 AnimationFinished = true;
-                
+
                 if (ActiveAnimation.Loop)
                 {
                     _animationStart = DateTimeOffset.Now;
@@ -130,9 +139,21 @@ public class SpriteSheet
             var currentCol = ActiveAnimation.StartFrame.Col + currentFrame % ColumnCount;
 
             renderer.RenderTexture(_textureId,
-                new Rectangle<int>(currentCol * FrameWidth, currentRow * FrameHeight, FrameWidth, FrameHeight),
-                new Rectangle<int>(dest.X - FrameCenter.OffsetX, dest.Y - FrameCenter.OffsetY, FrameWidth, FrameHeight),
-                ActiveAnimation.Flip, angle, rotationCenter);
+                new Rectangle<int>(
+                    currentCol * FrameWidth,
+                    currentRow * FrameHeight,
+                    FrameWidth,
+                    FrameHeight
+                ),
+                new Rectangle<int>(
+                    dest.X - FrameCenter.OffsetX,
+                    dest.Y - FrameCenter.OffsetY,
+                    FrameWidth,
+                    FrameHeight
+                ),
+                ActiveAnimation.Flip,
+                angle,
+                rotationCenter);
         }
     }
 }
