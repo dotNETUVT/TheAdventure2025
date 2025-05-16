@@ -1,9 +1,7 @@
-using System.Reflection;
 using System.Text.Json;
 using Silk.NET.Maths;
 using TheAdventure.Models;
 using TheAdventure.Models.Data;
-using TheAdventure.Scripting;
 
 namespace TheAdventure;
 
@@ -11,7 +9,6 @@ public class Engine
 {
     private readonly GameRenderer _renderer;
     private readonly Input _input;
-    private readonly ScriptEngine _scriptEngine = new();
 
     private readonly Dictionary<int, GameObject> _gameObjects = new();
     private readonly Dictionary<string, TileSet> _loadedTileSets = new();
@@ -21,6 +18,8 @@ public class Engine
     private PlayerObject? _player;
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
+
+    private const int MaxBombs = 5;
 
     public Engine(GameRenderer renderer, Input input)
     {
@@ -32,7 +31,7 @@ public class Engine
 
     public void SetupWorld()
     {
-        _player = new(SpriteSheet.Load(_renderer, "Player.json", "Assets"), 100, 100);
+        _player = new(_renderer);
 
         var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
         var level = JsonSerializer.Deserialize<Level>(levelContent);
@@ -73,8 +72,6 @@ public class Engine
             level.Height.Value * level.TileHeight.Value));
 
         _currentLevel = level;
-
-        _scriptEngine.LoadAll(Path.Combine("Assets", "Scripts"));
     }
 
     public void ProcessFrame()
@@ -83,30 +80,12 @@ public class Engine
         var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
         _lastUpdate = currentTime;
 
-        if (_player == null)
-        {
-            return;
-        }
-
         double up = _input.IsUpPressed() ? 1.0 : 0.0;
         double down = _input.IsDownPressed() ? 1.0 : 0.0;
         double left = _input.IsLeftPressed() ? 1.0 : 0.0;
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
-        bool isAttacking = _input.IsKeyAPressed() && (up + down + left + right <= 1);
-        bool addBomb = _input.IsKeyBPressed();
 
-        _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame);
-        if (isAttacking)
-        {
-            _player.Attack();
-        }
-        
-        _scriptEngine.ExecuteAll(this);
-
-        if (addBomb)
-        {
-            AddBomb(_player.Position.X, _player.Position.Y, false);
-        }
+        _player?.UpdatePosition(up, down, left, right, (int)msSinceLastFrame, GetActiveBombs());
     }
 
     public void RenderFrame()
@@ -114,8 +93,7 @@ public class Engine
         _renderer.SetDrawColor(0, 0, 0, 255);
         _renderer.ClearScreen();
 
-        var playerPosition = _player!.Position;
-        _renderer.CameraLookAt(playerPosition.X, playerPosition.Y);
+        _renderer.CameraLookAt(_player!.X, _player!.Y);
 
         RenderTerrain();
         RenderAllObjects();
@@ -132,25 +110,13 @@ public class Engine
             if (gameObject is TemporaryGameObject { IsExpired: true } tempGameObject)
             {
                 toRemove.Add(tempGameObject.Id);
+                _renderer.PlayExplosionSound();
             }
         }
 
         foreach (var id in toRemove)
         {
-            _gameObjects.Remove(id, out var gameObject);
-
-            if (_player == null)
-            {
-                continue;
-            }
-
-            var tempGameObject = (TemporaryGameObject)gameObject!;
-            var deltaX = Math.Abs(_player.Position.X - tempGameObject.Position.X);
-            var deltaY = Math.Abs(_player.Position.Y - tempGameObject.Position.Y);
-            if (deltaX < 32 && deltaY < 32)
-            {
-                _player.GameOver();
-            }
+            _gameObjects.Remove(id);
         }
 
         _player?.Render(_renderer);
@@ -200,19 +166,30 @@ public class Engine
         }
     }
 
-    public (int X, int Y) GetPlayerPosition()
+    public IEnumerable<TemporaryGameObject> GetActiveBombs()
     {
-        return _player!.Position;
+        return _gameObjects.Values
+            .OfType<TemporaryGameObject>()
+            .Where(b => !b.IsExpired);
     }
 
-    public void AddBomb(int X, int Y, bool translateCoordinates = true)
+    public void AddBomb(int screenX, int screenY)
     {
-        var worldCoords = translateCoordinates ? _renderer.ToWorldCoordinates(X, Y) : new Vector2D<int>(X, Y);
+        if (GetActiveBombs().Count() >= MaxBombs)
+            return;
 
-        SpriteSheet spriteSheet = SpriteSheet.Load(_renderer, "BombExploding.json", "Assets");
+        var worldCoords = _renderer.ToWorldCoordinates(screenX, screenY);
+
+
+        var spriteSheet = SpriteSheet.Load(_renderer, "BombExploding.json", "Assets");
         spriteSheet.ActivateAnimation("Explode");
 
-        TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
+        var bomb = new TemporaryGameObject(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
         _gameObjects.Add(bomb.Id, bomb);
+    }
+
+    public (int X, int Y) GetPlayerPosition()
+    {
+        return _player != null ? (_player.X, _player.Y) : (0, 0);
     }
 }
