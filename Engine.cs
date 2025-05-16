@@ -96,6 +96,12 @@ public class Engine
         bool addBomb = _input.IsKeyBPressed();
 
         _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame);
+        
+        if (_input.IsSpacePressed())
+        {
+            _player.Jump();
+        }
+        
         if (isAttacking)
         {
             _player.Attack();
