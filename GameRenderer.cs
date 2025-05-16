@@ -110,4 +110,69 @@ public unsafe class GameRenderer
     {
         _sdl.RenderPresent(_renderer);
     }
+
+    public void RenderText(string text, int x, int y, byte r = 255, byte g = 255, byte b = 255, byte a = 255)
+    {
+        var surface = _sdl.CreateRGBSurfaceWithFormat(0, 1, 1, 32, (uint)PixelFormatEnum.Rgba32);
+        
+        unsafe
+        {
+            // Create a solid colored surface for the text
+            var tempSurface = _sdl.CreateRGBSurface(0, 200, 50, 32, 
+                0x000000FF,  // Rmask
+                0x0000FF00,  // Gmask
+                0x00FF0000,  // Bmask
+                0xFF000000); // Amask
+            if (tempSurface == null)
+            {
+                _sdl.FreeSurface(surface);
+                return;
+            }
+
+            // Set the color key for transparency
+            _sdl.SetSurfaceColorMod(tempSurface, r, g, b);
+            _sdl.SetSurfaceAlphaMod(tempSurface, a);
+
+            // Convert text into a basic surface - This is a simplified approach
+            // In a real game, you would want to use SDL_ttf for proper text rendering
+            var width = text.Length * 8; // Approximate width based on character count
+            var height = 16; // Fixed height for now
+            var dstRect = new Rectangle<int>(0, 0, width, height);
+            
+            // Create texture from surface
+            var texture = _sdl.CreateTextureFromSurface(_renderer, tempSurface);
+            if (texture == null)
+            {
+                _sdl.FreeSurface(tempSurface);
+                _sdl.FreeSurface(surface);
+                return;
+            }
+
+            // Set blend mode for transparency
+            _sdl.SetTextureBlendMode(texture, BlendMode.Blend);
+            
+            // Render the texture
+            var renderRect = new Rectangle<int>(x, y, width, height);
+            _sdl.RenderCopy(_renderer, texture, null, in renderRect);
+
+            // Cleanup
+            _sdl.DestroyTexture(texture);
+            _sdl.FreeSurface(tempSurface);
+            _sdl.FreeSurface(surface);
+        }
+    }
+
+    public void DrawFilledRectangle(int x, int y, int width, int height, byte r, byte g, byte b, byte a)
+    {
+        var rect = new Rectangle<int>(x, y, width, height);
+        SetDrawColor(r, g, b, a);
+        _sdl.RenderFillRect(_renderer, &rect);
+    }
+
+    public void DrawRectangleOutline(int x, int y, int width, int height, byte r, byte g, byte b, byte a)
+    {
+        var rect = new Rectangle<int>(x, y, width, height);
+        SetDrawColor(r, g, b, a);
+        _sdl.RenderDrawRect(_renderer, &rect);
+    }
 }

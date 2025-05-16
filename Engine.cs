@@ -96,6 +96,12 @@ public class Engine
         bool addBomb = _input.IsKeyBPressed();
 
         _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame);
+        
+        if (_input.IsSpacePressed())
+        {
+            _player.Jump();
+        }
+        
         if (isAttacking)
         {
             _player.Attack();
@@ -119,6 +125,26 @@ public class Engine
 
         RenderTerrain();
         RenderAllObjects();
+
+        // Draw health bar background
+        _renderer.DrawFilledRectangle(10, 30, 204, 24, 64, 64, 64, 255);
+        
+        // Draw health bar border
+        _renderer.DrawRectangleOutline(9, 29, 206, 26, 192, 192, 192, 255);
+        
+        // Draw health bar fill based on current health percentage
+        var healthPercentage = (float)_player.Health / 100;
+        var healthBarWidth = (int)(200 * healthPercentage);
+        byte red = (byte)(255 * (1 - healthPercentage));
+        byte green = (byte)(255 * healthPercentage);
+        _renderer.DrawFilledRectangle(12, 32, healthBarWidth, 20, red, green, 0, 255);
+
+        // Draw health text
+        _renderer.RenderText($"Health: {_player.Health}", 10, 10);
+        if (_player.IsInvulnerable)
+        {
+            _renderer.RenderText("Invulnerable!", 10, 60, r: 255, g: 215, b: 0);
+        }
 
         _renderer.PresentFrame();
     }
@@ -149,7 +175,7 @@ public class Engine
             var deltaY = Math.Abs(_player.Position.Y - tempGameObject.Position.Y);
             if (deltaX < 32 && deltaY < 32)
             {
-                _player.GameOver();
+                _player.TakeDamage(25); // Each bomb deals 25 damage
             }
         }
 
