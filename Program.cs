@@ -28,27 +28,33 @@ public static class Program
         gameLogic.InitializeGame(gameRenderer);
 
         bool quit = false;
+
         while (!quit)
         {
             quit = inputLogic.ProcessInput();
             if (quit) break;
-            gameLogic.ProcessFrame();
 
-            #region Frame Timer
+            var movementKeys = inputLogic.GetMovementKeys();
+            gameLogic.MovePlayer(movementKeys);
+
+            var mouseClick = inputLogic.GetMouseClick();
+            if (mouseClick.clicked)
+            {
+                gameLogic.MovePlayerToPosition(mouseClick.x, mouseClick.y);
+            }
+
+            gameLogic.ProcessFrame();
 
             var elapsed = timer.Elapsed;
             timer.Restart();
 
-            #endregion
-
             gameRenderer.Render();
 
             ++framesRenderedCounter;
-            System.Threading.Thread.Sleep(TimeSpan.FromSeconds(0.41666666666666666666666666666667));
+            System.Threading.Thread.Sleep(TimeSpan.FromSeconds(0.016));
         }
 
         gameWindow.Destroy();
-
         sdl.Quit();
     }
 }
