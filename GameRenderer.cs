@@ -3,6 +3,7 @@ using Silk.NET.SDL;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using TheAdventure.Models;
+using TheAdventure2025;
 
 namespace TheAdventure;
 
@@ -74,6 +75,10 @@ public unsafe partial class GameRenderer
         _lastFrameRenderedAt = now;
 
         _sdl.RenderPresent(renderer);
+        if (PauseManager.IsPaused)
+        {
+        }
+
     }
 
     public void RenderTexture(int textureId, Rectangle<int> src, Rectangle<int> dst)
