@@ -4,6 +4,10 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using TheAdventure.Models;
 using Point = Silk.NET.SDL.Point;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
+using System.IO;
+using SixLabors.ImageSharp.Processing;
 
 namespace TheAdventure;
 
@@ -109,5 +113,30 @@ public unsafe class GameRenderer
     public void PresentFrame()
     {
         _sdl.RenderPresent(_renderer);
+    }
+
+    public unsafe void CaptureScreenshot(string filePath)
+    {
+        var rendererPtr = (Silk.NET.SDL.Renderer*)_renderer;
+        int width, height;
+        _sdl.GetRendererOutputSize(rendererPtr, &width, &height);
+
+        var pixels = new byte[width * height * 4];
+
+        fixed (byte* pixelPtr = pixels)
+        {
+            var result = _sdl.RenderReadPixels(rendererPtr, null, (uint)Silk.NET.SDL.PixelFormatEnum.Rgba32, pixelPtr, width * 4);
+            if (result != 0)
+            {
+                Console.WriteLine("Failed to capture screenshot.");
+                return;
+            }
+
+            using var image = Image.LoadPixelData<Rgba32>(pixels, width, height);
+            image.Mutate(x => x.Flip(FlipMode.Vertical));
+            image.Save(filePath);
+        }
+
+        Console.WriteLine($"Screenshot saved to {filePath}");
     }
 }
