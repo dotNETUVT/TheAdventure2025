@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Silk.NET.Maths;
 using TheAdventure.Models;
 using TheAdventure.Models.Data;
@@ -13,6 +13,10 @@ public class GameLogic
     private Level _currentLevel = new();
 
     private int _bombIds = 100;
+    private int _playerId = 0;
+    private int PlayerHealth = 100;
+
+    private bool bombAdded = false;
 
     public void InitializeGame()
     {
@@ -42,6 +46,9 @@ public class GameLogic
         }
 
         _currentLevel = level;
+
+        AddPlayer(100, 100);
+        AddBomb(200, 200);
     }
 
     public void ProcessFrame()
@@ -69,11 +76,33 @@ public class GameLogic
         }
     }
 
+    public void AddPlayer(int x, int y)
+    {
+        var player = new RenderableGameObject("Assets/player.png", _playerId);
+        player.TextureDestination = new Rectangle<int>(
+            new Vector2D<int>(x, y),
+            new Vector2D<int>(player.TextureInformation.Width, player.TextureInformation.Height));
+        _gameObjects[_playerId] = player;
+    }
+
     public void AddBomb(int x, int y)
     {
-        AnimatedGameObject bomb = new AnimatedGameObject(Path.Combine("Assets", "BombExploding.png"), 2, _bombIds, 13, 13, 1, x, y);
-        _gameObjects.Add(bomb.Id, bomb);
-        ++_bombIds;
+        if (_gameObjects.TryGetValue(_playerId, out var player) && player is RenderableGameObject renderablePlayer)
+        {
+            var bomb = new BombObject("Assets/BombExploding.png", _bombIds++, x, y, renderablePlayer, this);
+            _gameObjects[bomb.Id] = bomb;
+        }
+    }
+
+    public void DecreasePlayerHealth()
+    {
+        PlayerHealth -= 25;
+        Console.WriteLine($"\uD83D\uDCA5 Bombă atinsă! Viață rămasă: {PlayerHealth}");
+    }
+
+    public void PlayBombAnimation(Vector2D<float> position)
+    {
+        Console.WriteLine($"\uD83D\uDCA5 Explozie la poziția: {position.X}, {position.Y}");
     }
 
     public void RenderTerrain(GameRenderer renderer)
@@ -86,18 +115,13 @@ public class GameLogic
                 {
                     int? dataIndex = j * currentLayer.Width + i;
                     if (dataIndex == null)
-                    {
                         continue;
-                    }
 
                     var currentTileId = currentLayer.Data[dataIndex.Value] - 1;
                     if (currentTileId == null)
-                    {
                         continue;
-                    }
 
                     var currentTile = _tileIdMap[currentTileId.Value];
-
                     var tileWidth = currentTile.ImageWidth ?? 0;
                     var tileHeight = currentTile.ImageHeight ?? 0;
 
