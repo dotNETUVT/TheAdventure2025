@@ -42,13 +42,18 @@ public unsafe class GameRenderer
             if (renderable.TextureId > -1 &&
                 _texturePointers.TryGetValue(renderable.TextureId, out var texturePointer))
             {
-                _sdl.RenderCopyEx(renderer, (Texture*)texturePointer, renderable.TextureSource,
-                    renderable.TextureDestination, 0, new Silk.NET.SDL.Point(0, 0), RendererFlip.None);
+                var src = renderable.TextureSource;
+                var dst = renderable.TextureDestination;
+                var center = new Silk.NET.SDL.Point(0, 0);
+
+                _sdl.RenderCopyEx(renderer, (Texture*)texturePointer,
+                    in src, in dst, 0, in center, RendererFlip.None);
             }
         }
 
         _sdl.RenderPresent(renderer);
     }
+
 
     public int LoadTexture(string fileName, out TextureInfo textureInfo)
     {

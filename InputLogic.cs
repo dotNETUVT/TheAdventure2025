@@ -132,4 +132,31 @@ public unsafe class InputLogic
 
         return false;
     }
+
+    public (bool up, bool down, bool left, bool right) GetMovementKeys()
+    {
+        ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
+
+        bool w = keyboardState[(int)KeyCode.W] != 0;
+        bool s = keyboardState[(int)KeyCode.S] != 0;
+        bool a = keyboardState[(int)KeyCode.A] != 0;
+        bool d = keyboardState[(int)KeyCode.D] != 0;
+
+        return (w, s, a, d);
+    }
+
+    public (bool clicked, int x, int y) GetMouseClick()
+    {
+        Event ev = new Event();
+        while (_sdl.PollEvent(ref ev) != 0)
+        {
+            if (ev.Type == (uint)EventType.Mousebuttondown &&
+                ev.Button.Button == (byte)MouseButton.Primary)
+            {
+                return (true, ev.Button.X, ev.Button.Y);
+            }
+        }
+
+        return (false, 0, 0);
+    }
 }
