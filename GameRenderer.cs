@@ -4,6 +4,7 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using TheAdventure.Models;
 using Point = Silk.NET.SDL.Point;
+using System.Numerics;
 
 namespace TheAdventure;
 
@@ -110,4 +111,30 @@ public unsafe class GameRenderer
     {
         _sdl.RenderPresent(_renderer);
     }
+
+    public void DrawCircle(Vector2 center, float radius, Vector3 color)
+    {
+        SetDrawColor((byte)(color.X * 255), (byte)(color.Y * 255), (byte)(color.Z * 255), 255);
+
+        var worldRect = new Rectangle<int>(
+            (int)(center.X * 32), (int)(center.Y * 32),
+            (int)(radius * 64), (int)(radius * 64)
+        );
+        var screenRect = _camera.ToScreenCoordinates(worldRect);
+
+        for (int w = 0; w < screenRect.Size.X; w++)
+        {
+            for (int h = 0; h < screenRect.Size.Y; h++)
+            {
+                float dx = w - screenRect.Size.X / 2;
+                float dy = h - screenRect.Size.Y / 2;
+                if (dx * dx + dy * dy <= (screenRect.Size.X / 2) * (screenRect.Size.X / 2))
+                {
+                    _sdl.RenderDrawPoint(_renderer, screenRect.Origin.X + w, screenRect.Origin.Y + h);
+                }
+            }
+        }
+    }
+
+
 }

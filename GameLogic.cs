@@ -2,6 +2,9 @@ using System.Text.Json;
 using Silk.NET.Maths;
 using TheAdventure.Models;
 using TheAdventure.Models.Data;
+using System.Collections.Generic;
+using System.Numerics;
+using System;
 
 namespace TheAdventure;
 
@@ -12,6 +15,7 @@ public class GameLogic
     private readonly Dictionary<int, GameObject> _gameObjects = new();
     private readonly Dictionary<string, TileSet> _loadedTileSets = new();
     private readonly Dictionary<int, Tile> _tileIdMap = new();
+    public List<Collectible> collectibles = new List<Collectible>();
 
     private Level _currentLevel = new();
     private PlayerObject? _player;
@@ -67,12 +71,28 @@ public class GameLogic
             level.Height.Value * level.TileHeight.Value));
 
         _currentLevel = level;
+        collectibles.Add(new Collectible(new Vector2(0f, 1.5f)));
+        collectibles.Add(new Collectible(new Vector2(1f, 1.5f)));
+        collectibles.Add(new Collectible(new Vector2(-1f, 1.5f)));
     }
 
     public void ProcessFrame()
     {
+        Console.WriteLine($"Player position: {_player.X}, {_player.Y}");
+        if (_player == null) return;
+
+        var tileSize = 32f;
+        var playerPos = new Vector2(_player.X / tileSize, _player.Y / tileSize);
+        float playerRadius = 1.0f;
+
+        foreach (var c in collectibles)
+        {
+            c.CheckCollision(playerPos, playerRadius);
+        }
     }
-    
+
+
+
     public void RenderFrame()
     {
         var currentTime = DateTimeOffset.Now;
@@ -111,6 +131,15 @@ public class GameLogic
         }
 
         _player?.Render(_renderer);
+
+        foreach (var c in collectibles)
+        {
+            c.Draw((position, radius) =>
+            {
+                _renderer.DrawCircle(position, radius, new Vector3(1f, 0.84f, 0f));
+            });
+        }
+
     }
 
     public void UpdatePlayerPosition(double up, double down, double left, double right, int timeSinceLastUpdateInMs)
