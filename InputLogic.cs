@@ -1,4 +1,5 @@
 using Silk.NET.SDL;
+using TheAdventure2025;
 
 namespace TheAdventure;
 
@@ -137,8 +138,14 @@ public unsafe class InputLogic
 
                 case (uint)EventType.Keydown:
                 {
+                    var key = ev.Key.Keysym.Sym;
+                    if (key == (int)KeyCode.P)
+                    {
+                        PauseManager.TogglePause();
+                    }
                     break;
                 }
+
             }
         }
 

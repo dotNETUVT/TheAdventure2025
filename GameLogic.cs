@@ -2,6 +2,7 @@ using System.Text.Json;
 using Silk.NET.Maths;
 using TheAdventure.Models;
 using TheAdventure.Models.Data;
+using TheAdventure2025;
 
 namespace TheAdventure;
 
@@ -77,6 +78,8 @@ public class GameLogic
 
     public void UpdatePlayerPosition(double up, double down, double left, double right, int timeSinceLastUpdateInMs)
     {
+        if (PauseManager.IsPaused)
+            return;
         _player?.UpdatePosition(up, down, left, right, timeSinceLastUpdateInMs);
     }
 
