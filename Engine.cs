@@ -13,10 +13,11 @@ public class Engine
     private readonly Input _input;
     private readonly ScriptEngine _scriptEngine = new();
     private bool _zoomToggledLastFrame = false;
-
     private readonly Dictionary<int, GameObject> _gameObjects = new();
     private readonly Dictionary<string, TileSet> _loadedTileSets = new();
     private readonly Dictionary<int, Tile> _tileIdMap = new();
+    private DateTimeOffset _lastBombTime = DateTimeOffset.MinValue;
+    private readonly TimeSpan _bombCooldown = TimeSpan.FromSeconds(1.5);
 
     private Level _currentLevel = new();
     private PlayerObject? _player;
@@ -94,7 +95,7 @@ public class Engine
         double left = _input.IsLeftPressed() ? 1.0 : 0.0;
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
         bool isAttacking = _input.IsKeyAPressed() && (up + down + left + right <= 1);
-        bool addBomb = _input.IsKeyBPressed();
+        bool addBomb = _input.IsKeyBPressed(); 
 
         _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame);
         if (isAttacking)
@@ -104,11 +105,14 @@ public class Engine
         
         _scriptEngine.ExecuteAll(this);
 
-        if (addBomb)
+        var now = DateTimeOffset.Now;  
+
+        if (addBomb && (now - _lastBombTime) >= _bombCooldown)
         {
             AddBomb(_player.Position.X, _player.Position.Y, false);
+            _lastBombTime = now;
         }
-        
+
         bool zoomKey = _input.IsKeyZPressed();
 
         if (zoomKey)
