@@ -21,10 +21,10 @@ public unsafe class GameRenderer
     public GameRenderer(Sdl sdl, GameWindow window)
     {
         _sdl = sdl;
-        
+
         _renderer = (Renderer*)window.CreateRenderer();
         _sdl.SetRenderDrawBlendMode(_renderer, BlendMode.Blend);
-        
+
         _window = window;
         var windowSize = window.Size;
         _camera = new Camera(windowSize.Width, windowSize.Height);
@@ -60,16 +60,16 @@ public unsafe class GameRenderer
                 {
                     throw new Exception("Failed to create surface from image data.");
                 }
-                
+
                 var imageTexture = _sdl.CreateTextureFromSurface(_renderer, imageSurface);
                 if (imageTexture == null)
                 {
                     _sdl.FreeSurface(imageSurface);
                     throw new Exception("Failed to create texture from surface.");
                 }
-                
+
                 _sdl.FreeSurface(imageSurface);
-                
+
                 _textureData[_textureId] = textureInfo;
                 _texturePointers[_textureId] = (IntPtr)imageTexture;
             }
@@ -110,4 +110,39 @@ public unsafe class GameRenderer
     {
         _sdl.RenderPresent(_renderer);
     }
+    public void RenderHUDTexture(int textureId, Rectangle<int> src, Rectangle<int> dst)
+    {
+        if (_texturePointers.TryGetValue(textureId, out var imageTexture))
+        {
+            _sdl.RenderCopy(_renderer, (Texture*)imageTexture, in src, in dst);
+        }
+    }
+    public int LoadTextureFromStream(Stream stream, out TextureData textureInfo)
+    {
+        var image = Image.Load<Rgba32>(stream);
+        textureInfo = new TextureData
+        {
+            Width = image.Width,
+            Height = image.Height
+        };
+
+        var imageRawData = new byte[image.Width * image.Height * 4];
+        image.CopyPixelDataTo(imageRawData.AsSpan());
+
+        fixed (byte* data = imageRawData)
+        {
+            var surface = _sdl.CreateRGBSurfaceWithFormatFrom(data, image.Width, image.Height, 8, image.Width * 4, (uint)PixelFormatEnum.Rgba32);
+            var texture = _sdl.CreateTextureFromSurface(_renderer, surface);
+            _sdl.FreeSurface(surface);
+
+            _textureData[_textureId] = textureInfo;
+            _texturePointers[_textureId] = (IntPtr)texture;
+        }
+
+        return _textureId++;
+    }
+
+
+    public (int Width, int Height) WindowSize => _window.Size;
+
 }
