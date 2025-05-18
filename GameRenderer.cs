@@ -16,6 +16,7 @@ public unsafe class GameRenderer
 
     private Dictionary<int, IntPtr> _texturePointers = new();
     private Dictionary<int, TextureData> _textureData = new();
+    private float _brightnessFactor = 1.0f;
     private int _textureId;
 
     public GameRenderer(Sdl sdl, GameWindow window)
@@ -28,6 +29,10 @@ public unsafe class GameRenderer
         _window = window;
         var windowSize = window.Size;
         _camera = new Camera(windowSize.Width, windowSize.Height);
+    }
+public void SetBrightness(float factor)
+    {
+        _brightnessFactor = Math.Clamp(factor, 0.3f, 1.0f);
     }
 
     public void SetWorldBounds(Rectangle<int> bounds)
@@ -108,6 +113,22 @@ public unsafe class GameRenderer
 
     public void PresentFrame()
     {
+if (_brightnessFactor < 1.0f)
+        {
+            float alpha = 1.0f - _brightnessFactor;
+            DrawDarkOverlay(alpha);
+        }
         _sdl.RenderPresent(_renderer);
     }
+private void DrawDarkOverlay(float alpha)
+{
+    _sdl.SetRenderDrawBlendMode(_renderer, BlendMode.Blend);
+    _sdl.SetRenderDrawColor(_renderer, 0, 0, 0, (byte)(alpha * 255));
+
+    var windowSize = _window.Size;
+    var rect = new Silk.NET.Maths.Rectangle<int>(0, 0, windowSize.Width, windowSize.Height);
+
+    _sdl.RenderFillRect(_renderer, &rect);
+}
+
 }

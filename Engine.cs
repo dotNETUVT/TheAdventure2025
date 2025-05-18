@@ -21,6 +21,7 @@ public class Engine
     private PlayerObject? _player;
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
+    private GameTimeManager _gameTimeManager = new();
 
     public Engine(GameRenderer renderer, Input input)
     {
@@ -83,6 +84,11 @@ public class Engine
         var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
         _lastUpdate = currentTime;
 
+        float deltaTime = (float)msSinceLastFrame / 1000f;
+        _gameTimeManager.Update(deltaTime);
+        float brightness = _gameTimeManager.GetBrightnessFactor();
+        _renderer.SetBrightness(brightness);
+
         if (_player == null)
         {
             return;
@@ -94,12 +100,22 @@ public class Engine
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
         bool isAttacking = _input.IsKeyAPressed() && (up + down + left + right <= 1);
         bool addBomb = _input.IsKeyBPressed();
+        bool isDashing = _input.IsDashPressed();
 
         _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame);
         if (isAttacking)
         {
             _player.Attack();
+        if (isDashing)
+        {
+            _player.TryDash();
         }
+        }
+if (isDashing)
+{
+    _player.TryDash();
+    Console.WriteLine("Dash triggered!");
+}
         
         _scriptEngine.ExecuteAll(this);
 

@@ -25,6 +25,12 @@ public class PlayerObject : RenderableGameObject
     }
 
     public (PlayerState State, PlayerStateDirection Direction) State { get; private set; }
+    private const double _dashSpeed = 300;
+    private const double _dashDuration = 0.25;
+    private const double _dashCooldown = 2.0;
+
+    private double _dashTimeRemaining = 0;
+    private double _dashCooldownRemaining = 0;
 
     public PlayerObject(SpriteSheet spriteSheet, int x, int y) : base(spriteSheet, (x, y))
     {
@@ -89,7 +95,10 @@ public class PlayerObject : RenderableGameObject
             return;
         }
 
-        var pixelsToMove = _speed * (time / 1000.0);
+        _dashCooldownRemaining = Math.Max(0, _dashCooldownRemaining - (time / 1000.0));
+        _dashTimeRemaining = Math.Max(0, _dashTimeRemaining - (time / 1000.0));
+        var currentSpeed = _dashTimeRemaining > 0 ? _dashSpeed : _speed;
+        var pixelsToMove = currentSpeed * (time / 1000.0);
 
         var x = Position.X + (int)(right * pixelsToMove);
         x -= (int)(left * pixelsToMove);
@@ -117,7 +126,7 @@ public class PlayerObject : RenderableGameObject
         else
         {
             newState = PlayerState.Move;
-            
+
             if (y < Position.Y && newDirection != PlayerStateDirection.Up)
             {
                 newDirection = PlayerStateDirection.Up;
@@ -146,4 +155,15 @@ public class PlayerObject : RenderableGameObject
 
         Position = (x, y);
     }
+    public void TryDash()
+    {
+        if (State.State == PlayerState.GameOver || _dashCooldownRemaining > 0 || _dashTimeRemaining > 0)
+        {
+            return;
+        }
+
+        _dashTimeRemaining = _dashDuration;
+        _dashCooldownRemaining = _dashCooldown;
+    }
+    
 }
