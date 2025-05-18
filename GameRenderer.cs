@@ -117,6 +117,31 @@ public unsafe class GameRenderer
             _sdl.RenderCopy(_renderer, (Texture*)imageTexture, in src, in dst);
         }
     }
+    public int LoadTextureFromStream(Stream stream, out TextureData textureInfo)
+    {
+        var image = Image.Load<Rgba32>(stream);
+        textureInfo = new TextureData
+        {
+            Width = image.Width,
+            Height = image.Height
+        };
+
+        var imageRawData = new byte[image.Width * image.Height * 4];
+        image.CopyPixelDataTo(imageRawData.AsSpan());
+
+        fixed (byte* data = imageRawData)
+        {
+            var surface = _sdl.CreateRGBSurfaceWithFormatFrom(data, image.Width, image.Height, 8, image.Width * 4, (uint)PixelFormatEnum.Rgba32);
+            var texture = _sdl.CreateTextureFromSurface(_renderer, surface);
+            _sdl.FreeSurface(surface);
+
+            _textureData[_textureId] = textureInfo;
+            _texturePointers[_textureId] = (IntPtr)texture;
+        }
+
+        return _textureId++;
+    }
+
 
     public (int Width, int Height) WindowSize => _window.Size;
 

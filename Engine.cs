@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Text.Json;
 using Silk.NET.Maths;
+using SixLabors.ImageSharp.PixelFormats;
 using TheAdventure.Models;
 using TheAdventure.Models.Data;
 using TheAdventure.Scripting;
@@ -22,6 +23,8 @@ public class Engine
     private Wizard? _wizard;
     private int? _messageTextureId;
     private TextureData _messageTextureInfo;
+    private TextRenderer? _textRenderer;
+
 
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
@@ -90,6 +93,8 @@ public class Engine
 
         _messageTextureId = _renderer.LoadTexture(Path.Combine("Assets", "HelloMessage.png"), out _messageTextureInfo);
 
+        _textRenderer = new TextRenderer(_renderer, "Assets/Fonts/Pixeland.ttf");
+
     }
 
     public void ProcessFrame()
@@ -115,10 +120,32 @@ public class Engine
         {
             _player.Attack();
         }
+        if (_wizard != null)
+        {
+            var distX = Math.Abs(_player.Position.X - _wizard.Position.X);
+            var distY = Math.Abs(_player.Position.Y - _wizard.Position.Y);
+            _wizard.PlayerNearby = distX < 60 && distY < 60;
 
+            if (_wizard.PlayerNearby)
+            {
+                if (_input.IsKeyEPressed())
+                {
+                    if (_wizard.AwaitingChoice)
+                    {
+                        _wizard.Choose(_wizard.GetSelectedChoiceIndex());
+                    }
+                    else
+                    {
+                        _wizard.Advance();
+                    }
+                }
+                if (_input.IsKeyWPressed()) _wizard.NavigateChoice(-1);
+                if (_input.IsKeySPressed()) _wizard.NavigateChoice(1);
+            }
+        }
         _scriptEngine.ExecuteAll(this);
 
-        if (addBomb)
+        if (addBomb && (_wizard == null || !_wizard.HasDialogue))
         {
             AddBomb(_player.Position.X, _player.Position.Y, false);
         }
@@ -135,27 +162,37 @@ public class Engine
         RenderTerrain();
         RenderAllObjects();
 
-        if (_wizard != null && _messageTextureId.HasValue)
+        if (_wizard != null && _wizard.PlayerNearby)
         {
-            int distanceX = Math.Abs(playerPosition.X - _wizard.Position.X);
-            int distanceY = Math.Abs(playerPosition.Y - _wizard.Position.Y);
+            var line = _wizard.GetCurrentLine();
+            var choices = _wizard.GetChoices();
 
-            if (distanceX < 60 && distanceY < 60)
+            if (!string.IsNullOrEmpty(line))
             {
                 var screenWidth = _renderer.WindowSize.Width;
                 var screenHeight = _renderer.WindowSize.Height;
 
-                int messageWidth = _messageTextureInfo.Width;
-                int messageHeight = _messageTextureInfo.Height;
+                int messageWidth = _messageTextureInfo.Width / 4;
+                int messageHeight = _messageTextureInfo.Height / 4 + 60;
 
                 int posX = (screenWidth - messageWidth) / 2;
                 int posY = screenHeight - messageHeight - 10;
 
-                _renderer.RenderHUDTexture(_messageTextureId.Value,
-                    new Rectangle<int>(0, 0, messageWidth, messageHeight),
-                    new Rectangle<int>(posX, posY, messageWidth, messageHeight));
+                int textY = posY + 10;
+                _textRenderer!.DrawText(line, posX-250, posY+20, new Rgba32(0, 0, 0));
+
+                if (choices != null)
+                {
+                    for (int i = 0; i < choices.Length; i++)
+                    {
+                        bool selected = i == _wizard.GetSelectedChoiceIndex();
+                        string text = selected ? $"> {choices[i]}" : choices[i];
+                        _textRenderer!.DrawText(text, posX -250, posY + 60 + i * 20, new Rgba32(255, 255, 255));
+                    }
+                }
             }
         }
+
         _renderer.PresentFrame();
     }
 
