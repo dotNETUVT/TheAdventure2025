@@ -21,6 +21,7 @@ public class Engine
     private PlayerObject? _player;
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
+    private GameTimeManager _gameTimeManager = new();
 
     public Engine(GameRenderer renderer, Input input)
     {
@@ -82,6 +83,11 @@ public class Engine
         var currentTime = DateTimeOffset.Now;
         var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
         _lastUpdate = currentTime;
+
+        float deltaTime = (float)msSinceLastFrame / 1000f;
+        _gameTimeManager.Update(deltaTime);
+        float brightness = _gameTimeManager.GetBrightnessFactor();
+        _renderer.SetBrightness(brightness);
 
         if (_player == null)
         {
