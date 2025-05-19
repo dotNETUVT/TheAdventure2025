@@ -55,6 +55,12 @@ public unsafe class Input
         return keyboardState[(int)KeyCode.R] == 1;
     }
 
+    public bool IsKeyPPressed()
+    {
+        ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
+        return keyboardState[(int)KeyCode.P] == 1;
+    }
+
     public bool IsKeyEnterPressed()
     {
         ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);

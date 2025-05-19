@@ -10,7 +10,6 @@ using SixLabors.ImageSharp.Processing;
 using SixLabors.Fonts;
 using SixLabors.ImageSharp.Drawing.Processing;
 
-
 namespace TheAdventure;
 
 public class Engine
@@ -30,6 +29,7 @@ public class Engine
     private bool _isGameOver = false;
     private bool _awaitingRetry = false;
 
+    private bool _isPaused = false;
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
 
     public Engine(GameRenderer renderer, Input input)
@@ -116,6 +116,15 @@ public class Engine
             return;
         }
 
+        if (_input.IsKeyPPressed())
+        {
+            _isPaused = !_isPaused;
+            Thread.Sleep(200); // debounce
+        }
+
+        if (_isPaused || _player == null)
+            return;
+
         double up = _input.IsUpPressed() ? 1.0 : 0.0;
         double down = _input.IsDownPressed() ? 1.0 : 0.0;
         double left = _input.IsLeftPressed() ? 1.0 : 0.0;
@@ -189,11 +198,20 @@ public class Engine
             var retryTex = CreateUITextTexture("You died! Press R to retry.", new Rgba32(255, 255, 255));
             DrawUIText(retryTex, 20, 60);
         }
+        else if (_isPaused)
+        {
+            // create black "overlay" with transparency which cover all the screen
+            var overlayTex = CreateFullScreenOverlay();
+            DrawUIText(overlayTex, 0, 0);
 
+            var pauseTex = CreateUITextTexture("Game Paused - Press P to Resume", new Rgba32(255, 255, 0));
+            int x = (800 - pauseTex.width) / 2;
+            int y = (600 - pauseTex.height) / 2;
+            DrawUIText(pauseTex, x, y);
+        }
 
         _renderer.PresentFrame();
     }
-
 
     public void RenderAllObjects()
     {
@@ -300,6 +318,28 @@ public class Engine
         _gameObjects.Clear();
         SetupWorld();
     }
+
+    // creating pause overlay
+    private (int textureId, int width, int height) CreateFullScreenOverlay()
+    {
+        int width = 800;
+        int height = 600;
+
+        using var image = new Image<Rgba32>(width, height);
+        image.Mutate(ctx =>
+        {
+            ctx.Fill(new Rgba32(0, 0, 0, 160));
+        });
+
+        var tmpPath = Path.GetTempFileName();
+        image.SaveAsPng(tmpPath);
+
+        var textureId = _renderer.LoadTexture(tmpPath, out var texData);
+        File.Delete(tmpPath);
+
+        return (textureId, texData.Width, texData.Height);
+    }
+
 
     private (int textureId, int width, int height) CreateUITextTexture(string text, Rgba32 color)
     {
