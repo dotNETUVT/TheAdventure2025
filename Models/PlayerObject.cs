@@ -82,7 +82,10 @@ public class PlayerObject : RenderableGameObject
         SetState(PlayerState.Attack, direction);
     }
 
-    public void UpdatePosition(double up, double down, double left, double right, int width, int height, double time)
+    // modificare signatura pentru ca playerul sa nu mai iasa din harta
+    public void UpdatePosition(double up, double down, double left, double right,
+                               int width, int height, double time,
+                               int worldWidth, int worldHeight)
     {
         if (State.State == PlayerState.GameOver)
         {
@@ -96,6 +99,10 @@ public class PlayerObject : RenderableGameObject
 
         var y = Position.Y + (int)(down * pixelsToMove);
         y -= (int)(up * pixelsToMove);
+
+        x = Math.Clamp(x, 0, worldWidth - width);
+        y = Math.Clamp(y, 0, worldHeight - height);
+
 
         var newState = State.State;
         var newDirection = State.Direction;

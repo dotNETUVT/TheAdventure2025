@@ -4,6 +4,9 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using TheAdventure.Models;
 using Point = Silk.NET.SDL.Point;
+using static Silk.NET.SDL.Sdl;
+
+
 
 namespace TheAdventure;
 
@@ -110,4 +113,16 @@ public unsafe class GameRenderer
     {
         _sdl.RenderPresent(_renderer);
     }
+    //todo poate cu TTK CU SILK.NET
+    public void RenderText(string message, int x, int y, byte r, byte g, byte b, byte a)
+    {
+        Console.WriteLine($"[Text on screen] {message} at ({x},{y}) with color ({r},{g},{b},{a})");
+    }
+
+    public Camera GetCamera()
+    {
+        return _camera;
+    }
+
+
 }
