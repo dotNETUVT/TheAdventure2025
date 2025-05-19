@@ -4,6 +4,12 @@ using Silk.NET.Maths;
 using TheAdventure.Models;
 using TheAdventure.Models.Data;
 using TheAdventure.Scripting;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
+using SixLabors.Fonts;
+using SixLabors.ImageSharp.Drawing.Processing;
+
 
 namespace TheAdventure;
 
@@ -42,6 +48,7 @@ public class Engine
 
     }
 
+    private bool _scriptsLoaded = false;
     public void SetupWorld()
     {
         // clearing and setup a new world
@@ -91,7 +98,11 @@ public class Engine
 
         _currentLevel = level;
 
-        _scriptEngine.LoadAll(Path.Combine("Assets", "Scripts"));
+        if (!_scriptsLoaded)
+        {
+            _scriptEngine.LoadAll(Path.Combine("Assets", "Scripts"));
+            _scriptsLoaded = true;
+        }
     }
 
     public void ProcessFrame()
@@ -160,21 +171,29 @@ public class Engine
         RenderTerrain();
         RenderAllObjects();
 
-        _renderer.PresentFrame();
-
-        Console.Clear();
-        Console.WriteLine($"Lives remaining: {_lives}");
+        if (!_isGameOver)
+        {
+            var livesTex = CreateUITextTexture($"Lives: {_lives}/3", new Rgba32(255, 255, 255));
+            DrawUIText(livesTex, 20, 20);
+        }
 
         if (_isGameOver)
         {
-            Console.WriteLine("=== GAME OVER ===");
-            Console.WriteLine("Press ENTER to restart the game.");
+            var overTex = CreateUITextTexture("GAME OVER - Press ENTER to restart", new Rgba32(255, 0, 0));
+            int x = (800 - overTex.width) / 2;   
+            int y = (600 - overTex.height) / 2;  
+            DrawUIText(overTex, x, y);
         }
         else if (_awaitingRetry)
         {
-            Console.WriteLine("You died! Press R to retry.");
+            var retryTex = CreateUITextTexture("You died! Press R to retry.", new Rgba32(255, 255, 255));
+            DrawUIText(retryTex, 20, 60);
         }
+
+
+        _renderer.PresentFrame();
     }
+
 
     public void RenderAllObjects()
     {
@@ -281,4 +300,32 @@ public class Engine
         _gameObjects.Clear();
         SetupWorld();
     }
+
+    private (int textureId, int width, int height) CreateUITextTexture(string text, Rgba32 color)
+    {
+        using var image = new Image<Rgba32>(600, 60);
+        image.Mutate(ctx =>
+        {
+            ctx.Clear(new Rgba32(0, 0, 0, 0));
+            ctx.DrawText(text, SystemFonts.CreateFont("Arial", 22), color, new PointF(0, 0));
+        });
+
+        var tmpPath = Path.GetTempFileName();
+        image.SaveAsPng(tmpPath);
+
+        var textureId = _renderer.LoadTexture(tmpPath, out var texData);
+        File.Delete(tmpPath);
+
+        return (textureId, texData.Width, texData.Height);
+    }
+
+    private void DrawUIText((int textureId, int width, int height) tex, int x, int y)
+    {
+        _renderer.RenderUITexture(
+            tex.textureId,
+            new Rectangle<int>(0, 0, tex.width, tex.height),
+            new Rectangle<int>(x, y, tex.width, tex.height)
+        );
+    }
+
 }
