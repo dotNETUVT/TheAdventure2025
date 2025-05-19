@@ -1,4 +1,5 @@
 using Silk.NET.SDL;
+using System; // Required for Action
 
 namespace TheAdventure;
 
@@ -7,6 +8,7 @@ public unsafe class Input
     private readonly Sdl _sdl;
 
     public EventHandler<(int x, int y)>? OnMouseClick;
+    public event Action<int>? OnMouseWheel; // Added event for mouse wheel
 
     public Input(Sdl sdl)
     {
@@ -62,108 +64,110 @@ public unsafe class Input
             switch (ev.Type)
             {
                 case (uint)EventType.Windowevent:
-                {
-                    switch (ev.Window.Event)
                     {
-                        case (byte)WindowEventID.Shown:
-                        case (byte)WindowEventID.Exposed:
+                        switch (ev.Window.Event)
                         {
-                            break;
+                            case (byte)WindowEventID.Shown:
+                            case (byte)WindowEventID.Exposed:
+                                {
+                                    break;
+                                }
+                            case (byte)WindowEventID.Hidden:
+                                {
+                                    break;
+                                }
+                            case (byte)WindowEventID.Moved:
+                                {
+                                    break;
+                                }
+                            case (byte)WindowEventID.SizeChanged:
+                                {
+                                    break;
+                                }
+                            case (byte)WindowEventID.Minimized:
+                            case (byte)WindowEventID.Maximized:
+                            case (byte)WindowEventID.Restored:
+                                break;
+                            case (byte)WindowEventID.Enter:
+                                {
+                                    break;
+                                }
+                            case (byte)WindowEventID.Leave:
+                                {
+                                    break;
+                                }
+                            case (byte)WindowEventID.FocusGained:
+                                {
+                                    break;
+                                }
+                            case (byte)WindowEventID.FocusLost:
+                                {
+                                    break;
+                                }
+                            case (byte)WindowEventID.Close:
+                                {
+                                    break;
+                                }
+                            case (byte)WindowEventID.TakeFocus:
+                                {
+                                    _sdl.SetWindowInputFocus(_sdl.GetWindowFromID(ev.Window.WindowID));
+                                    break;
+                                }
                         }
-                        case (byte)WindowEventID.Hidden:
-                        {
-                            break;
-                        }
-                        case (byte)WindowEventID.Moved:
-                        {
-                            break;
-                        }
-                        case (byte)WindowEventID.SizeChanged:
-                        {
-                            break;
-                        }
-                        case (byte)WindowEventID.Minimized:
-                        case (byte)WindowEventID.Maximized:
-                        case (byte)WindowEventID.Restored:
-                            break;
-                        case (byte)WindowEventID.Enter:
-                        {
-                            break;
-                        }
-                        case (byte)WindowEventID.Leave:
-                        {
-                            break;
-                        }
-                        case (byte)WindowEventID.FocusGained:
-                        {
-                            break;
-                        }
-                        case (byte)WindowEventID.FocusLost:
-                        {
-                            break;
-                        }
-                        case (byte)WindowEventID.Close:
-                        {
-                            break;
-                        }
-                        case (byte)WindowEventID.TakeFocus:
-                        {
-                            _sdl.SetWindowInputFocus(_sdl.GetWindowFromID(ev.Window.WindowID));
-                            break;
-                        }
-                    }
 
-                    break;
-                }
+                        break;
+                    }
 
                 case (uint)EventType.Fingermotion:
-                {
-                    break;
-                }
-
-                case (uint)EventType.Mousemotion:
-                {
-                    break;
-                }
-
-                case (uint)EventType.Fingerdown:
-                {
-                    break;
-                }
-                case (uint)EventType.Mousebuttondown:
-                {
-                    if (ev.Button.Button == (byte)MouseButton.Primary)
                     {
-                        OnMouseClick?.Invoke(this, (ev.Button.X, ev.Button.Y));
+                        break;
                     }
 
-                    break;
-                }
+                case (uint)EventType.Mousemotion:
+                    {
+                        break;
+                    }
+
+                case (uint)EventType.Fingerdown:
+                    {
+                        break;
+                    }
+                case (uint)EventType.Mousebuttondown:
+                    {
+                        if (ev.Button.Button == (byte)MouseButton.Primary)
+                        {
+                            OnMouseClick?.Invoke(this, (ev.Button.X, ev.Button.Y));
+                        }
+
+                        break;
+                    }
 
                 case (uint)EventType.Fingerup:
-                {
-                    break;
-                }
+                    {
+                        break;
+                    }
 
                 case (uint)EventType.Mousebuttonup:
-                {
-                    break;
-                }
+                    {
+                        break;
+                    }
 
-                case (uint)EventType.Mousewheel:
-                {
-                    break;
-                }
+                case (uint)EventType.Mousewheel: // Added case for Mousewheel
+                    {
+                        // ev.Wheel.Y is positive for scroll up/away, negative for scroll down/towards.
+                        OnMouseWheel?.Invoke(ev.Wheel.Y);
+                        break;
+                    }
 
                 case (uint)EventType.Keyup:
-                {
-                    break;
-                }
+                    {
+                        break;
+                    }
 
                 case (uint)EventType.Keydown:
-                {
-                    break;
-                }
+                    {
+                        break;
+                    }
             }
         }
 

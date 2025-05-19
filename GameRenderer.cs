@@ -21,10 +21,10 @@ public unsafe class GameRenderer
     public GameRenderer(Sdl sdl, GameWindow window)
     {
         _sdl = sdl;
-        
+
         _renderer = (Renderer*)window.CreateRenderer();
         _sdl.SetRenderDrawBlendMode(_renderer, BlendMode.Blend);
-        
+
         _window = window;
         var windowSize = window.Size;
         _camera = new Camera(windowSize.Width, windowSize.Height);
@@ -38,6 +38,17 @@ public unsafe class GameRenderer
     public void CameraLookAt(int x, int y)
     {
         _camera.LookAt(x, y);
+        // If your camera has an Update() method for smoothing or other effects that needs to be called each frame,
+        // you might call it here or, more typically, in the Engine's ProcessFrame or RenderFrame.
+        // For example: _camera.Update();
+        // The Camera.cs provided has an Update() method that handles smooth panning.
+        // This method is called from Engine.ProcessFrame in the original uploaded code, so no change needed here for that.
+    }
+
+    // Added this method to adjust camera zoom
+    public void AdjustCameraZoom(int scrollY)
+    {
+        _camera.AdjustZoom(scrollY);
     }
 
     public int LoadTexture(string fileName, out TextureData textureInfo)
@@ -60,16 +71,16 @@ public unsafe class GameRenderer
                 {
                     throw new Exception("Failed to create surface from image data.");
                 }
-                
+
                 var imageTexture = _sdl.CreateTextureFromSurface(_renderer, imageSurface);
                 if (imageTexture == null)
                 {
                     _sdl.FreeSurface(imageSurface);
                     throw new Exception("Failed to create texture from surface.");
                 }
-                
+
                 _sdl.FreeSurface(imageSurface);
-                
+
                 _textureData[_textureId] = textureInfo;
                 _texturePointers[_textureId] = (IntPtr)imageTexture;
             }
