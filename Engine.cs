@@ -16,6 +16,10 @@ public class Engine
     private readonly Dictionary<int, GameObject> _gameObjects = new();
     private readonly Dictionary<string, TileSet> _loadedTileSets = new();
     private readonly Dictionary<int, Tile> _tileIdMap = new();
+    
+    private int _fenceTextureId = -1;
+    private int _fenceTileWidth;
+    private int _fenceTileHeight;
 
     private Level _currentLevel = new();
     private PlayerObject? _player;
@@ -75,6 +79,18 @@ public class Engine
         _currentLevel = level;
 
         _scriptEngine.LoadAll(Path.Combine("Assets", "Scripts"));
+        
+        var fenceTextureData = new TextureData();
+        _fenceTextureId = _renderer.LoadTexture(Path.Combine("Assets", "tree.png"), out fenceTextureData);
+        if (_fenceTextureId != -1)
+        {
+            _fenceTileWidth = fenceTextureData.Width;
+            _fenceTileHeight = fenceTextureData.Height;
+        }
+        else
+        {
+            Console.WriteLine("Failed to load fence.png");
+        }
     }
 
     public void ProcessFrame()
@@ -108,6 +124,45 @@ public class Engine
             AddBomb(_player.Position.X, _player.Position.Y, false);
         }
     }
+    
+    public void RenderFence()
+{
+    if (_fenceTextureId == -1 || _currentLevel == null || _currentLevel.Width == null || _currentLevel.Height == null || _currentLevel.TileWidth == null || _currentLevel.TileHeight == null)
+    {
+        return;
+    }
+
+    var mapPixelWidth = _currentLevel.Width.Value * _currentLevel.TileWidth.Value;
+    var mapPixelHeight = _currentLevel.Height.Value * _currentLevel.TileHeight.Value;
+
+    if (_fenceTileWidth <= 0 || _fenceTileHeight <= 0) return;
+
+    var sourceRect = new Rectangle<int>(0, 0, _fenceTileWidth, _fenceTileHeight);
+
+    for (int x = 0; x < mapPixelWidth; x += _fenceTileWidth)
+    {
+        var destRect = new Rectangle<int>(x, 0, _fenceTileWidth, _fenceTileHeight);
+        _renderer.RenderTexture(_fenceTextureId, sourceRect, destRect);
+    }
+    
+    for (int x = 0; x < mapPixelWidth; x += _fenceTileWidth)
+    {
+        var destRect = new Rectangle<int>(x, mapPixelHeight - _fenceTileHeight, _fenceTileWidth, _fenceTileHeight);
+        _renderer.RenderTexture(_fenceTextureId, sourceRect, destRect);
+    }
+    
+    for (int y = _fenceTileHeight; y < mapPixelHeight - _fenceTileHeight; y += _fenceTileHeight)
+    {
+        var destRect = new Rectangle<int>(0, y, _fenceTileWidth, _fenceTileHeight);
+        _renderer.RenderTexture(_fenceTextureId, sourceRect, destRect);
+    }
+
+    for (int y = _fenceTileHeight; y < mapPixelHeight - _fenceTileHeight; y += _fenceTileHeight)
+    {
+        var destRect = new Rectangle<int>(mapPixelWidth - _fenceTileWidth, y, _fenceTileWidth, _fenceTileHeight);
+        _renderer.RenderTexture(_fenceTextureId, sourceRect, destRect);
+    }
+}
 
     public void RenderFrame()
     {
@@ -118,6 +173,7 @@ public class Engine
         _renderer.CameraLookAt(playerPosition.X, playerPosition.Y);
 
         RenderTerrain();
+        RenderFence();
         RenderAllObjects();
 
         _renderer.PresentFrame();

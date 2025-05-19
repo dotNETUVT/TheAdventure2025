@@ -1,21 +1,20 @@
 using Silk.NET.Maths;
 using System;
-using System.Threading.Tasks;
 
 namespace TheAdventure.Models;
 
 public class PlayerObject : RenderableGameObject
 {
-    private const int _speed = 128; // pixels per second
-    private const int _fenceThickness = 16; // thickness of the boundary fence
-    private int _mapWidth = 1000; // default map width
-    private int _mapHeight = 1000; // default map height
-    private const int _playerWidth = 32; // approximate player sprite width
-    private const int _playerHeight = 32; // approximate player sprite height
-    
-    // Large fixed bottom boundary to prevent player from going below a certain point
-    private int _bottomBoundaryHeight = 360; // using a large fixed value for reliability
-    
+    private const int _speed = 128;
+    private const int _treePadding = 60;
+
+    private int _mapWidth;
+    private int _mapHeight;
+    private const int _playerWidth = 32;
+    private const int _playerHeight = 32;
+
+    private int _bottomBoundaryHeight;
+
     public enum PlayerStateDirection
     {
         None = 0,
@@ -40,31 +39,15 @@ public class PlayerObject : RenderableGameObject
     {
         SetState(PlayerState.Idle, PlayerStateDirection.Down);
         
-        // Initialize with default map dimensions
-        // These should be updated when the actual map is loaded
         SetMapBoundaries(1000, 1000);
     }
     
-    // Method to set map boundaries
-    public void SetMapBoundaries(int width, int height)
+    public void SetMapBoundaries(int actualMapPixelWidth, int actualMapPixelHeight)
     {
-        _mapWidth = width;
-        _mapHeight = height;
+        _mapWidth = actualMapPixelWidth;
+        _mapHeight = actualMapPixelHeight;
         
-        // Set a fixed, large bottom boundary (500 pixels)
-        // This ensures the player stays well above the bottom of the map
-        _bottomBoundaryHeight = 360;
-    }
-
-    // Method to specifically set the bottom boundary height
-    public void SetBottomBoundaryHeight(int height)
-    {
-        _bottomBoundaryHeight = height;
-    }
-    
-    public void SetState(PlayerState state)
-    {
-        SetState(state, State.Direction);
+        _bottomBoundaryHeight = 380;
     }
 
     public void SetState(PlayerState state, PlayerStateDirection direction)
@@ -83,7 +66,6 @@ public class PlayerObject : RenderableGameObject
         {
             SpriteSheet.ActivateAnimation(null);
         }
-
         else if (state == PlayerState.GameOver)
         {
             SpriteSheet.ActivateAnimation(Enum.GetName(state));
@@ -128,29 +110,28 @@ public class PlayerObject : RenderableGameObject
         var y = Position.Y + (int)(down * pixelsToMove);
         y -= (int)(up * pixelsToMove);
 
-        // Apply boundaries - prevent player from going beyond map edges
-        
-        // Left boundary
-        if (x < _fenceThickness)
+        int effectiveLeftBoundary = _treePadding;
+        int effectiveRightBoundary = _mapWidth - _playerWidth - _treePadding;
+        int effectiveTopBoundary = _treePadding;
+
+        if (x < effectiveLeftBoundary)
         {
-            x = _fenceThickness;
+            x = effectiveLeftBoundary;
         }
         
-        // Right boundary - account for player width
-        if (x > _mapWidth - _playerWidth - _fenceThickness)
+        if (x > effectiveRightBoundary)
         {
-            x = _mapWidth - _playerWidth - _fenceThickness;
+            x = effectiveRightBoundary;
         }
         
-        // Top boundary
-        if (y < _fenceThickness)
+        if (y < effectiveTopBoundary)
         {
-            y = _fenceThickness;
+            y = effectiveTopBoundary;
         }
         
-        // Special bottom boundary with a fixed, very large restricted area
-        // Hard-code the position to ensure the boundary works correctly
-        int maxYPosition = _mapHeight - _bottomBoundaryHeight;
+        int playableAreaHeight = _mapHeight - _bottomBoundaryHeight;
+        int maxYPosition = playableAreaHeight - _playerHeight;
+
         if (y > maxYPosition)
         {
             y = maxYPosition;
