@@ -95,12 +95,16 @@ public class Engine
         bool isAttacking = _input.IsKeyAPressed() && (up + down + left + right <= 1);
         bool addBomb = _input.IsKeyBPressed();
 
-        _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame);
+        int mapWidth = _currentLevel.Width!.Value * _currentLevel.TileWidth!.Value;
+        int mapHeight = _currentLevel.Height!.Value * _currentLevel.TileHeight!.Value;
+
+        _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame, mapWidth, mapHeight);
+
         if (isAttacking)
         {
             _player.Attack();
         }
-        
+
         _scriptEngine.ExecuteAll(this);
 
         if (addBomb)
@@ -108,7 +112,6 @@ public class Engine
             AddBomb(_player.Position.X, _player.Position.Y, false);
         }
     }
-
     public void RenderFrame()
     {
         _renderer.SetDrawColor(0, 0, 0, 255);

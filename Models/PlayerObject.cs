@@ -82,7 +82,7 @@ public class PlayerObject : RenderableGameObject
         SetState(PlayerState.Attack, direction);
     }
 
-    public void UpdatePosition(double up, double down, double left, double right, int width, int height, double time)
+    public void UpdatePosition(double up, double down, double left, double right, int width, int height, double time, int mapWidth, int mapHeight)
     {
         if (State.State == PlayerState.GameOver)
         {
@@ -91,16 +91,43 @@ public class PlayerObject : RenderableGameObject
 
         var pixelsToMove = _speed * (time / 1000.0);
 
-        var x = Position.X + (int)(right * pixelsToMove);
-        x -= (int)(left * pixelsToMove);
+        var proposedX = Position.X + (int)(right * pixelsToMove);
+        proposedX -= (int)(left * pixelsToMove);
 
-        var y = Position.Y + (int)(down * pixelsToMove);
-        y -= (int)(up * pixelsToMove);
+        var proposedY = Position.Y + (int)(down * pixelsToMove);
+        proposedY -= (int)(up * pixelsToMove);
+
+        int finalX = proposedX;
+        int finalY = proposedY;
+
+        int spriteWidth = width;
+        int spriteHeight = height;
+
+        int anchorX = 24; // frameCenter.offsetX
+        int anchorY = 42; // frameCenter.offsetY
+
+        if (finalX - anchorX < 0)
+        {
+            finalX = anchorX;
+        }
+        else if (finalX - anchorX + spriteWidth > mapWidth)
+        {
+            finalX = mapWidth - spriteWidth + anchorX;
+        }
+
+        if (finalY - anchorY < 0)
+        {
+            finalY = anchorY;
+        }
+        else if (finalY - anchorY + spriteHeight > mapHeight)
+        {
+            finalY = mapHeight - spriteHeight + anchorY;
+        }
 
         var newState = State.State;
         var newDirection = State.Direction;
 
-        if (x == Position.X && y == Position.Y)
+        if (finalX == Position.X && finalY == Position.Y)
         {
             if (State.State == PlayerState.Attack)
             {
@@ -117,23 +144,23 @@ public class PlayerObject : RenderableGameObject
         else
         {
             newState = PlayerState.Move;
-            
-            if (y < Position.Y && newDirection != PlayerStateDirection.Up)
+
+            if (finalY < Position.Y && newDirection != PlayerStateDirection.Up)
             {
                 newDirection = PlayerStateDirection.Up;
             }
 
-            if (y > Position.Y && newDirection != PlayerStateDirection.Down)
+            if (finalY > Position.Y && newDirection != PlayerStateDirection.Down)
             {
                 newDirection = PlayerStateDirection.Down;
             }
 
-            if (x < Position.X && newDirection != PlayerStateDirection.Left)
+            if (finalX < Position.X && newDirection != PlayerStateDirection.Left)
             {
                 newDirection = PlayerStateDirection.Left;
             }
 
-            if (x > Position.X && newDirection != PlayerStateDirection.Right)
+            if (finalX > Position.X && newDirection != PlayerStateDirection.Right)
             {
                 newDirection = PlayerStateDirection.Right;
             }
@@ -144,6 +171,6 @@ public class PlayerObject : RenderableGameObject
             SetState(newState, newDirection);
         }
 
-        Position = (x, y);
+        Position = (finalX, finalY);
     }
 }
