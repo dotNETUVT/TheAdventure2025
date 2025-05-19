@@ -4,6 +4,12 @@ using Silk.NET.Maths;
 using TheAdventure.Models;
 using TheAdventure.Models.Data;
 using TheAdventure.Scripting;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
+using SixLabors.Fonts;
+using SixLabors.ImageSharp.Drawing.Processing;
+
 
 namespace TheAdventure;
 
@@ -20,6 +26,10 @@ public class Engine
     private Level _currentLevel = new();
     private PlayerObject? _player;
 
+    private int _lives = 3;
+    private bool _isGameOver = false;
+    private bool _awaitingRetry = false;
+
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
 
     public Engine(GameRenderer renderer, Input input)
@@ -27,11 +37,25 @@ public class Engine
         _renderer = renderer;
         _input = input;
 
-        _input.OnMouseClick += (_, coords) => AddBomb(coords.x, coords.y);
+        _input.OnMouseClick += (_, coords) =>
+        {
+            // added for stop adding bombs if user = dead
+            if (!_awaitingRetry && !_isGameOver)
+            {
+                AddBomb(coords.x, coords.y);
+            }
+        };
+
     }
 
+    private bool _scriptsLoaded = false;
     public void SetupWorld()
     {
+        // clearing and setup a new world
+        _tileIdMap.Clear();
+        _loadedTileSets.Clear();
+        _currentLevel = new();
+
         _player = new(SpriteSheet.Load(_renderer, "Player.json", "Assets"), 100, 100);
 
         var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
@@ -74,7 +98,11 @@ public class Engine
 
         _currentLevel = level;
 
-        _scriptEngine.LoadAll(Path.Combine("Assets", "Scripts"));
+        if (!_scriptsLoaded)
+        {
+            _scriptEngine.LoadAll(Path.Combine("Assets", "Scripts"));
+            _scriptsLoaded = true;
+        }
     }
 
     public void ProcessFrame()
@@ -94,18 +122,41 @@ public class Engine
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
         bool isAttacking = _input.IsKeyAPressed() && (up + down + left + right <= 1);
         bool addBomb = _input.IsKeyBPressed();
+        // retry = button R
+        bool retry = _input.IsKeyRPressed();
+        // restartGame = button ENTER
+        bool restartGame = _input.IsKeyEnterPressed();
 
         _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame);
         if (isAttacking)
         {
             _player.Attack();
         }
-        
-        _scriptEngine.ExecuteAll(this);
 
-        if (addBomb)
+        // added for stop adding bombs if user = dead
+        if (!_awaitingRetry && !_isGameOver)
+        {
+            _scriptEngine.ExecuteAll(this);
+        }
+
+        // added for stop adding bombs if user = dead
+        if (addBomb && !_awaitingRetry && !_isGameOver)
         {
             AddBomb(_player.Position.X, _player.Position.Y, false);
+        }
+        // retry until gameOver
+        if (_awaitingRetry && retry && !_isGameOver)
+        {
+            RestartLevel(keepLives: true);
+            _awaitingRetry = false;
+        }
+        // gameOver 3/3 lifes taken -> restartGame
+        if (_isGameOver && restartGame)
+        {
+            _lives = 3;
+            _isGameOver = false;
+            _awaitingRetry = false;
+            RestartLevel(keepLives: false);
         }
     }
 
@@ -120,8 +171,29 @@ public class Engine
         RenderTerrain();
         RenderAllObjects();
 
+        if (!_isGameOver)
+        {
+            var livesTex = CreateUITextTexture($"Lives: {_lives}/3", new Rgba32(255, 255, 255));
+            DrawUIText(livesTex, 20, 20);
+        }
+
+        if (_isGameOver)
+        {
+            var overTex = CreateUITextTexture("GAME OVER - Press ENTER to restart", new Rgba32(255, 0, 0));
+            int x = (800 - overTex.width) / 2;   
+            int y = (600 - overTex.height) / 2;  
+            DrawUIText(overTex, x, y);
+        }
+        else if (_awaitingRetry)
+        {
+            var retryTex = CreateUITextTexture("You died! Press R to retry.", new Rgba32(255, 255, 255));
+            DrawUIText(retryTex, 20, 60);
+        }
+
+
         _renderer.PresentFrame();
     }
+
 
     public void RenderAllObjects()
     {
@@ -147,9 +219,16 @@ public class Engine
             var tempGameObject = (TemporaryGameObject)gameObject!;
             var deltaX = Math.Abs(_player.Position.X - tempGameObject.Position.X);
             var deltaY = Math.Abs(_player.Position.Y - tempGameObject.Position.Y);
-            if (deltaX < 32 && deltaY < 32)
+            if (deltaX < 32 && deltaY < 32 && !_awaitingRetry && !_isGameOver)
             {
+                _lives--;
+                _awaitingRetry = true;
                 _player.GameOver();
+
+                if (_lives == 0)
+                {
+                    _isGameOver = true;
+                }
             }
         }
 
@@ -215,4 +294,38 @@ public class Engine
         TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
         _gameObjects.Add(bomb.Id, bomb);
     }
+    // restartLevel
+    public void RestartLevel(bool keepLives)
+    {
+        _gameObjects.Clear();
+        SetupWorld();
+    }
+
+    private (int textureId, int width, int height) CreateUITextTexture(string text, Rgba32 color)
+    {
+        using var image = new Image<Rgba32>(600, 60);
+        image.Mutate(ctx =>
+        {
+            ctx.Clear(new Rgba32(0, 0, 0, 0));
+            ctx.DrawText(text, SystemFonts.CreateFont("Arial", 22), color, new PointF(0, 0));
+        });
+
+        var tmpPath = Path.GetTempFileName();
+        image.SaveAsPng(tmpPath);
+
+        var textureId = _renderer.LoadTexture(tmpPath, out var texData);
+        File.Delete(tmpPath);
+
+        return (textureId, texData.Width, texData.Height);
+    }
+
+    private void DrawUIText((int textureId, int width, int height) tex, int x, int y)
+    {
+        _renderer.RenderUITexture(
+            tex.textureId,
+            new Rectangle<int>(0, 0, tex.width, tex.height),
+            new Rectangle<int>(x, y, tex.width, tex.height)
+        );
+    }
+
 }
