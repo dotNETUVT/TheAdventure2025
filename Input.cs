@@ -62,6 +62,12 @@ public unsafe class Input
         return keyboardState[(int)KeyCode.LShift] == 1;
     }
 
+    public bool IsFPressed()
+    {
+        ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
+        return keyboardState[(int)KeyCode.F] == 1;
+    }
+
 
     public bool ProcessInput()
     {

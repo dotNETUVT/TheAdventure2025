@@ -9,6 +9,30 @@ namespace TheAdventure;
 
 public class Engine
 {
+
+    Dictionary<string, double> cooldowns = new() { { "flash", 3.0 } };
+    Dictionary<string, DateTime> lastActivation = new();
+
+    public bool IsOnCooldown(string ability)
+    {
+        return DateTime.Now < lastActivation[ability].AddSeconds(cooldowns[ability]);
+    }
+
+    public bool ActivateAbility(string ability)
+    {
+        if (!lastActivation.ContainsKey(ability))
+        {
+            lastActivation[ability] = DateTime.MinValue;
+        }
+        if (!IsOnCooldown(ability))
+        {
+            lastActivation[ability] = DateTime.Now;
+            return true;
+        }
+        return false;
+        
+    }
+
     private readonly GameRenderer _renderer;
     private readonly Input _input;
     private readonly ScriptEngine _scriptEngine = new();
@@ -99,12 +123,16 @@ public class Engine
         double left = _input.IsLeftPressed() ? walkingSpeed : 0.0;
         double right = _input.IsRightPressed() ? walkingSpeed : 0.0;
 
+        // flash
+        double flashMultiplier;
+        flashMultiplier = _input.IsFPressed() && ActivateAbility("flash") ? 20.0 : 1.0;
+	
         
 
         bool isAttacking = _input.IsKeyAPressed() && (up + down + left + right <= 1);
         bool addBomb = _input.IsKeyBPressed();
 
-        _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame);
+        _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame * flashMultiplier);
         if (isAttacking)
         {
             _player.Attack();
