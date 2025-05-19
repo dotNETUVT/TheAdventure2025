@@ -161,9 +161,16 @@ public unsafe class Input
                 }
 
                 case (uint)EventType.Keydown:
-                {
-                    break;
-                }
+                    {
+                        if ((int)ev.Key.Keysym.Scancode == (int)KeyCode.Escape)
+                        {
+                            return true; // semnal de iesire din joc
+                        }
+
+                        break;
+                    }
+
+
             }
         }
 

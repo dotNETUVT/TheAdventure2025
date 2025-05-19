@@ -21,18 +21,33 @@ public class Engine
     private PlayerObject? _player;
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
+    // pentru afisare "supravietuire" in joc
+    private DateTimeOffset _startTime = DateTimeOffset.Now;
+
+    private int countBomb = 0;
+
 
     public Engine(GameRenderer renderer, Input input)
     {
         _renderer = renderer;
         _input = input;
 
-        _input.OnMouseClick += (_, coords) => AddBomb(coords.x, coords.y);
+        _input.OnMouseClick += (_, coords) =>
+        {
+            if (countBomb < 10)
+            {
+                AddBomb(coords.x, coords.y);
+                countBomb++;
+            }
+        };
     }
 
     public void SetupWorld()
     {
-        _player = new(SpriteSheet.Load(_renderer, "Player.json", "Assets"), 100, 100);
+        // pentru afisare "supravietuire" in joc
+        _startTime = DateTimeOffset.Now;
+
+        //_player = new(SpriteSheet.Load(_renderer, "Player.json", "Assets"), 100, 100);
 
         var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
         var level = JsonSerializer.Deserialize<Level>(levelContent);
@@ -74,6 +89,20 @@ public class Engine
 
         _currentLevel = level;
 
+        int worldWidth = level.Width!.Value * level.TileWidth!.Value;
+        int worldHeight = level.Height!.Value * level.TileHeight!.Value;
+
+        const int playerWidth = 48;
+        const int playerHeight = 48;
+
+        int centerX = (worldWidth - playerWidth) / 2;
+        int centerY = (worldHeight - playerHeight) / 2;
+
+        var spriteSheet = SpriteSheet.Load(_renderer, "Player.json", "Assets");
+        //playerul se spawneaza in mijlocul hartii, pt fulscreen
+        _player = new PlayerObject(spriteSheet, centerX, centerY);
+
+
         _scriptEngine.LoadAll(Path.Combine("Assets", "Scripts"));
     }
 
@@ -95,7 +124,13 @@ public class Engine
         bool isAttacking = _input.IsKeyAPressed() && (up + down + left + right <= 1);
         bool addBomb = _input.IsKeyBPressed();
 
-        _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame);
+        //modificare apel functie pentru a nu mai iesi de pe harta
+        _player.UpdatePosition(
+            up, down, left, right,
+            48, 48, msSinceLastFrame,
+            _currentLevel.Width!.Value * _currentLevel.TileWidth!.Value,
+            _currentLevel.Height!.Value * _currentLevel.TileHeight!.Value
+        );
         if (isAttacking)
         {
             _player.Attack();
@@ -103,9 +138,10 @@ public class Engine
         
         _scriptEngine.ExecuteAll(this);
 
-        if (addBomb)
+        if (addBomb && countBomb < 10)
         {
             AddBomb(_player.Position.X, _player.Position.Y, false);
+            countBomb++;
         }
     }
 
@@ -119,6 +155,9 @@ public class Engine
 
         RenderTerrain();
         RenderAllObjects();
+        var elapsedSeconds = (DateTimeOffset.Now - _startTime).TotalSeconds;
+        _renderer.RenderText($"Time: {elapsedSeconds:F0}s", 20, 20, 255, 255, 255, 255);
+
 
         _renderer.PresentFrame();
     }
@@ -126,12 +165,24 @@ public class Engine
     public void RenderAllObjects()
     {
         var toRemove = new List<int>();
+        bool triggeredBombEffect = false;
+
         foreach (var gameObject in GetRenderables())
         {
             gameObject.Render(_renderer);
+
             if (gameObject is TemporaryGameObject { IsExpired: true } tempGameObject)
             {
                 toRemove.Add(tempGameObject.Id);
+
+                if (!triggeredBombEffect &&
+                    tempGameObject.SpriteSheet?.SheetName == "BombExploding.json")
+                {
+                    Console.WriteLine("o data");
+                    SoundPlayer.Play("Assets/explosion.wav");
+                    ShakeCamera(15, 10);
+                    triggeredBombEffect = true;
+                }
             }
         }
 
@@ -139,15 +190,13 @@ public class Engine
         {
             _gameObjects.Remove(id, out var gameObject);
 
-            if (_player == null)
-            {
-                continue;
-            }
+            if (_player == null) continue;
 
             var tempGameObject = (TemporaryGameObject)gameObject!;
             var deltaX = Math.Abs(_player.Position.X - tempGameObject.Position.X);
             var deltaY = Math.Abs(_player.Position.Y - tempGameObject.Position.Y);
-            if (deltaX < 32 && deltaY < 32)
+
+            if (deltaX < 48 && deltaY < 48)
             {
                 _player.GameOver();
             }
@@ -155,6 +204,7 @@ public class Engine
 
         _player?.Render(_renderer);
     }
+
 
     public void RenderTerrain()
     {
@@ -213,6 +263,16 @@ public class Engine
         spriteSheet.ActivateAnimation("Explode");
 
         TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
+        spriteSheet.SheetName = "BombExploding.json";
+
         _gameObjects.Add(bomb.Id, bomb);
+
     }
+
+    public void ShakeCamera(int duration, int strength)
+    {
+       _renderer.GetCamera().Shake(duration, strength);
+    }
+
+
 }

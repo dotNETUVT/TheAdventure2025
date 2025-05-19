@@ -26,6 +26,9 @@ public unsafe class GameWindow : IDisposable
             "The Adventure", Sdl.WindowposUndefined, Sdl.WindowposUndefined, 640, 400,
             (uint)WindowFlags.Resizable | (uint)WindowFlags.AllowHighdpi
         );
+        // pentru redimensionare full screen
+        _sdl.SetWindowFullscreen((Window*)_window, (uint)WindowFlags.FullscreenDesktop);
+
 
         if (_window == IntPtr.Zero)
         {

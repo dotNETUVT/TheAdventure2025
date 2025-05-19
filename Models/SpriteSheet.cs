@@ -6,6 +6,8 @@ namespace TheAdventure.Models;
 
 public class SpriteSheet
 {
+    public string SheetName { get; set; } = "";
+
     public struct Position
     {
         public int Row { get; set; }
