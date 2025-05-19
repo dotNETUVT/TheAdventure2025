@@ -1,11 +1,21 @@
 using Silk.NET.Maths;
+using System;
+using System.Threading.Tasks;
 
 namespace TheAdventure.Models;
 
 public class PlayerObject : RenderableGameObject
 {
     private const int _speed = 128; // pixels per second
-
+    private const int _fenceThickness = 16; // thickness of the boundary fence
+    private int _mapWidth = 1000; // default map width
+    private int _mapHeight = 1000; // default map height
+    private const int _playerWidth = 32; // approximate player sprite width
+    private const int _playerHeight = 32; // approximate player sprite height
+    
+    // Large fixed bottom boundary to prevent player from going below a certain point
+    private int _bottomBoundaryHeight = 360; // using a large fixed value for reliability
+    
     public enum PlayerStateDirection
     {
         None = 0,
@@ -29,8 +39,29 @@ public class PlayerObject : RenderableGameObject
     public PlayerObject(SpriteSheet spriteSheet, int x, int y) : base(spriteSheet, (x, y))
     {
         SetState(PlayerState.Idle, PlayerStateDirection.Down);
+        
+        // Initialize with default map dimensions
+        // These should be updated when the actual map is loaded
+        SetMapBoundaries(1000, 1000);
+    }
+    
+    // Method to set map boundaries
+    public void SetMapBoundaries(int width, int height)
+    {
+        _mapWidth = width;
+        _mapHeight = height;
+        
+        // Set a fixed, large bottom boundary (500 pixels)
+        // This ensures the player stays well above the bottom of the map
+        _bottomBoundaryHeight = 360;
     }
 
+    // Method to specifically set the bottom boundary height
+    public void SetBottomBoundaryHeight(int height)
+    {
+        _bottomBoundaryHeight = height;
+    }
+    
     public void SetState(PlayerState state)
     {
         SetState(state, State.Direction);
@@ -81,7 +112,7 @@ public class PlayerObject : RenderableGameObject
         var direction = State.Direction;
         SetState(PlayerState.Attack, direction);
     }
-
+    
     public void UpdatePosition(double up, double down, double left, double right, int width, int height, double time)
     {
         if (State.State == PlayerState.GameOver)
@@ -97,6 +128,34 @@ public class PlayerObject : RenderableGameObject
         var y = Position.Y + (int)(down * pixelsToMove);
         y -= (int)(up * pixelsToMove);
 
+        // Apply boundaries - prevent player from going beyond map edges
+        
+        // Left boundary
+        if (x < _fenceThickness)
+        {
+            x = _fenceThickness;
+        }
+        
+        // Right boundary - account for player width
+        if (x > _mapWidth - _playerWidth - _fenceThickness)
+        {
+            x = _mapWidth - _playerWidth - _fenceThickness;
+        }
+        
+        // Top boundary
+        if (y < _fenceThickness)
+        {
+            y = _fenceThickness;
+        }
+        
+        // Special bottom boundary with a fixed, very large restricted area
+        // Hard-code the position to ensure the boundary works correctly
+        int maxYPosition = _mapHeight - _bottomBoundaryHeight;
+        if (y > maxYPosition)
+        {
+            y = maxYPosition;
+        }
+        
         var newState = State.State;
         var newDirection = State.Direction;
 
