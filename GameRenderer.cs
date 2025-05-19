@@ -18,6 +18,10 @@ public unsafe class GameRenderer
     private Dictionary<int, TextureData> _textureData = new();
     private int _textureId;
 
+    private int _heartFullTexture;
+    private int _heartHalfTexture;
+    private int _heartEmptyTexture;
+
     public GameRenderer(Sdl sdl, GameWindow window)
     {
         _sdl = sdl;
@@ -28,6 +32,10 @@ public unsafe class GameRenderer
         _window = window;
         var windowSize = window.Size;
         _camera = new Camera(windowSize.Width, windowSize.Height);
+
+        _heartFullTexture = LoadTexture(Path.Combine("Assets", "heart_full.png"), out _);
+        _heartHalfTexture = LoadTexture(Path.Combine("Assets", "heart_half.png"), out _);
+        _heartEmptyTexture = LoadTexture(Path.Combine("Assets", "heart_empty.png"), out _);
     }
 
     public void SetWorldBounds(Rectangle<int> bounds)
@@ -109,5 +117,30 @@ public unsafe class GameRenderer
     public void PresentFrame()
     {
         _sdl.RenderPresent(_renderer);
+    }
+
+    public void RenderHearts(float health)
+    {
+        const int heartSize = 32;
+        const int spacing = 10;
+        int startX = 10;
+        int startY = 10;
+
+        for (int i = 0; i < 3; i++)
+        {
+            float heartValue = Math.Clamp(health - i, 0f, 1f);
+            int textureId = _heartEmptyTexture;
+
+            if (heartValue >= 1f) textureId = _heartFullTexture;
+            else if (heartValue >= 0.5f) textureId = _heartHalfTexture;
+
+            var destRect = new Rectangle<int>(
+                startX + i * (heartSize + spacing),
+                startY,
+                heartSize,
+                heartSize
+            );
+            RenderTexture(textureId, new Rectangle<int>(0, 0, heartSize, heartSize), destRect);
+        }
     }
 }

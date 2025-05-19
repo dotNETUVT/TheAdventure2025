@@ -23,8 +23,8 @@ public class Engine
     private int _levelHeight;
     private DateTimeOffset _lastBombSpawnTime = DateTimeOffset.Now;
     private readonly double _bombSpawnInterval = 2000;
-    private readonly int _minSpawnRadius = 10;
-    private readonly int _maxSpawnRadius = 100;
+    private readonly int _minSpawnRadius = 1;
+    private readonly int _maxSpawnRadius = 25;
 
     private readonly Random _random = new();
 
@@ -110,6 +110,7 @@ public class Engine
             int bombX = Math.Clamp(_player.X + offsetX, 0, _levelWidth);
             int bombY = Math.Clamp(_player.Y + offsetY, 0, _levelHeight);
 
+            CheckCollisions();
             AddBomb(bombX, bombY);
             _lastBombSpawnTime = currentTime;
         }
@@ -124,6 +125,11 @@ public class Engine
 
         RenderTerrain();
         RenderAllObjects();
+
+        if (_player != null)
+        {
+            _renderer.RenderHearts(_player.Health);
+        }
 
         _renderer.PresentFrame();
     }
@@ -206,5 +212,31 @@ public class Engine
 
         TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldX, worldY));
         _gameObjects.Add(bomb.Id, bomb);
+    }
+
+    private void CheckCollisions()
+    {
+        if (_player == null) return;
+
+        foreach (var gameObject in _gameObjects.Values)
+        {
+            if (gameObject is TemporaryGameObject bomb)
+            {
+                var dx = _player.X - bomb.X;
+                var dy = _player.Y - bomb.Y;
+                var distanceSquared = dx * dx + dy * dy;
+
+                // 32px collision radius
+                if (distanceSquared < 32 * 32)
+                {
+                    _player.TakeDamage(0.5f);
+                    if (_player.Health <= 0)
+                    {
+                        // Close game when health depletes
+                        Environment.Exit(0);
+                    }
+                }
+            }
+        }
     }
 }

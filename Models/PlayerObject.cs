@@ -14,6 +14,9 @@ public class PlayerObject : GameObject
 
     private const int Speed = 128; // pixels per second
 
+    public float Health { get; private set; } = 3.0f;
+    private DateTimeOffset _lastDamageTime = DateTimeOffset.Now;
+
     public PlayerObject(GameRenderer renderer)
     {
         _textureId = renderer.LoadTexture(Path.Combine("Assets", "player.png"), out _);
@@ -44,6 +47,14 @@ public class PlayerObject : GameObject
 
     private void UpdateTarget()
     {
-        _target = new(X + 24, Y - 42, 48, 48);
+        _target = new(X - 24, Y - 24, 48, 48);
+    }
+
+    public void TakeDamage(float damage)
+    {
+        if ((DateTimeOffset.Now - _lastDamageTime).TotalMilliseconds < 500) return;
+
+        Health = Math.Max(0, Health - damage);
+        _lastDamageTime = DateTimeOffset.Now;
     }
 }
