@@ -88,10 +88,19 @@ public class Engine
             return;
         }
 
-        double up = _input.IsUpPressed() ? 1.0 : 0.0;
-        double down = _input.IsDownPressed() ? 1.0 : 0.0;
-        double left = _input.IsLeftPressed() ? 1.0 : 0.0;
-        double right = _input.IsRightPressed() ? 1.0 : 0.0;
+        
+ 
+        // running
+        double walkingSpeed = 1.0;
+        walkingSpeed = _input.IsLeftShiftPressed() ? 2.0 : 1.0;
+        
+        double up = _input.IsUpPressed() ? walkingSpeed : 0.0;
+        double down = _input.IsDownPressed() ? walkingSpeed : 0.0;
+        double left = _input.IsLeftPressed() ? walkingSpeed : 0.0;
+        double right = _input.IsRightPressed() ? walkingSpeed : 0.0;
+
+        
+
         bool isAttacking = _input.IsKeyAPressed() && (up + down + left + right <= 1);
         bool addBomb = _input.IsKeyBPressed();
 
@@ -108,6 +117,7 @@ public class Engine
             AddBomb(_player.Position.X, _player.Position.Y, false);
         }
     }
+
 
     public void RenderFrame()
     {
