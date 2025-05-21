@@ -1,9 +1,9 @@
-using System.Reflection;
 using System.Text.Json;
 using Silk.NET.Maths;
 using TheAdventure.Models;
 using TheAdventure.Models.Data;
 using TheAdventure.Scripting;
+using System.Threading;
 
 namespace TheAdventure;
 
@@ -11,8 +11,7 @@ public class Engine
 {
     private readonly GameRenderer _renderer;
     private readonly Input _input;
-    private readonly ScriptEngine _scriptEngine = new();
-
+    private readonly ScriptEngine _scriptEngine;
     private readonly Dictionary<int, GameObject> _gameObjects = new();
     private readonly Dictionary<string, TileSet> _loadedTileSets = new();
     private readonly Dictionary<int, Tile> _tileIdMap = new();
@@ -22,18 +21,23 @@ public class Engine
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
 
-    public Engine(GameRenderer renderer, Input input)
-    {
+    public Engine(GameRenderer renderer, Input input, ScriptEngine scriptEngine)    {
         _renderer = renderer;
         _input = input;
-
+        _scriptEngine = scriptEngine;
         _input.OnMouseClick += (_, coords) => AddBomb(coords.x, coords.y);
     }
-
+    
+    private int _texHeartFull;
+    private int _texHeartEmpty;
+    
     public void SetupWorld()
     {
         _player = new(SpriteSheet.Load(_renderer, "Player.json", "Assets"), 100, 100);
 
+        _texHeartFull  = _renderer.LoadTexture(Path.Combine("Assets","UI","heart_full.png"),  out _);
+        _texHeartEmpty = _renderer.LoadTexture(Path.Combine("Assets","UI","heart_empty.png"), out _);
+        
         var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
         var level = JsonSerializer.Deserialize<Level>(levelContent);
         if (level == null)
@@ -41,10 +45,8 @@ public class Engine
             throw new Exception("Failed to load level");
         }
 
-        foreach (var tileSetRef in level.TileSets)
+        foreach (var tileSet in level.TileSets.Select(tileSetRef => File.ReadAllText(Path.Combine("Assets", tileSetRef.Source))).Select(tileSetContent => JsonSerializer.Deserialize<TileSet>(tileSetContent)))
         {
-            var tileSetContent = File.ReadAllText(Path.Combine("Assets", tileSetRef.Source));
-            var tileSet = JsonSerializer.Deserialize<TileSet>(tileSetContent);
             if (tileSet == null)
             {
                 throw new Exception("Failed to load tile set");
@@ -77,15 +79,15 @@ public class Engine
         _scriptEngine.LoadAll(Path.Combine("Assets", "Scripts"));
     }
 
-    public void ProcessFrame()
+    public bool ProcessFrame()
     {
         var currentTime = DateTimeOffset.Now;
         var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
         _lastUpdate = currentTime;
 
         if (_player == null)
-        {
-            return;
+        { 
+            return false;
         }
 
         double up = _input.IsUpPressed() ? 1.0 : 0.0;
@@ -107,6 +109,33 @@ public class Engine
         {
             AddBomb(_player.Position.X, _player.Position.Y, false);
         }
+
+        if (_player.State.State != PlayerObject.PlayerState.GameOver ||
+            !_player.SpriteSheet.AnimationFinished) return false;
+        Thread.Sleep(500);          
+        return true;
+
+    }
+
+    private void RenderHud()
+    {
+        const int spacing   = 6;   
+        const int targetW   = 24;  
+        const int targetH   = 24;  
+
+        for (int i = 0; i < _player!.MaxHealth; i++)
+        {
+            int tex = i < _player.Health ? _texHeartFull : _texHeartEmpty;
+
+            var dst = new Rectangle<int>(
+                8 + i * (targetW + spacing),   
+                8,                             
+                targetW, targetH);             
+            (int srcW, int srcH) = _renderer.GetTextureSize(tex);
+            var src = new Rectangle<int>(0, 0, srcW, srcH);
+
+            _renderer.RenderTextureScreen(tex, src, dst);
+        }
     }
 
     public void RenderFrame()
@@ -119,11 +148,11 @@ public class Engine
 
         RenderTerrain();
         RenderAllObjects();
-
+        RenderHud();
         _renderer.PresentFrame();
     }
 
-    public void RenderAllObjects()
+    private void RenderAllObjects()
     {
         var toRemove = new List<int>();
         foreach (var gameObject in GetRenderables())
@@ -149,14 +178,14 @@ public class Engine
             var deltaY = Math.Abs(_player.Position.Y - tempGameObject.Position.Y);
             if (deltaX < 32 && deltaY < 32)
             {
-                _player.GameOver();
+                _player.TakeDamage(1);
             }
         }
 
         _player?.Render(_renderer);
     }
 
-    public void RenderTerrain()
+    private void RenderTerrain()
     {
         foreach (var currentLayer in _currentLevel.Layers)
         {
