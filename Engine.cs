@@ -22,17 +22,29 @@ public class Engine
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
 
-    public Engine(GameRenderer renderer, Input input)
-    {
-        _renderer = renderer;
-        _input = input;
+    private int _gameOverTextureId;
+    private TextureData _gameOverTextureData;
 
-        _input.OnMouseClick += (_, coords) => AddBomb(coords.x, coords.y);
-    }
+
+    public Engine(GameRenderer renderer, Input input)
+{
+    _renderer = renderer;
+    _input = input;
+
+    _input.OnMouseClick += (_, coords) =>
+    {
+        if (_player != null && _player.State.State != PlayerObject.PlayerState.GameOver)
+        {
+            AddBomb(coords.x, coords.y);
+        }
+    };
+}
+
 
     public void SetupWorld()
     {
         _player = new(SpriteSheet.Load(_renderer, "Player.json", "Assets"), 100, 100);
+        _gameOverTextureId = _renderer.LoadTexture("Assets/GameOver.png", out _gameOverTextureData);
 
         var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
         var level = JsonSerializer.Deserialize<Level>(levelContent);
@@ -77,51 +89,93 @@ public class Engine
         _scriptEngine.LoadAll(Path.Combine("Assets", "Scripts"));
     }
 
-    public void ProcessFrame()
+public void ProcessFrame()
+{
+    var currentTime = DateTimeOffset.Now;
+    var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
+    _lastUpdate = currentTime;
+
+    if (_player == null)
     {
-        var currentTime = DateTimeOffset.Now;
-        var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
-        _lastUpdate = currentTime;
-
-        if (_player == null)
-        {
-            return;
-        }
-
-        double up = _input.IsUpPressed() ? 1.0 : 0.0;
-        double down = _input.IsDownPressed() ? 1.0 : 0.0;
-        double left = _input.IsLeftPressed() ? 1.0 : 0.0;
-        double right = _input.IsRightPressed() ? 1.0 : 0.0;
-        bool isAttacking = _input.IsKeyAPressed() && (up + down + left + right <= 1);
-        bool addBomb = _input.IsKeyBPressed();
-
-        _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame);
-        if (isAttacking)
-        {
-            _player.Attack();
-        }
-        
-        _scriptEngine.ExecuteAll(this);
-
-        if (addBomb)
-        {
-            AddBomb(_player.Position.X, _player.Position.Y, false);
-        }
+        return;
     }
 
-    public void RenderFrame()
+    // Skip input, damage, and scripting if Game Over
+    if (_player.State.State == PlayerObject.PlayerState.GameOver)
     {
-        _renderer.SetDrawColor(0, 0, 0, 255);
-        _renderer.ClearScreen();
-
-        var playerPosition = _player!.Position;
-        _renderer.CameraLookAt(playerPosition.X, playerPosition.Y);
-
-        RenderTerrain();
-        RenderAllObjects();
-
-        _renderer.PresentFrame();
+        return;
     }
+
+    double up = _input.IsUpPressed() ? 1.0 : 0.0;
+    double down = _input.IsDownPressed() ? 1.0 : 0.0;
+    double left = _input.IsLeftPressed() ? 1.0 : 0.0;
+    double right = _input.IsRightPressed() ? 1.0 : 0.0;
+    bool isAttacking = _input.IsKeyAPressed() && (up + down + left + right <= 1);
+    bool addBomb = _input.IsKeyBPressed();
+    bool isDamageKey = _input.IsKeyHPressed(); // NEW
+
+    _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame);
+    
+    if (isAttacking)
+    {
+        _player.Attack();
+    }
+
+    if (isDamageKey) // NEW
+    {
+        _player.TakeDamage(10);
+    }
+
+    _scriptEngine.ExecuteAll(this);
+
+    if (addBomb)
+    {
+        AddBomb(_player.Position.X, _player.Position.Y, false);
+    }
+}
+
+
+
+public void RenderFrame()
+{
+    _renderer.SetDrawColor(0, 0, 0, 255);
+    _renderer.ClearScreen();
+
+    var playerPosition = _player!.Position;
+    _renderer.CameraLookAt(playerPosition.X, playerPosition.Y);
+
+    RenderTerrain();
+    RenderAllObjects();
+
+    if (_player != null && _player.State.State != PlayerObject.PlayerState.GameOver)
+    {
+        _renderer.DrawHealthBar(_player.CurrentHealth, _player.MaxHealth, 20, 20);
+    }
+    else if (_player != null && _player.State.State == PlayerObject.PlayerState.GameOver)
+{
+    int screenW = _renderer.GetWindowWidth();
+    int screenH = _renderer.GetWindowHeight();
+
+    int imgW = (int)(screenW * 0.5);   // Scaled down width
+    int imgH = (int)(screenH * 0.3);   // Scaled down height
+
+    var dstRect = new Rectangle<int>(
+        (screenW - imgW) / 2,
+        (screenH - imgH) / 2,
+        imgW,
+        imgH
+    );
+
+    var srcRect = new Rectangle<int>(0, 0, _gameOverTextureData.Width, _gameOverTextureData.Height);
+
+    _renderer.RenderTexture(_gameOverTextureId, srcRect, dstRect);
+}
+
+
+    _renderer.PresentFrame();
+}
+
+
 
     public void RenderAllObjects()
     {
@@ -149,7 +203,7 @@ public class Engine
             var deltaY = Math.Abs(_player.Position.Y - tempGameObject.Position.Y);
             if (deltaX < 32 && deltaY < 32)
             {
-                _player.GameOver();
+                _player.TakeDamage(20);
             }
         }
 
