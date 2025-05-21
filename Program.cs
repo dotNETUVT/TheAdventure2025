@@ -47,16 +47,6 @@ public static class Program
 
         }
 
-        static void DisplayGameOverMessage(GameRenderer renderer, GameWindow window, int score)
-        {
-            renderer.ClearScreen();
-            renderer.SetDrawColor(255, 255, 255, 255); // White background
-
-
-            renderer.PresentFrame();
-            Thread.Sleep(3000);
-        }
-
         sdl.Quit();
     }
 }

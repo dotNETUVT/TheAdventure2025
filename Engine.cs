@@ -72,6 +72,21 @@ public class Engine
             level.Height.Value * level.TileHeight.Value));
 
         _currentLevel = level;
+
+        AddFence(150, 150);
+        AddFence(200, 200);
+        AddFence(100, 600);
+        AddFence(300, 300);
+        AddFence(350, 350);
+        AddFence(350, 80);
+        AddFence(400, 400);
+        AddFence(300, 400);
+        AddFence(450, 45);
+        AddFence(500, 89);
+        AddFence(500, 800);
+
+
+
     }
 
     public void ProcessFrame()
@@ -196,4 +211,12 @@ public class Engine
         return _bombAdded; // Expose the bomb state
     }
 
+    public void AddFence(int x, int y, bool translateCoordinates = true)
+    {
+        var worldCoords = translateCoordinates ? _renderer.ToWorldCoordinates(x, y) : new Silk.NET.Maths.Vector2D<int>(x, y);
+
+        SpriteSheet spriteSheet = SpriteSheet.Load(_renderer, "Fence.json", "Assets");
+        FenceObject fence = new FenceObject(spriteSheet, (worldCoords.X, worldCoords.Y));
+        _gameObjects.Add(fence.Id, fence);
+    }
 }
