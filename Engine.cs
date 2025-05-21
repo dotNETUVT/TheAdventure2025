@@ -96,8 +96,9 @@ public class Engine
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
         bool isAttacking = _input.IsKeyAPressed() && (up + down + left + right <= 1);
         bool addBomb = _input.IsKeyBPressed();
+        bool dashPressed = _input.IsDashPressed();
 
-        _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame);
+        _player.UpdatePosition(up, down, left, right, dashPressed, 48, 48, msSinceLastFrame);
         if (isAttacking)
         {
             _player.Attack();
