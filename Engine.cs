@@ -17,6 +17,9 @@ public class Engine
     private readonly Dictionary<string, TileSet> _loadedTileSets = new();
     private readonly Dictionary<int, Tile> _tileIdMap = new();
     
+    private int _gameOverImageTextureId = -1;
+    private TextureData _gameOverImageData;
+    
     private int _fenceTextureId = -1;
     private int _fenceTileWidth;
     private int _fenceTileHeight;
@@ -36,7 +39,13 @@ public class Engine
 
     public void SetupWorld()
     {
-        _player = new(SpriteSheet.Load(_renderer, "Player.json", "Assets"), 100, 100);
+        _tileIdMap.Clear();
+        _loadedTileSets.Clear();
+        _gameObjects.Clear();
+
+        _player = null;
+        var playerSpriteSheet = SpriteSheet.Load(_renderer, "Player.json", "Assets");
+        _player = new PlayerObject(playerSpriteSheet, 100, 100);
 
         var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
         var level = JsonSerializer.Deserialize<Level>(levelContent);
@@ -44,6 +53,12 @@ public class Engine
         {
             throw new Exception("Failed to load level");
         }
+        _currentLevel = level;
+        
+        var fenceTextureData = new TextureData();
+        _fenceTextureId = _renderer.LoadTexture(Path.Combine("Assets", "tree.png"), out fenceTextureData);
+        _fenceTileWidth = fenceTextureData.Width;
+        _fenceTileHeight = fenceTextureData.Height;
 
         foreach (var tileSetRef in level.TileSets)
         {
@@ -73,34 +88,65 @@ public class Engine
             throw new Exception("Invalid tile dimensions");
         }
 
-        _renderer.SetWorldBounds(new Rectangle<int>(0, 0, level.Width.Value * level.TileWidth.Value,
-            level.Height.Value * level.TileHeight.Value));
-
-        _currentLevel = level;
-
-        _scriptEngine.LoadAll(Path.Combine("Assets", "Scripts"));
-        
-        var fenceTextureData = new TextureData();
-        _fenceTextureId = _renderer.LoadTexture(Path.Combine("Assets", "tree.png"), out fenceTextureData);
-        if (_fenceTextureId != -1)
+        if (_player != null && level.Width.HasValue && level.Height.HasValue &&
+            level.TileWidth.HasValue && level.TileHeight.HasValue)
         {
-            _fenceTileWidth = fenceTextureData.Width;
-            _fenceTileHeight = fenceTextureData.Height;
+            var mapPixelWidth = level.Width.Value * level.TileWidth.Value;
+            var mapPixelHeight = level.Height.Value * level.TileHeight.Value;
+            _player.SetMapBoundaries(mapPixelWidth, mapPixelHeight);
+        
+            _renderer.SetWorldBounds(new Rectangle<int>(0, 0, mapPixelWidth, mapPixelHeight));
         }
         else
         {
-            Console.WriteLine("Failed to load fence.png");
+            if(_player != null) _player.SetMapBoundaries(1000, 1000);
+            _renderer.SetWorldBounds(new Rectangle<int>(0, 0, 1000, 1000));
         }
+        
+        _gameOverImageTextureId = _renderer.LoadTexture(Path.Combine("Assets", "tree.png"), out _gameOverImageData);
+
+        _gameOverImageTextureId = _renderer.LoadTexture(Path.Combine("Assets", "game_over.png"), out _gameOverImageData);
+        if (_gameOverImageTextureId == -1)
+        {
+            Console.WriteLine("Warning: Failed to load game_over_screen.png.");
+        }
+        
+        _scriptEngine.LoadAll(Path.Combine("Assets", "Scripts"));
+        _lastUpdate = DateTimeOffset.Now;
+    }
+    
+    public void RestartGame()
+    {
+        _renderer.ClearAllLoadedData();
+        
+        _gameObjects.Clear();
+
+        _tileIdMap.Clear();
+        _loadedTileSets.Clear();
+        
+        SetupWorld();
+        _lastUpdate = DateTimeOffset.Now;
     }
 
     public void ProcessFrame()
     {
         var currentTime = DateTimeOffset.Now;
         var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
-        _lastUpdate = currentTime;
 
         if (_player == null)
         {
+            _lastUpdate = currentTime;
+            return;
+        }
+        
+        if (_player.State.State == PlayerObject.PlayerState.GameOver)
+        {
+            if (_input.IsKeyRPressed())
+            {
+                RestartGame();
+                return;
+            }
+            _lastUpdate = currentTime;
             return;
         }
 
@@ -123,6 +169,7 @@ public class Engine
         {
             AddBomb(_player.Position.X, _player.Position.Y, false);
         }
+        _lastUpdate = currentTime;
     }
     
     public void RenderFence()
@@ -169,13 +216,40 @@ public class Engine
         _renderer.SetDrawColor(0, 0, 0, 255);
         _renderer.ClearScreen();
 
-        var playerPosition = _player!.Position;
-        _renderer.CameraLookAt(playerPosition.X, playerPosition.Y);
+        if (_player != null && _player.State.State != PlayerObject.PlayerState.GameOver)
+        {
+            var playerPosition = _player.Position;
+            _renderer.CameraLookAt(playerPosition.X, playerPosition.Y);
+        }
 
         RenderTerrain();
         RenderFence();
         RenderAllObjects();
+        
+            if (_player != null && _player.State.State != PlayerObject.PlayerState.GameOver)
+    {
+        _player.Render(_renderer);
+    }
+    else if (_player != null && _player.State.State == PlayerObject.PlayerState.GameOver)
+    {
+         _player.Render(_renderer);
+    }
 
+
+    if (_player != null && _player.State.State == PlayerObject.PlayerState.GameOver && _gameOverImageTextureId != -1)
+    {
+        (int windowWidth, int windowHeight) = _renderer._window.Size;
+        
+        int imageWidth = _gameOverImageData.Width;
+        int imageHeight = _gameOverImageData.Height;
+
+        int xPos = windowWidth / 10;
+        int yPos = windowHeight / 10;
+
+        Rectangle<int> srcRect = new Rectangle<int>(0, 0, imageWidth, imageHeight);
+        Rectangle<int> destRect = new Rectangle<int>(xPos, yPos, imageWidth, imageHeight);
+        _renderer.RenderTextureScreenSpace(_gameOverImageTextureId, srcRect, destRect);
+    }
         _renderer.PresentFrame();
     }
 
@@ -193,23 +267,24 @@ public class Engine
 
         foreach (var id in toRemove)
         {
-            _gameObjects.Remove(id, out var gameObject);
-
-            if (_player == null)
+            if (_gameObjects.Remove(id, out var removedGameObject) && removedGameObject is TemporaryGameObject tempGameObject)
             {
-                continue;
-            }
+                if (_player != null && _player.State.State != PlayerObject.PlayerState.GameOver)
+                {
+                    var playerCollisionRadius = 16; 
+                    var bombExplosionRadius = tempGameObject.SpriteSheet.FrameWidth / 2; 
 
-            var tempGameObject = (TemporaryGameObject)gameObject!;
-            var deltaX = Math.Abs(_player.Position.X - tempGameObject.Position.X);
-            var deltaY = Math.Abs(_player.Position.Y - tempGameObject.Position.Y);
-            if (deltaX < 32 && deltaY < 32)
-            {
-                _player.GameOver();
+                    var deltaX = Math.Abs(_player.Position.X - tempGameObject.Position.X);
+                    var deltaY = Math.Abs(_player.Position.Y - tempGameObject.Position.Y);
+
+                    if (deltaX < playerCollisionRadius + bombExplosionRadius &&
+                        deltaY < playerCollisionRadius + bombExplosionRadius) 
+                    {
+                        _player.GameOver();
+                    }
+                }
             }
         }
-
-        _player?.Render(_renderer);
     }
 
     public void RenderTerrain()

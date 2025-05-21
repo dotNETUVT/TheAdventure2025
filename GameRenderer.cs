@@ -11,7 +11,7 @@ public unsafe class GameRenderer
 {
     private Sdl _sdl;
     private Renderer* _renderer;
-    private GameWindow _window;
+    public GameWindow _window;
     private Camera _camera;
 
     private Dictionary<int, IntPtr> _texturePointers = new();
@@ -79,15 +79,31 @@ public unsafe class GameRenderer
     }
 
     public void RenderTexture(int textureId, Rectangle<int> src, Rectangle<int> dst,
+        RendererFlip flip = RendererFlip.None, double angle = 0.0, Point center = default, bool useCamera = true)
+    {
+        if (_texturePointers.TryGetValue(textureId, out var imageTexturePtr))
+        {
+            var texture = (Texture*)imageTexturePtr;
+            if (texture == null) return;
+
+            Rectangle<int> finalDst = dst;
+            if (useCamera)
+            {
+                finalDst = _camera.ToScreenCoordinates(dst);
+            }
+            _sdl.RenderCopyEx(_renderer, texture, src, finalDst, angle, center, flip);
+        }
+    }
+    
+    public void RenderTextureScreenSpace(int textureId, Rectangle<int> src, Rectangle<int> dst,
         RendererFlip flip = RendererFlip.None, double angle = 0.0, Point center = default)
     {
-        if (_texturePointers.TryGetValue(textureId, out var imageTexture))
+        if (_texturePointers.TryGetValue(textureId, out var imageTexturePtr))
         {
-            var translatedDst = _camera.ToScreenCoordinates(dst);
-            _sdl.RenderCopyEx(_renderer, (Texture*)imageTexture, in src,
-                in translatedDst,
-                angle,
-                in center, flip);
+            var texture = (Texture*)imageTexturePtr;
+            if (texture == null) return;
+
+            _sdl.RenderCopyEx(_renderer, texture, src, dst, angle, center, flip);
         }
     }
 
@@ -109,5 +125,18 @@ public unsafe class GameRenderer
     public void PresentFrame()
     {
         _sdl.RenderPresent(_renderer);
+    }
+    
+    public void ClearAllLoadedData()
+    {
+        foreach (var texturePtrValue in _texturePointers.Values)
+        {
+            if (texturePtrValue != IntPtr.Zero)
+            {
+                _sdl.DestroyTexture((Texture*)texturePtrValue);
+            }
+        }
+        _texturePointers.Clear();
+        _textureData.Clear();
     }
 }
