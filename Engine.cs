@@ -1,9 +1,11 @@
+using System.Reflection;
 using System.Text.Json;
 using Silk.NET.Maths;
 using TheAdventure.Models;
 using TheAdventure.Models.Data;
 using TheAdventure.Scripting;
-
+using System.Collections.Generic;
+using System.Linq;
 
 namespace TheAdventure;
 
@@ -80,9 +82,9 @@ public class Engine
     public void SpawnSpeedBoostPowerUp(int x, int y)
     {
         SpriteSheet spriteSheet = SpriteSheet.Load(_renderer, "SpeedBoost.json", "Assets");
-   
-        spriteSheet.ActivateAnimation("Idle"); 
-        
+
+        spriteSheet.ActivateAnimation("Idle");
+
         SpeedBoostPowerUp powerUp = new(spriteSheet, (x, y));
         _gameObjects.Add(powerUp.Id, powerUp);
     }
@@ -99,7 +101,7 @@ public class Engine
             if (kvp.Value is PowerUp powerUp && !powerUp.IsCollected)
             {
                 var powerUpBounds = powerUp.GetBoundingBox();
-                
+
                 bool collision = playerBounds.Origin.X < powerUpBounds.Origin.X + powerUpBounds.Size.X &&
                                  playerBounds.Origin.X + playerBounds.Size.X > powerUpBounds.Origin.X &&
                                  playerBounds.Origin.Y < powerUpBounds.Origin.Y + powerUpBounds.Size.Y &&
@@ -108,10 +110,46 @@ public class Engine
                 if (collision)
                 {
                     powerUp.ApplyEffect(_player);
-                    powerUp.Collect(); 
+                    powerUp.Collect();
                     collectedPowerUpIds.Add(powerUp.Id);
                 }
             }
+        }
+    }
+
+    public void DestroyBombsNearPlayerOnAttack()
+    {
+        if (_player == null)
+        {
+            return;
+        }
+
+        var playerPosition = _player.Position;
+        var attackRadius = 48.0; // Define the "very small radius" for bomb destruction.
+        var bombsToDestroy = new List<int>();
+
+        foreach (var kvp in _gameObjects)
+        {
+            if (kvp.Value is TemporaryGameObject tempGo)
+            {
+                // Identify bombs by their SpriteSheet filename.
+                if (tempGo.SpriteSheet.FileName == "BombExploding.png")
+                {
+                    var bombPosition = tempGo.Position;
+                    var distanceSquared = Math.Pow(playerPosition.X - bombPosition.X, 2) +
+                                          Math.Pow(playerPosition.Y - bombPosition.Y, 2);
+
+                    if (distanceSquared < attackRadius * attackRadius)
+                    {
+                        bombsToDestroy.Add(kvp.Key);
+                    }
+                }
+            }
+        }
+
+        foreach (var bombId in bombsToDestroy)
+        {
+            _gameObjects.Remove(bombId);
         }
     }
 
@@ -131,16 +169,22 @@ public class Engine
         double down = _input.IsDownPressed() ? 1.0 : 0.0;
         double left = _input.IsLeftPressed() ? 1.0 : 0.0;
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
-        bool isAttacking = _input.IsKeyAPressed() && (up + down + left + right <= 1);
+        bool wantsToAttack = _input.IsKeyAPressed() && (up + down + left + right <= 1); // Player wants to attack and is mostly stationary
         bool addBomb = _input.IsKeyBPressed();
 
         _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame);
-        if (isAttacking)
+
+        if (wantsToAttack)
         {
-            _player.Attack();
+            // Trigger attack if player is not already attacking OR if the previous attack animation finished
+            if (_player.State.State != PlayerObject.PlayerState.Attack || _player.SpriteSheet.AnimationFinished)
+            {
+                _player.Attack(); // Set player state to Attack and start animation
+                DestroyBombsNearPlayerOnAttack(); // Call the new method to destroy nearby bombs
+            }
         }
-        
-        ProcessPowerUpCollisions(); 
+
+        ProcessPowerUpCollisions();
 
         _scriptEngine.ExecuteAll(this); // Scripts will run here, potentially spawning power-ups
 
@@ -155,7 +199,7 @@ public class Engine
         _renderer.SetDrawColor(0, 0, 0, 255);
         _renderer.ClearScreen();
 
-        if(_player == null) return; 
+        if(_player == null) return;
 
         var playerPosition = _player.Position;
         _renderer.CameraLookAt(playerPosition.X, playerPosition.Y);
@@ -169,7 +213,7 @@ public class Engine
     public void RenderAllObjects()
     {
         var toRemove = new List<int>();
-        foreach (var gameObject in GetRenderables()) 
+        foreach (var gameObject in GetRenderables())
         {
             gameObject.Render(_renderer);
             if (gameObject is TemporaryGameObject { IsExpired: true } tempGameObject)
@@ -178,7 +222,7 @@ public class Engine
             }
             else if (gameObject is PowerUp { IsCollected: true } powerUp)
             {
-                toRemove.Add(powerUp.Id); 
+                toRemove.Add(powerUp.Id);
             }
         }
 
@@ -190,7 +234,7 @@ public class Engine
                 {
                     var deltaX = Math.Abs(_player.Position.X - tempGameObject.Position.X);
                     var deltaY = Math.Abs(_player.Position.Y - tempGameObject.Position.Y);
-                    if (deltaX < 32 && deltaY < 32) 
+                    if (deltaX < 32 && deltaY < 32)
                     {
                         _player.GameOver();
                     }
@@ -213,20 +257,20 @@ public class Engine
             {
                 for (int j = 0; j < _currentLevel.Height; ++j)
                 {
-                    int dataIndex = j * currentLayer.Width.Value + i; 
-                    if (dataIndex < 0 || dataIndex >= currentLayer.Data.Count) 
-                    {
-                        continue;
-                    }
-                    
-                    var tileGid = currentLayer.Data[dataIndex];
-                    if (!tileGid.HasValue || tileGid.Value == 0) 
+                    int dataIndex = j * currentLayer.Width.Value + i;
+                    if (dataIndex < 0 || dataIndex >= currentLayer.Data.Count)
                     {
                         continue;
                     }
 
-                    var currentTileId = tileGid.Value - 1; 
-                    
+                    var tileGid = currentLayer.Data[dataIndex];
+                    if (!tileGid.HasValue || tileGid.Value == 0)
+                    {
+                        continue;
+                    }
+
+                    var currentTileId = tileGid.Value - 1;
+
                     if (!_tileIdMap.TryGetValue(currentTileId, out var currentTile))
                     {
                         continue;
@@ -258,7 +302,7 @@ public class Engine
 
     public (int X, int Y) GetPlayerPosition()
     {
-        if (_player == null) return (0,0); 
+        if (_player == null) return (0,0);
         return _player.Position;
     }
 
