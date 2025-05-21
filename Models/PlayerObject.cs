@@ -6,12 +6,9 @@ namespace TheAdventure.Models;
 public class PlayerObject : RenderableGameObject
 {
     private const int _speed = 128;
-
-    public int MaxHealth { get; private set; } = 100; // 4 hearts * 25 points/heart
-
+    public int MaxHealth { get; private set; } = 100;
     public int CurrentHealth { get; private set; }
     private bool _isDead = false;
-
     private (int X, int Y) _initialPosition;
 
     public enum PlayerStateDirection { None = 0, Down, Up, Left, Right, }
@@ -45,8 +42,22 @@ public class PlayerObject : RenderableGameObject
         Console.WriteLine($"Player took {amount} damage. Current Health: {CurrentHealth}/{MaxHealth}");
     }
 
+    // New Heal method
+    public void Heal(int amount)
+    {
+        if (_isDead) return; // Cannot heal if dead
+
+        CurrentHealth += amount;
+        if (CurrentHealth > MaxHealth)
+        {
+            CurrentHealth = MaxHealth;
+        }
+        Console.WriteLine($"Player healed by {amount}. Current Health: {CurrentHealth}/{MaxHealth}");
+    }
+
     public void SetState(PlayerState newState, PlayerStateDirection newDirection)
     {
+        // ... (SetState logic remains the same as the last correct version) ...
         if (_isDead && newState != PlayerState.GameOver)
         {
             return;
@@ -78,6 +89,7 @@ public class PlayerObject : RenderableGameObject
 
     public void GameOver()
     {
+        // ... (GameOver logic remains the same) ...
         if (!_isDead)
         {
             Console.WriteLine("Player GameOver triggered.");
@@ -93,6 +105,7 @@ public class PlayerObject : RenderableGameObject
 
     public void Attack()
     {
+        // ... (Attack logic remains the same) ...
         if (IsDead() || this.State.State == PlayerState.Attack)
         {
             return;
@@ -107,6 +120,7 @@ public class PlayerObject : RenderableGameObject
 
     public void UpdatePosition(double up, double down, double left, double right, int width, int height, double time)
     {
+        // ... (UpdatePosition logic remains the same) ...
         if (IsDead())
         {
             if (this.State.State == PlayerState.GameOver && SpriteSheet.ActiveAnimation != null && !SpriteSheet.ActiveAnimation.Loop && SpriteSheet.AnimationFinished)
@@ -141,7 +155,6 @@ public class PlayerObject : RenderableGameObject
             {
                 targetState = PlayerState.Move;
             }
-            // Basic direction update, can be refined for better diagonal animation priority
             if (newY < Position.Y) targetDirection = PlayerStateDirection.Up;
             else if (newY > Position.Y) targetDirection = PlayerStateDirection.Down;
             else if (newX < Position.X) targetDirection = PlayerStateDirection.Left;
@@ -153,7 +166,7 @@ public class PlayerObject : RenderableGameObject
             }
             else if (targetDirection == PlayerStateDirection.None)
             {
-                targetDirection = PlayerStateDirection.Down; // Default if no movement or clear direction
+                targetDirection = PlayerStateDirection.Down;
             }
         }
         SetState(targetState, targetDirection);
