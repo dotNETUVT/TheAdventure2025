@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 using System.Text.Json;
 using Silk.NET.Maths;
 using TheAdventure.Models;
@@ -23,6 +23,10 @@ public class Engine
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
     private DateTimeOffset _startTime = DateTimeOffset.Now;
     private int _score = 0;
+
+    private int _lastElapsedTime = 0;
+
+    private bool _isGameOver = false;
 
     public Engine(GameRenderer renderer, Input input)
     {
@@ -77,6 +81,22 @@ public class Engine
         _currentLevel = level;
 
         _scriptEngine.LoadAll(Path.Combine("Assets", "Scripts"));
+
+        var rand = new Random();
+        for (int i = 0; i < 5; i++)
+        {
+            int x = rand.Next(100, 800);
+            int y = rand.Next(100, 500);
+            AddCoin(x, y);
+        }
+
+        var random = new Random();
+        for (int i = 0; i < 20; i++)
+        {
+            int x = random.Next(100, 1000); 
+            int y = random.Next(100, 800);
+            AddCoin(x, y, translateCoordinates: true);
+        }
     }
 
     public void ProcessFrame()
@@ -85,13 +105,13 @@ public class Engine
         var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
         _lastUpdate = currentTime;
 
-        var elapsedTime = (int)(currentTime - _startTime).TotalSeconds;
-        _score = elapsedTime;
+        int elapsedTime = (int)(currentTime - _startTime).TotalSeconds;
 
         if (_player == null)
-        {
             return;
-        }
+
+        if (_isGameOver)
+            return;
 
         double up = _input.IsUpPressed() ? 1.0 : 0.0;
         double down = _input.IsDownPressed() ? 1.0 : 0.0;
@@ -105,13 +125,15 @@ public class Engine
         {
             _player.Attack();
         }
-        
+
         _scriptEngine.ExecuteAll(this);
 
         if (addBomb)
         {
             AddBomb(_player.Position.X, _player.Position.Y, false);
         }
+
+        _lastElapsedTime = elapsedTime;
     }
 
     public void RenderFrame()
@@ -125,7 +147,14 @@ public class Engine
         RenderTerrain();
         RenderAllObjects();
 
-        _renderer.DrawText($"Score: {_score} | Time: {(int)(DateTimeOffset.Now - _startTime).TotalSeconds}s", 20, 20);
+        if (_isGameOver)
+        {
+            _renderer.DrawText($"Game Over! Final Score: {_score} | Time: {_lastElapsedTime}s", 20, 20);
+        }
+        else
+        {
+            _renderer.DrawText($"Score: {_score} | Time: {_lastElapsedTime}s", 20, 20);
+        }
 
         _renderer.PresentFrame();
     }
@@ -140,6 +169,16 @@ public class Engine
             {
                 toRemove.Add(tempGameObject.Id);
             }
+            else if (gameObject is CoinObject coin)
+            {
+                var deltaX = Math.Abs(_player.Position.X - coin.Position.X);
+                var deltaY = Math.Abs(_player.Position.Y - coin.Position.Y);
+                if (deltaX < 32 && deltaY < 32)
+                {
+                    toRemove.Add(coin.Id);
+                    _score += 5;
+                }
+            }
         }
 
         foreach (var id in toRemove)
@@ -151,12 +190,15 @@ public class Engine
                 continue;
             }
 
-            var tempGameObject = (TemporaryGameObject)gameObject!;
-            var deltaX = Math.Abs(_player.Position.X - tempGameObject.Position.X);
-            var deltaY = Math.Abs(_player.Position.Y - tempGameObject.Position.Y);
-            if (deltaX < 32 && deltaY < 32)
+            if (gameObject is TemporaryGameObject tempGameObject && tempGameObject is not CoinObject)
             {
-                _player.GameOver();
+                var deltaX = Math.Abs(_player.Position.X - tempGameObject.Position.X);
+                var deltaY = Math.Abs(_player.Position.Y - tempGameObject.Position.Y);
+                if (deltaX < 32 && deltaY < 32)
+                {
+                    _player.GameOver();
+                    _isGameOver = true;
+                }
             }
         }
 
@@ -221,5 +263,16 @@ public class Engine
 
         TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
         _gameObjects.Add(bomb.Id, bomb);
+    }
+
+    public void AddCoin(int x, int y, bool translateCoordinates = true)
+    {
+        var worldCoords = translateCoordinates ? _renderer.ToWorldCoordinates(x, y) : new Vector2D<int>(x, y);
+
+        var spriteSheet = SpriteSheet.Load(_renderer, "Coin.json", "Assets");
+        spriteSheet.ActivateAnimation("Idle");
+        CoinObject coin = new(spriteSheet, (worldCoords.X, worldCoords.Y));
+
+        _gameObjects.Add(coin.Id, coin);
     }
 }
