@@ -21,6 +21,8 @@ public class Engine
     private PlayerObject? _player;
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
+    private DateTimeOffset _startTime = DateTimeOffset.Now;
+    private int _score = 0;
 
     public Engine(GameRenderer renderer, Input input)
     {
@@ -83,6 +85,9 @@ public class Engine
         var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
         _lastUpdate = currentTime;
 
+        var elapsedTime = (int)(currentTime - _startTime).TotalSeconds;
+        _score = elapsedTime;
+
         if (_player == null)
         {
             return;
@@ -119,6 +124,8 @@ public class Engine
 
         RenderTerrain();
         RenderAllObjects();
+
+        _renderer.DrawText($"Score: {_score} | Time: {(int)(DateTimeOffset.Now - _startTime).TotalSeconds}s", 20, 20);
 
         _renderer.PresentFrame();
     }
