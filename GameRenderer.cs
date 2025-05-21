@@ -4,6 +4,7 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using TheAdventure.Models;
 using Point = Silk.NET.SDL.Point;
+using SDL_Rect = Silk.NET.SDL.FRect;
 
 namespace TheAdventure;
 
@@ -18,13 +19,18 @@ public unsafe class GameRenderer
     private Dictionary<int, TextureData> _textureData = new();
     private int _textureId;
 
+    // Mini-map constants
+    private const int MiniMapWidth = 150;
+    private const int MiniMapHeight = 150;
+    private const int MiniMapMargin = 10;
+
     public GameRenderer(Sdl sdl, GameWindow window)
     {
         _sdl = sdl;
-        
+
         _renderer = (Renderer*)window.CreateRenderer();
         _sdl.SetRenderDrawBlendMode(_renderer, BlendMode.Blend);
-        
+
         _window = window;
         var windowSize = window.Size;
         _camera = new Camera(windowSize.Width, windowSize.Height);
@@ -60,16 +66,16 @@ public unsafe class GameRenderer
                 {
                     throw new Exception("Failed to create surface from image data.");
                 }
-                
+
                 var imageTexture = _sdl.CreateTextureFromSurface(_renderer, imageSurface);
                 if (imageTexture == null)
                 {
                     _sdl.FreeSurface(imageSurface);
                     throw new Exception("Failed to create texture from surface.");
                 }
-                
+
                 _sdl.FreeSurface(imageSurface);
-                
+
                 _textureData[_textureId] = textureInfo;
                 _texturePointers[_textureId] = (IntPtr)imageTexture;
             }
@@ -109,5 +115,61 @@ public unsafe class GameRenderer
     public void PresentFrame()
     {
         _sdl.RenderPresent(_renderer);
+    }
+
+    public void RenderMiniMap(List<GameObject> gameObjects, GameObject player, int worldWidth, int worldHeight, float zoom)
+    {
+        int miniMapX = _window.Size.Width - MiniMapWidth - MiniMapMargin;
+        int miniMapY = MiniMapMargin;
+
+        DrawFilledRect(miniMapX, miniMapY, MiniMapWidth, MiniMapHeight, 80, 80, 80, 180);
+
+        foreach (var obj in gameObjects)
+        {
+            if (obj is not RenderableGameObject renderable) continue;
+
+            float relX = renderable.Position.X / (float)worldWidth;
+            float relY = renderable.Position.Y / (float)worldHeight;
+
+            relX /= zoom;
+            relY /= zoom;
+
+            int dotX = miniMapX + (int)(relX * MiniMapWidth);
+            int dotY = miniMapY + (int)(relY * MiniMapHeight);
+
+            byte r = 255, g = 255, b = 255;
+
+            if (obj == player)
+            {
+                r = 0; g = 255; b = 0; // Green
+            }
+            else if (obj.GetType().Name.Contains("Enemy"))
+            {
+                r = 255; g = 0; b = 0; // Red
+            }
+            else if (obj is TemporaryGameObject)
+            {
+                r = 255; g = 255; b = 0; // Yellow
+            }
+            else if (obj.GetType().Name.Contains("Npc"))
+            {
+                r = 0; g = 0; b = 255; // Blue
+            }
+
+            DrawPixel(dotX, dotY, r, g, b);
+        }
+    }
+
+    private void DrawFilledRect(int x, int y, int w, int h, byte r, byte g, byte b, byte a)
+    {
+        SetDrawColor(r, g, b, a);
+        SDL_Rect rect = new SDL_Rect { X = x, Y = y, W = w, H = h };
+        _sdl.RenderFillRect(_renderer, (Rectangle<int>*)&rect);
+    }
+
+    private void DrawPixel(int x, int y, byte r, byte g, byte b, byte a = 255)
+    {
+        SetDrawColor(r, g, b, a);
+        _sdl.RenderDrawPoint(_renderer, x, y);
     }
 }

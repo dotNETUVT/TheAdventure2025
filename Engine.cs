@@ -22,6 +22,10 @@ public class Engine
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
 
+    private bool _showMiniMap = true;
+    private float _miniMapZoom = 1.0f;
+    private DateTimeOffset _lastToggleTime = DateTimeOffset.Now;
+
     public Engine(GameRenderer renderer, Input input)
     {
         _renderer = renderer;
@@ -88,6 +92,24 @@ public class Engine
             return;
         }
 
+        // Handle Mini-Map Toggle and Zoom
+        var now = DateTimeOffset.Now;
+        if (_input.IsKeyMPressed() && (now - _lastToggleTime).TotalMilliseconds > 300)
+        {
+            _showMiniMap = !_showMiniMap;
+            _lastToggleTime = now;
+        }
+
+        if (_input.IsKeyPlusPressed())
+        {
+            _miniMapZoom = Math.Max(0.1f, _miniMapZoom - 0.05f);
+        }
+
+        if (_input.IsKeyMinusPressed())
+        {
+            _miniMapZoom = Math.Min(2.0f, _miniMapZoom + 0.05f);
+        }
+
         double up = _input.IsUpPressed() ? 1.0 : 0.0;
         double down = _input.IsDownPressed() ? 1.0 : 0.0;
         double left = _input.IsLeftPressed() ? 1.0 : 0.0;
@@ -100,7 +122,7 @@ public class Engine
         {
             _player.Attack();
         }
-        
+
         _scriptEngine.ExecuteAll(this);
 
         if (addBomb)
@@ -119,6 +141,17 @@ public class Engine
 
         RenderTerrain();
         RenderAllObjects();
+
+        if (_showMiniMap)
+        {
+            List<GameObject> allObjects = new() { _player! };
+            allObjects.AddRange(_gameObjects.Values);
+
+            int worldWidth = _currentLevel.Width!.Value * _currentLevel.TileWidth!.Value;
+            int worldHeight = _currentLevel.Height!.Value * _currentLevel.TileHeight!.Value;
+
+            _renderer.RenderMiniMap(allObjects, _player!, worldWidth, worldHeight, _miniMapZoom);
+        }
 
         _renderer.PresentFrame();
     }
