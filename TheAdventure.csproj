@@ -13,7 +13,9 @@
       <PackageReference Include="Silk.NET.Input.Sdl" Version="2.22.0" />
       <PackageReference Include="Silk.NET.SDL" Version="2.22.0" />
       <PackageReference Include="Silk.NET.Windowing.Sdl" Version="2.22.0" />
+      <PackageReference Include="SixLabors.Fonts" Version="1.0.0" />
       <PackageReference Include="SixLabors.ImageSharp" Version="3.1.7" />
+      <PackageReference Include="SixLabors.ImageSharp.Drawing" Version="1.0.0" />
     </ItemGroup>
 
     <ItemGroup>
