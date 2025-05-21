@@ -1,10 +1,34 @@
 using Silk.NET.Maths;
+using System.Collections.Generic;
+using System.Linq;
+using System; // Required for Enum.GetName
 
 namespace TheAdventure.Models;
 
+public enum EffectType
+{
+    SpeedBoost
+}
+
+public class ActivePlayerEffect
+{
+    public EffectType Type { get; }
+    public double TimeRemainingMs { get; set; }
+    public object Data { get; } // e.g., float for speed multiplier
+
+    public ActivePlayerEffect(EffectType type, double durationMs, object data)
+    {
+        Type = type;
+        TimeRemainingMs = durationMs;
+        Data = data;
+    }
+}
+
 public class PlayerObject : RenderableGameObject
 {
-    private const int _speed = 128; // pixels per second
+    private const int BASE_SPEED = 128; // pixels per second
+    public float CurrentSpeedMultiplier { get; private set; } = 1.0f;
+    private List<ActivePlayerEffect> _activeEffects = new();
 
     public enum PlayerStateDirection
     {
@@ -52,7 +76,6 @@ public class PlayerObject : RenderableGameObject
         {
             SpriteSheet.ActivateAnimation(null);
         }
-
         else if (state == PlayerState.GameOver)
         {
             SpriteSheet.ActivateAnimation(Enum.GetName(state));
@@ -82,14 +105,55 @@ public class PlayerObject : RenderableGameObject
         SetState(PlayerState.Attack, direction);
     }
 
+    private void UpdateEffects(double msSinceLastFrame)
+    {
+        bool effectsChanged = false;
+        for (int i = _activeEffects.Count - 1; i >= 0; i--)
+        {
+            var effect = _activeEffects[i];
+            effect.TimeRemainingMs -= msSinceLastFrame;
+            if (effect.TimeRemainingMs <= 0)
+            {
+                _activeEffects.RemoveAt(i);
+                effectsChanged = true;
+            }
+        }
+
+        if (effectsChanged)
+        {
+            RecalculateSpeedMultiplier();
+        }
+    }
+
+    private void RecalculateSpeedMultiplier()
+    {
+        CurrentSpeedMultiplier = 1.0f; // Reset to base
+        var speedBoostEffect = _activeEffects.FirstOrDefault(e => e.Type == EffectType.SpeedBoost);
+        if (speedBoostEffect != null)
+        {
+            CurrentSpeedMultiplier = (float)speedBoostEffect.Data;
+        }
+        // In the future, if multiple effects can alter speed, logic here would combine them.
+    }
+
+    public void ApplySpeedBoost(float multiplier, double durationMs)
+    {
+        // Remove any existing speed boost to apply the new one (or decide on stacking logic)
+        _activeEffects.RemoveAll(e => e.Type == EffectType.SpeedBoost);
+        _activeEffects.Add(new ActivePlayerEffect(EffectType.SpeedBoost, durationMs, multiplier));
+        RecalculateSpeedMultiplier(); // Immediately apply the new multiplier
+    }
+
     public void UpdatePosition(double up, double down, double left, double right, int width, int height, double time)
     {
+        UpdateEffects(time); // Update active effects and their durations
+
         if (State.State == PlayerState.GameOver)
         {
             return;
         }
 
-        var pixelsToMove = _speed * (time / 1000.0);
+        var pixelsToMove = BASE_SPEED * CurrentSpeedMultiplier * (time / 1000.0);
 
         var x = Position.X + (int)(right * pixelsToMove);
         x -= (int)(left * pixelsToMove);
@@ -118,26 +182,36 @@ public class PlayerObject : RenderableGameObject
         {
             newState = PlayerState.Move;
             
-            if (y < Position.Y && newDirection != PlayerStateDirection.Up)
+            if (y < Position.Y && (Math.Abs(y - Position.Y) > Math.Abs(x - Position.X) || right == 0.0 && left == 0.0))
             {
                 newDirection = PlayerStateDirection.Up;
             }
-
-            if (y > Position.Y && newDirection != PlayerStateDirection.Down)
+            else if (y > Position.Y && (Math.Abs(y - Position.Y) > Math.Abs(x - Position.X) || right == 0.0 && left == 0.0))
             {
                 newDirection = PlayerStateDirection.Down;
             }
-
-            if (x < Position.X && newDirection != PlayerStateDirection.Left)
+            else if (x < Position.X && (Math.Abs(x - Position.X) >= Math.Abs(y - Position.Y) || up == 0.0 && down == 0.0))
             {
                 newDirection = PlayerStateDirection.Left;
             }
-
-            if (x > Position.X && newDirection != PlayerStateDirection.Right)
+            else if (x > Position.X && (Math.Abs(x - Position.X) >= Math.Abs(y - Position.Y) || up == 0.0 && down == 0.0))
             {
                 newDirection = PlayerStateDirection.Right;
             }
         }
+        
+        // Fix for direction sticking when stopping diagonal movement
+        if (newState == PlayerState.Idle)
+        {
+            // Keep current direction unless it was None
+            if (State.Direction != PlayerStateDirection.None) {
+                newDirection = State.Direction;
+            } else {
+                 // Default to down if no prior direction
+                newDirection = PlayerStateDirection.Down;
+            }
+        }
+
 
         if (newState != State.State || newDirection != State.Direction)
         {

@@ -4,6 +4,8 @@ using Silk.NET.Maths;
 using TheAdventure.Models;
 using TheAdventure.Models.Data;
 using TheAdventure.Scripting;
+using System.Collections.Generic; 
+using System.Linq; 
 
 namespace TheAdventure;
 
@@ -77,6 +79,45 @@ public class Engine
         _scriptEngine.LoadAll(Path.Combine("Assets", "Scripts"));
     }
 
+    public void SpawnSpeedBoostPowerUp(int x, int y)
+    {
+        SpriteSheet spriteSheet = SpriteSheet.Load(_renderer, "SpeedBoost.json", "Assets");
+   
+        spriteSheet.ActivateAnimation("Idle"); 
+        
+        SpeedBoostPowerUp powerUp = new(spriteSheet, (x, y));
+        _gameObjects.Add(powerUp.Id, powerUp);
+    }
+
+    private void ProcessPowerUpCollisions()
+    {
+        if (_player == null || _player.State.State == PlayerObject.PlayerState.GameOver) return;
+
+        var playerBounds = _player.GetBoundingBox();
+        List<int> collectedPowerUpIds = new List<int>();
+
+        foreach (var kvp in _gameObjects)
+        {
+            if (kvp.Value is PowerUp powerUp && !powerUp.IsCollected)
+            {
+                var powerUpBounds = powerUp.GetBoundingBox();
+                
+                bool collision = playerBounds.Origin.X < powerUpBounds.Origin.X + powerUpBounds.Size.X &&
+                                 playerBounds.Origin.X + playerBounds.Size.X > powerUpBounds.Origin.X &&
+                                 playerBounds.Origin.Y < powerUpBounds.Origin.Y + powerUpBounds.Size.Y &&
+                                 playerBounds.Origin.Y + playerBounds.Size.Y > powerUpBounds.Origin.Y;
+
+                if (collision)
+                {
+                    powerUp.ApplyEffect(_player);
+                    powerUp.Collect(); 
+                    collectedPowerUpIds.Add(powerUp.Id);
+                }
+            }
+        }
+    }
+
+
     public void ProcessFrame()
     {
         var currentTime = DateTimeOffset.Now;
@@ -101,7 +142,9 @@ public class Engine
             _player.Attack();
         }
         
-        _scriptEngine.ExecuteAll(this);
+        ProcessPowerUpCollisions(); 
+
+        _scriptEngine.ExecuteAll(this); // Scripts will run here, potentially spawning power-ups
 
         if (addBomb)
         {
@@ -114,7 +157,9 @@ public class Engine
         _renderer.SetDrawColor(0, 0, 0, 255);
         _renderer.ClearScreen();
 
-        var playerPosition = _player!.Position;
+        if(_player == null) return; 
+
+        var playerPosition = _player.Position;
         _renderer.CameraLookAt(playerPosition.X, playerPosition.Y);
 
         RenderTerrain();
@@ -126,30 +171,32 @@ public class Engine
     public void RenderAllObjects()
     {
         var toRemove = new List<int>();
-        foreach (var gameObject in GetRenderables())
+        foreach (var gameObject in GetRenderables()) 
         {
             gameObject.Render(_renderer);
             if (gameObject is TemporaryGameObject { IsExpired: true } tempGameObject)
             {
                 toRemove.Add(tempGameObject.Id);
             }
+            else if (gameObject is PowerUp { IsCollected: true } powerUp)
+            {
+                toRemove.Add(powerUp.Id); 
+            }
         }
 
         foreach (var id in toRemove)
         {
-            _gameObjects.Remove(id, out var gameObject);
-
-            if (_player == null)
+            if (_gameObjects.Remove(id, out var gameObject))
             {
-                continue;
-            }
-
-            var tempGameObject = (TemporaryGameObject)gameObject!;
-            var deltaX = Math.Abs(_player.Position.X - tempGameObject.Position.X);
-            var deltaY = Math.Abs(_player.Position.Y - tempGameObject.Position.Y);
-            if (deltaX < 32 && deltaY < 32)
-            {
-                _player.GameOver();
+                if (gameObject is TemporaryGameObject tempGameObject && _player != null)
+                {
+                    var deltaX = Math.Abs(_player.Position.X - tempGameObject.Position.X);
+                    var deltaY = Math.Abs(_player.Position.Y - tempGameObject.Position.Y);
+                    if (deltaX < 32 && deltaY < 32) 
+                    {
+                        _player.GameOver();
+                    }
+                }
             }
         }
 
@@ -158,31 +205,42 @@ public class Engine
 
     public void RenderTerrain()
     {
+        if(_currentLevel == null || _currentLevel.Layers == null) return;
+
         foreach (var currentLayer in _currentLevel.Layers)
         {
+            if(currentLayer == null || currentLayer.Data == null || _currentLevel.Width == null || _currentLevel.Height == null || currentLayer.Width == null) continue;
+
             for (int i = 0; i < _currentLevel.Width; ++i)
             {
                 for (int j = 0; j < _currentLevel.Height; ++j)
                 {
-                    int? dataIndex = j * currentLayer.Width + i;
-                    if (dataIndex == null)
+                    int dataIndex = j * currentLayer.Width.Value + i; 
+                    if (dataIndex < 0 || dataIndex >= currentLayer.Data.Count) 
+                    {
+                        continue;
+                    }
+                    
+                    var tileGid = currentLayer.Data[dataIndex];
+                    if (!tileGid.HasValue || tileGid.Value == 0) 
                     {
                         continue;
                     }
 
-                    var currentTileId = currentLayer.Data[dataIndex.Value] - 1;
-                    if (currentTileId == null)
+                    var currentTileId = tileGid.Value - 1; 
+                    
+                    if (!_tileIdMap.TryGetValue(currentTileId, out var currentTile))
                     {
                         continue;
                     }
 
-                    var currentTile = _tileIdMap[currentTileId.Value];
+                    var tileWidth = currentTile.ImageWidth ?? _currentLevel.TileWidth ?? 0;
+                    var tileHeight = currentTile.ImageHeight ?? _currentLevel.TileHeight ?? 0;
+                    if(tileWidth == 0 || tileHeight == 0) continue;
 
-                    var tileWidth = currentTile.ImageWidth ?? 0;
-                    var tileHeight = currentTile.ImageHeight ?? 0;
 
                     var sourceRect = new Rectangle<int>(0, 0, tileWidth, tileHeight);
-                    var destRect = new Rectangle<int>(i * tileWidth, j * tileHeight, tileWidth, tileHeight);
+                    var destRect = new Rectangle<int>(i * (_currentLevel.TileWidth ?? 0), j * (_currentLevel.TileHeight ?? 0), tileWidth, tileHeight);
                     _renderer.RenderTexture(currentTile.TextureId, sourceRect, destRect);
                 }
             }
@@ -202,7 +260,8 @@ public class Engine
 
     public (int X, int Y) GetPlayerPosition()
     {
-        return _player!.Position;
+        if (_player == null) return (0,0); 
+        return _player.Position;
     }
 
     public void AddBomb(int X, int Y, bool translateCoordinates = true)
