@@ -1,10 +1,19 @@
 using Silk.NET.Maths;
+using System;
 
 namespace TheAdventure.Models;
 
 public class PlayerObject : RenderableGameObject
 {
-    private const int _speed = 128; // pixels per second
+    private const int _speed = 128;
+    private const int _treePadding = 60;
+
+    private int _mapWidth;
+    private int _mapHeight;
+    private const int _playerWidth = 32;
+    private const int _playerHeight = 32;
+
+    private int _bottomBoundaryHeight;
 
     public enum PlayerStateDirection
     {
@@ -29,11 +38,16 @@ public class PlayerObject : RenderableGameObject
     public PlayerObject(SpriteSheet spriteSheet, int x, int y) : base(spriteSheet, (x, y))
     {
         SetState(PlayerState.Idle, PlayerStateDirection.Down);
+        
+        SetMapBoundaries(1000, 1000);
     }
-
-    public void SetState(PlayerState state)
+    
+    public void SetMapBoundaries(int actualMapPixelWidth, int actualMapPixelHeight)
     {
-        SetState(state, State.Direction);
+        _mapWidth = actualMapPixelWidth;
+        _mapHeight = actualMapPixelHeight;
+        
+        _bottomBoundaryHeight = 380;
     }
 
     public void SetState(PlayerState state, PlayerStateDirection direction)
@@ -52,7 +66,6 @@ public class PlayerObject : RenderableGameObject
         {
             SpriteSheet.ActivateAnimation(null);
         }
-
         else if (state == PlayerState.GameOver)
         {
             SpriteSheet.ActivateAnimation(Enum.GetName(state));
@@ -81,7 +94,7 @@ public class PlayerObject : RenderableGameObject
         var direction = State.Direction;
         SetState(PlayerState.Attack, direction);
     }
-
+    
     public void UpdatePosition(double up, double down, double left, double right, int width, int height, double time)
     {
         if (State.State == PlayerState.GameOver)
@@ -97,6 +110,33 @@ public class PlayerObject : RenderableGameObject
         var y = Position.Y + (int)(down * pixelsToMove);
         y -= (int)(up * pixelsToMove);
 
+        int effectiveLeftBoundary = _treePadding;
+        int effectiveRightBoundary = _mapWidth - _playerWidth - _treePadding;
+        int effectiveTopBoundary = _treePadding;
+
+        if (x < effectiveLeftBoundary)
+        {
+            x = effectiveLeftBoundary;
+        }
+        
+        if (x > effectiveRightBoundary)
+        {
+            x = effectiveRightBoundary;
+        }
+        
+        if (y < effectiveTopBoundary)
+        {
+            y = effectiveTopBoundary;
+        }
+        
+        int playableAreaHeight = _mapHeight - _bottomBoundaryHeight;
+        int maxYPosition = playableAreaHeight - _playerHeight;
+
+        if (y > maxYPosition)
+        {
+            y = maxYPosition;
+        }
+        
         var newState = State.State;
         var newDirection = State.Direction;
 
