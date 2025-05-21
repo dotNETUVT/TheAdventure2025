@@ -19,8 +19,19 @@ public class Engine
 
     private Level _currentLevel = new();
     private PlayerObject? _player;
+    private int _score = 0;
+    private int _lastPrintedScore = -1;
+
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
+
+    private bool _wasHelpKeyPressed = false;
+    private bool _showingHelp = false;
+
+    private bool _wasBKeyPressed = false;
+    private bool _wasRKeyPressed = false;
+
+
 
     public Engine(GameRenderer renderer, Input input)
     {
@@ -108,19 +119,33 @@ public class Engine
         
         _scriptEngine.ExecuteAll(this);
 
-        if (addBomb)
+        if (addBomb && !_wasBKeyPressed)
         {
             AddBomb(_player.Position.X, _player.Position.Y, false);
+            _score += 10;
         }
+        _wasBKeyPressed = addBomb;
 
-        if (isReset)
+        if (isReset && !_wasRKeyPressed)
         {
             ResetPlayerPosition();
+            _score += 1;
+        }
+        _wasRKeyPressed = isReset;
+
+
+        if (showHelp && !_wasHelpKeyPressed)
+        {
+            _showingHelp = !_showingHelp;
+            ShowHelpMenu();
         }
 
-        if (showHelp)
+        _wasHelpKeyPressed = showHelp;
+
+        if (_score != _lastPrintedScore)
         {
-            ShowHelpMenu();
+            Console.WriteLine($"Score: {_score}");
+            _lastPrintedScore = _score;
         }
 
     }
@@ -129,6 +154,7 @@ public class Engine
     {
         _renderer.SetDrawColor(0, 0, 0, 255);
         _renderer.ClearScreen();
+
 
         var playerPosition = _player!.Position;
         _renderer.CameraLookAt(playerPosition.X, playerPosition.Y);
