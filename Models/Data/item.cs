@@ -1,13 +1,26 @@
-namespace TheAdventure2025.Models.Data
+namespace TheAdventure.Models.Data
 {
-    public enum ItemType { Weapon, Potion, Tool }
-    public enum Rarity { Common, Rare, Legendary }
+    public enum ItemType
+    {
+        Weapon,
+        Potion,
+        Tool,
+        Quest
+    }
+
+    public enum Rarity
+    {
+        Common,
+        Rare,
+        Epic,
+        Legendary
+    }
 
     public class Item
     {
-        public string Name { get; set; }
-        public ItemType Type { get; set; }
-        public Rarity Rarity { get; set; }
+        public string Name { get; }
+        public ItemType Type { get; }
+        public Rarity Rarity { get; }
 
         public Item(string name, ItemType type, Rarity rarity)
         {
@@ -18,7 +31,7 @@ namespace TheAdventure2025.Models.Data
 
         public override string ToString()
         {
-            return $"{Rarity} {Type}: {Name}";
+            return $"{Name} ({Type}, {Rarity})";
         }
     }
 }
