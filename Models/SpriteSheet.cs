@@ -1,6 +1,9 @@
 using System.Text.Json;
 using Silk.NET.Maths;
 using Silk.NET.SDL;
+using System.IO;        // For File, Path
+using System.Collections.Generic; // For Dictionary
+using System;           // For Exception, DateTimeOffset
 
 namespace TheAdventure.Models;
 
@@ -34,19 +37,19 @@ public class SpriteSheet
     public int FrameHeight { get; set; }
     public Offset FrameCenter { get; set; }
 
-    public string? FileName { get; set; }
+    public string? FileName { get; set; } // Image file name
 
     public Animation? ActiveAnimation { get; set; }
     public Dictionary<string, Animation> Animations { get; set; } = new();
-    
+
     public bool AnimationFinished { get; private set; }
 
     private int _textureId = -1;
     private DateTimeOffset _animationStart = DateTimeOffset.MinValue;
 
-    public static SpriteSheet Load(GameRenderer renderer, string fileName, string directory)
+    public static SpriteSheet Load(GameRenderer renderer, string jsonFileName, string directory)
     {
-        var json = File.ReadAllText(Path.Combine(directory, fileName));
+        var json = File.ReadAllText(Path.Combine(directory, jsonFileName));
         var spriteSheet = JsonSerializer.Deserialize<SpriteSheet>(json, new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
@@ -54,85 +57,104 @@ public class SpriteSheet
 
         if (spriteSheet == null)
         {
-            throw new Exception($"Failed to load sprite sheet: {fileName}");
+            throw new Exception($"Failed to load sprite sheet: {jsonFileName}");
         }
-
-        if (spriteSheet.FileName == null)
+        if (string.IsNullOrEmpty(spriteSheet.FileName))
         {
-            throw new Exception($"Sprite sheet {fileName} does not have a file name.");
+            throw new Exception($"Sprite sheet {jsonFileName} does not have a file name for its texture.");
         }
-
         if (spriteSheet.FrameWidth <= 0 || spriteSheet.FrameHeight <= 0)
         {
-            throw new Exception($"Sprite sheet {fileName} has invalid frame dimensions.");
+            throw new Exception($"Sprite sheet {jsonFileName} has invalid frame dimensions.");
         }
-
         if (spriteSheet.RowCount <= 0 || spriteSheet.ColumnCount <= 0)
         {
-            throw new Exception($"Sprite sheet {fileName} has invalid row/column count.");
+            // This might not be strictly necessary if animations define frames absolutely,
+            // but good for validation if calculations depend on it.
+            // For now, let's assume it's good to have.
         }
 
         spriteSheet._textureId = renderer.LoadTexture(Path.Combine(directory, spriteSheet.FileName), out _);
-        if (spriteSheet._textureId == -1)
+        if (spriteSheet._textureId == -1) // Assuming -1 is an invalid ID from LoadTexture
         {
             throw new Exception($"Failed to load texture for sprite sheet: {spriteSheet.FileName}");
         }
-
         return spriteSheet;
     }
 
     public void ActivateAnimation(string? name)
     {
+        AnimationFinished = false; // Reset this flag whenever a new animation is activated (or cleared)
         if (string.IsNullOrEmpty(name))
         {
-            AnimationFinished = true;
             ActiveAnimation = null;
+            AnimationFinished = true; // No animation, so it's "finished"
             return;
         }
-        
-        if (!Animations.TryGetValue(name, out var animation)) return;
+
+        if (!Animations.TryGetValue(name, out var animation))
+        {
+            // Optionally, log a warning or throw if animation name not found
+            Console.WriteLine($"Warning: Animation '{name}' not found in sprite sheet for {FileName}.");
+            ActiveAnimation = null; // Fallback to no animation
+            AnimationFinished = true;
+            return;
+        }
 
         ActiveAnimation = animation;
         _animationStart = DateTimeOffset.Now;
-        AnimationFinished = false;
+        // AnimationFinished is already set to false above
     }
 
     public void Render(GameRenderer renderer, (int X, int Y) dest, double angle = 0.0, Point rotationCenter = new())
     {
+        if (_textureId == -1) return; // Texture not loaded
+
         if (ActiveAnimation == null)
         {
-            renderer.RenderTexture(_textureId, new Rectangle<int>(0, 0, FrameWidth, FrameHeight),
-                new Rectangle<int>(dest.X - FrameCenter.OffsetX, dest.Y - FrameCenter.OffsetY, FrameWidth, FrameHeight),
-                RendererFlip.None, angle, rotationCenter);
+            // Default rendering: first frame or a defined "still" frame if no animation active
+            var srcRect = new Rectangle<int>(0, 0, FrameWidth, FrameHeight);
+            var dstRect = new Rectangle<int>(dest.X - FrameCenter.OffsetX, dest.Y - FrameCenter.OffsetY, FrameWidth, FrameHeight);
+            renderer.RenderTexture(_textureId, srcRect, dstRect, RendererFlip.None, angle, rotationCenter);
         }
         else
         {
-            var totalFrames = (ActiveAnimation.EndFrame.Row - ActiveAnimation.StartFrame.Row) * ColumnCount +
-                ActiveAnimation.EndFrame.Col - ActiveAnimation.StartFrame.Col;
-            var currentFrame = (int)((DateTimeOffset.Now - _animationStart).TotalMilliseconds /
-                                     (ActiveAnimation.DurationMs / (double)totalFrames));
-            if (currentFrame > totalFrames)
+            // Animation logic
+            var totalFramesInAnimation = (ActiveAnimation.EndFrame.Row - ActiveAnimation.StartFrame.Row) * ColumnCount +
+                                         (ActiveAnimation.EndFrame.Col - ActiveAnimation.StartFrame.Col) + 1; // +1 because EndFrame is inclusive
+
+            if (totalFramesInAnimation <= 0) totalFramesInAnimation = 1; // Avoid division by zero if animation is single frame
+
+            var timePerFrame = ActiveAnimation.DurationMs / (double)totalFramesInAnimation;
+            if (timePerFrame <= 0) timePerFrame = ActiveAnimation.DurationMs; // Handle single frame animations with duration
+
+            var elapsedMs = (DateTimeOffset.Now - _animationStart).TotalMilliseconds;
+            var currentFrameIndex = (int)(elapsedMs / timePerFrame);
+
+            if (currentFrameIndex >= totalFramesInAnimation)
             {
-                AnimationFinished = true;
-                
                 if (ActiveAnimation.Loop)
                 {
-                    _animationStart = DateTimeOffset.Now;
-                    currentFrame = 0;
+                    _animationStart = DateTimeOffset.Now; // Restart animation
+                    currentFrameIndex = 0;
                 }
                 else
                 {
-                    currentFrame = totalFrames;
+                    currentFrameIndex = totalFramesInAnimation - 1; // Clamp to last frame
+                    AnimationFinished = true;
                 }
             }
 
-            var currentRow = ActiveAnimation.StartFrame.Row + currentFrame / ColumnCount;
-            var currentCol = ActiveAnimation.StartFrame.Col + currentFrame % ColumnCount;
+            var startFrameLinearIndex = ActiveAnimation.StartFrame.Row * ColumnCount + ActiveAnimation.StartFrame.Col;
+            var currentLinearIndex = startFrameLinearIndex + currentFrameIndex;
 
-            renderer.RenderTexture(_textureId,
-                new Rectangle<int>(currentCol * FrameWidth, currentRow * FrameHeight, FrameWidth, FrameHeight),
-                new Rectangle<int>(dest.X - FrameCenter.OffsetX, dest.Y - FrameCenter.OffsetY, FrameWidth, FrameHeight),
-                ActiveAnimation.Flip, angle, rotationCenter);
+            var currentRow = currentLinearIndex / ColumnCount;
+            var currentCol = currentLinearIndex % ColumnCount;
+
+            var srcRect = new Rectangle<int>(currentCol * FrameWidth, currentRow * FrameHeight, FrameWidth, FrameHeight);
+            var dstRect = new Rectangle<int>(dest.X - FrameCenter.OffsetX, dest.Y - FrameCenter.OffsetY, FrameWidth, FrameHeight);
+
+            renderer.RenderTexture(_textureId, srcRect, dstRect, ActiveAnimation.Flip, angle, rotationCenter);
         }
     }
 }
