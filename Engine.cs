@@ -19,15 +19,27 @@ public class Engine
 
     private Level _currentLevel = new();
     private PlayerObject? _player;
+    private int _score = 0;
+    private int _lastPrintedScore = -1;
+
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
+
+    private bool _wasHelpKeyPressed = false;
+    private bool _showingHelp = false;
+
+    private bool _wasBKeyPressed = false;
+    private bool _wasRKeyPressed = false;
+
+
 
     public Engine(GameRenderer renderer, Input input)
     {
         _renderer = renderer;
         _input = input;
 
-        _input.OnMouseClick += (_, coords) => AddBomb(coords.x, coords.y);
+        input.OnMouseClick += (_, coords) => AddBomb(coords.x, coords.y);
+
     }
 
     public void SetupWorld()
@@ -94,6 +106,10 @@ public class Engine
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
         bool isAttacking = _input.IsKeyAPressed() && (up + down + left + right <= 1);
         bool addBomb = _input.IsKeyBPressed();
+        bool isReset = _input.IsKeyRPressed();
+        bool showHelp = _input.IsKeyHPressed();
+
+
 
         _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame);
         if (isAttacking)
@@ -103,10 +119,35 @@ public class Engine
         
         _scriptEngine.ExecuteAll(this);
 
-        if (addBomb)
+        if (addBomb && !_wasBKeyPressed)
         {
             AddBomb(_player.Position.X, _player.Position.Y, false);
+            _score += 10;
         }
+        _wasBKeyPressed = addBomb;
+
+        if (isReset && !_wasRKeyPressed)
+        {
+            ResetPlayerPosition();
+            _score += 1;
+        }
+        _wasRKeyPressed = isReset;
+
+
+        if (showHelp && !_wasHelpKeyPressed)
+        {
+            _showingHelp = !_showingHelp;
+            ShowHelpMenu();
+        }
+
+        _wasHelpKeyPressed = showHelp;
+
+        if (_score != _lastPrintedScore)
+        {
+            Console.WriteLine($"Score: {_score}");
+            _lastPrintedScore = _score;
+        }
+
     }
 
     public void RenderFrame()
@@ -114,13 +155,18 @@ public class Engine
         _renderer.SetDrawColor(0, 0, 0, 255);
         _renderer.ClearScreen();
 
+
+
         var playerPosition = _player!.Position;
         _renderer.CameraLookAt(playerPosition.X, playerPosition.Y);
 
         RenderTerrain();
         RenderAllObjects();
 
+       // _renderer.RenderText($"Score: {_score}", 10, 10);
         _renderer.PresentFrame();
+
+        
     }
 
     public void RenderAllObjects()
@@ -215,4 +261,26 @@ public class Engine
         TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
         _gameObjects.Add(bomb.Id, bomb);
     }
+
+    public void ResetPlayerPosition()
+    {
+        if (_player != null)
+        {
+            _player.Position = new(100, 100);
+        }
+    }
+
+    public void ShowHelpMenu()
+    {
+        Console.WriteLine("🎮 COMENZI DISPONIBILE:");
+        Console.WriteLine("⬅  ➡  ⬆  ⬇  — mișcare");
+        Console.WriteLine("[A] — atacă");
+        Console.WriteLine("[B] — plasează bombă");
+        Console.WriteLine("[R] — resetează poziția jucătorului");
+        Console.WriteLine("[H] — afișează acest meniu de ajutor");
+    }
+
+
 }
+
+
