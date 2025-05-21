@@ -26,11 +26,16 @@ public class Engine
     private int _maxEnemies = 10;
     private const int _absoluteMaxEnemies = 15;
 
+    // Wave system components
+    private WaveSystem _waveSystem;
+    private WaveUI _waveUI;
+    private bool _waveCompletedThisFrame = false;
+
     private Level _currentLevel = new();
     private PlayerObject? _player;
 
-    // Track the player's active bomb to limit to one at a time
-    private int? _playerBombId = null;
+    // Track player bombs - now can have multiple active bombs depending on buffs
+    private List<int> _playerBombIds = new();
 
     private bool _wasAttackPressed = false;
 
@@ -38,12 +43,25 @@ public class Engine
 
     // Property to check if the game should exit
     public bool ShouldExit { get; private set; }
-
     public Engine(GameRenderer renderer, Input input)
     {
         _renderer = renderer;
         _input = input;
         _gameStartTime = DateTimeOffset.Now; // Initialize game start time
+
+        // Initialize wave system
+        _waveSystem = new WaveSystem();
+        _waveUI = new WaveUI(_renderer, _waveSystem);
+
+        // Show first wave started message
+        _waveUI.ShowWaveStartMessage(1);
+
+        // Subscribe to enemy death events to update wave system
+        EnemyObject.OnEnemyDefeated += (enemy) =>
+        {
+            // Update wave system when enemy is defeated
+            _waveSystem.EnemyDefeated();
+        };
 
         _input.OnMouseClick += (_, coords) => AddBomb(coords.x, coords.y);
     }
@@ -137,10 +155,33 @@ public class Engine
 
         _wasAttackPressed = isAttacking;
 
-        // Update game difficulty based on elapsed time
-        UpdateDifficulty();
+        // Reset wave completion flag at the beginning of each frame
+        _waveCompletedThisFrame = false;
 
-        // Check for enemy spawn
+        // Check if wave is completed (all enemies killed)
+        if (_waveSystem.WaveCompleted && _enemies.Count == 0)
+        {
+            // Apply a random buff to the player
+            var buffType = _waveSystem.GetRandomBuff();
+            _player.ApplyBuff(buffType);
+
+            // Show the buff message
+            _waveUI.ShowBuffMessage(buffType);
+
+            // Start the next wave
+            _waveSystem.StartNextWave();
+
+            // Show new wave message
+            _waveUI.ShowWaveStartMessage(_waveSystem.CurrentWave);
+
+            // Set flag so we don't repeatedly complete waves
+            _waveCompletedThisFrame = true;
+
+            // Update difficulty based on current wave
+            UpdateDifficultyForWave();
+        }
+
+        // Check for enemy spawn if we still need more enemies
         if (_enemies.Count < _maxEnemies &&
             (currentTime - _lastEnemySpawn).TotalSeconds > _enemySpawnIntervalSeconds)
         {
@@ -150,9 +191,6 @@ public class Engine
 
         // Update enemies and check for hits
         UpdateEnemies(msSinceLastFrame);
-
-        // Update game difficulty
-        UpdateDifficulty();
 
         _scriptEngine.ExecuteAll(this);
 
@@ -201,17 +239,26 @@ public class Engine
 
         _enemies.RemoveAll(e => e.IsDeathAnimationFinished);
     }
-
     private void UpdateDifficulty()
     {
         // Calculate time elapsed since game started
         double minutesElapsed = (DateTimeOffset.Now - _gameStartTime).TotalMinutes;
-        
+
         // Gradually decrease spawn interval down to minimum
         _enemySpawnIntervalSeconds = Math.Max(_minEnemySpawnInterval, 5.0 - (minutesElapsed * 0.25));
-        
+
         // Gradually increase max enemies up to absolute maximum
         _maxEnemies = Math.Min(_absoluteMaxEnemies, 10 + (int)(minutesElapsed / 2));
+    }
+
+    private void UpdateDifficultyForWave()
+    {
+        // Use wave system to determine difficulty
+        var waveDifficulty = _waveSystem.GetWaveDifficulty();
+
+        // Apply wave-based difficulty settings
+        _enemySpawnIntervalSeconds = waveDifficulty.SpawnIntervalSeconds;
+        _maxEnemies = waveDifficulty.MaxEnemies;
     }
 
     public void RenderFrame()
@@ -224,6 +271,9 @@ public class Engine
 
         RenderTerrain();
         RenderAllObjects();
+
+        // Render wave UI last so it appears on top
+        _waveUI.Render();
 
         _renderer.PresentFrame();
     }
@@ -245,9 +295,9 @@ public class Engine
             _gameObjects.Remove(id, out var gameObject);
 
             // If this was the player's bomb, clear the tracked ID
-            if (_playerBombId == id)
+            if (_playerBombIds.Contains(id))
             {
-                _playerBombId = null;
+                _playerBombIds.Remove(id);
             }
 
             if (_player == null)
@@ -258,9 +308,12 @@ public class Engine
             var tempGameObject = (TemporaryGameObject)gameObject!;
 
             // Check for bomb hits on enemies
+            // Use default bomb radius for now - in real implementation we would get from metadata
+            float radiusMultiplier = 1.0f;
+
             foreach (var enemy in _enemies)
             {
-                enemy.CheckBombHit(tempGameObject.Position.X, tempGameObject.Position.Y);
+                enemy.CheckBombHit(tempGameObject.Position.X, tempGameObject.Position.Y, radiusMultiplier);
             }
 
             // Check if bomb hits the player
@@ -339,7 +392,7 @@ public class Engine
     public void AddBomb(int X, int Y, bool translateCoordinates = true, bool isPlayerBomb = false)
     {
         // If this is a player bomb and there's already an active player bomb, don't create a new one
-        if (isPlayerBomb && _playerBombId != null)
+        if (isPlayerBomb && _playerBombIds.Count > 0)
         {
             return;
         }
@@ -355,7 +408,7 @@ public class Engine
         // If this is a player bomb, save its ID
         if (isPlayerBomb)
         {
-            _playerBombId = bomb.Id;
+            _playerBombIds.Add(bomb.Id);
         }
     }
 }

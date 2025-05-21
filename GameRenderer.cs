@@ -5,6 +5,10 @@ using SixLabors.ImageSharp.PixelFormats;
 using TheAdventure.Models;
 using Point = Silk.NET.SDL.Point;
 
+#if WINDOWS || LINUX || OSX
+using SDL2;
+#endif
+
 namespace TheAdventure;
 
 public unsafe class GameRenderer
@@ -118,5 +122,312 @@ public unsafe class GameRenderer
         int screenY = y - _camera.Y + _camera.Height / 2;
 
         _sdl.RenderDrawPoint(_renderer, screenX, screenY);
+    }
+
+    public void DrawUIPoint(int x, int y)
+    {
+        // Draw a point directly to the screen (no camera translation)
+        _sdl.RenderDrawPoint(_renderer, x, y);
+    }
+
+    // Use RenderAsciiText for all UI/game text. This draws a readable block font (10x16 per char).
+    public void RenderAsciiText(string text, int x, int y, byte r, byte g, byte b)
+    {
+        int charWidth = 10;
+        for (int i = 0; i < text.Length; i++)
+        {
+            char c = text[i];
+            int charX = x + i * (charWidth + 2);
+            DrawAsciiChar(c, charX, y, r, g, b);
+        }
+    }
+
+    // Draws a single ASCII character in a readable block font (10x16)
+    private void DrawAsciiChar(char c, int x, int y, byte r, byte g, byte b)
+    {
+        SetDrawColor(r, g, b, 255);
+        int w = 10, h = 16;
+        c = char.ToUpperInvariant(c);
+        switch (c)
+        {
+            case 'A':
+                for (int py = 0; py < h; py++)
+                    for (int px = 0; px < w; px++)
+                        if ((py == 0 && px > 1 && px < w - 2) || // top bar
+                            (py == h / 2 && px > 1 && px < w - 2) || // mid bar
+                            (px == 1 && py > 0) || (px == w - 2 && py > 0)) // sides
+                            _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                break;
+            case 'B':
+                for (int py = 0; py < h; py++)
+                    for (int px = 0; px < w; px++)
+                        if (px == 1 || // left
+                            (py == 0 && px < w - 2) || // top
+                            (py == h / 2 && px < w - 2) || // mid
+                            (py == h - 1 && px < w - 2) || // bottom
+                            (px == w - 2 && ((py > 0 && py < h / 2) || (py > h / 2 && py < h - 1))))
+                            _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                break;
+            case 'C':
+                for (int py = 0; py < h; py++)
+                    for (int px = 0; px < w; px++)
+                        if ((px == 1 && py > 0 && py < h - 1) ||
+                            (py == 0 && px > 1) || (py == h - 1 && px > 1))
+                            _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                break;
+            case 'D':
+                for (int py = 0; py < h; py++)
+                    for (int px = 0; px < w; px++)
+                        if (px == 1 ||
+                            (py == 0 && px < w - 2) || (py == h - 1 && px < w - 2) ||
+                            (px == w - 2 && py > 0 && py < h - 1))
+                            _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                break;
+            case 'E':
+                for (int py = 0; py < h; py++)
+                    for (int px = 0; px < w; px++)
+                        if (px == 1 || py == 0 || py == h - 1 || (py == h / 2 && px < w - 1))
+                            _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                break;
+            case 'F':
+                for (int py = 0; py < h; py++)
+                    for (int px = 0; px < w; px++)
+                        if (px == 1 || py == 0 || (py == h / 2 && px < w - 1))
+                            _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                break;
+            case 'G':
+                for (int py = 0; py < h; py++)
+                    for (int px = 0; px < w; px++)
+                        if ((px == 1 && py > 0 && py < h - 1) ||
+                            (py == 0 && px > 1) || (py == h - 1 && px > 1) ||
+                            (py == h / 2 && px > w / 2) ||
+                            (px == w - 2 && py > h / 2 && py < h - 1))
+                            _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                break;
+            case 'H':
+                for (int py = 0; py < h; py++)
+                    for (int px = 0; px < w; px++)
+                        if (px == 1 || px == w - 2 || (py == h / 2 && px > 1 && px < w - 2))
+                            _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                break;
+            case 'I':
+                for (int py = 0; py < h; py++)
+                    for (int px = 0; px < w; px++)
+                        if (py == 0 || py == h - 1 || px == w / 2)
+                            _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                break;
+            case 'J':
+                for (int py = 0; py < h; py++)
+                    for (int px = 0; px < w; px++)
+                        if ((py == 0 && px > 1 && px < w - 2) ||
+                            (px == w / 2 && py < h - 1) ||
+                            (py == h - 1 && px > 1 && px < w / 2))
+                            _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                break;
+            case 'K':
+                for (int py = 0; py < h; py++)
+                    for (int px = 0; px < w; px++)
+                        if (px == 1 || (px + py == w - 2 && py < h / 2) || (px - py == 1 - h / 2 && py >= h / 2))
+                            _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                break;
+            case 'L':
+                for (int py = 0; py < h; py++)
+                    for (int px = 0; px < w; px++)
+                        if (px == 1 || (py == h - 1 && px < w - 1))
+                            _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                break;
+            case 'M':
+                for (int py = 0; py < h; py++)
+                    for (int px = 0; px < w; px++)
+                        if (px == 1 || px == w - 2 || (py == px && py < h / 2) || (py == w - 1 - px && py < h / 2))
+                            _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                break;
+            case 'N':
+                for (int py = 0; py < h; py++)
+                    for (int px = 0; px < w; px++)
+                        if (px == 1 || px == w - 2 || (px == py && py > 0 && py < h - 1))
+                            _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                break;
+            case 'O':
+                for (int py = 0; py < h; py++)
+                    for (int px = 0; px < w; px++)
+                        if (((px == 1 || px == w - 2) && py > 0 && py < h - 1) ||
+                            ((py == 0 || py == h - 1) && px > 1 && px < w - 2))
+                            _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                break;
+            case 'P':
+                for (int py = 0; py < h; py++)
+                    for (int px = 0; px < w; px++)
+                        if (px == 1 || (py == 0 && px < w - 2) || (py == h / 2 && px < w - 2) || (px == w - 2 && py > 0 && py < h / 2))
+                            _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                break;
+            case 'Q':
+                for (int py = 0; py < h; py++)
+                    for (int px = 0; px < w; px++)
+                        if (((px == 1 || px == w - 2) && py > 0 && py < h - 2) ||
+                            ((py == 0 || py == h - 2) && px > 1 && px < w - 2) ||
+                            (px == py && py > h / 2))
+                            _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                break;
+            case 'R':
+                for (int py = 0; py < h; py++)
+                    for (int px = 0; px < w; px++)
+                        if (px == 1 || (py == 0 && px < w - 2) || (py == h / 2 && px < w - 2) || (px == w - 2 && py > 0 && py < h / 2) || (px - py == 1 - h / 2 && py >= h / 2))
+                            _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                break;
+            case 'S':
+                for (int py = 0; py < h; py++)
+                    for (int px = 0; px < w; px++)
+                        if ((py == 0 && px > 1) || (py == h / 2 && px > 1 && px < w - 2) || (py == h - 1 && px < w - 2) || (px == 1 && py > 0 && py < h / 2) || (px == w - 2 && py > h / 2 && py < h - 1))
+                            _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                break;
+            case 'T':
+                for (int py = 0; py < h; py++)
+                    for (int px = 0; px < w; px++)
+                        if (py == 0 || px == w / 2)
+                            _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                break;
+            case 'U':
+                for (int py = 0; py < h; py++)
+                    for (int px = 0; px < w; px++)
+                        if ((px == 1 && py < h - 1) || (px == w - 2 && py < h - 1) || (py == h - 1 && px > 1 && px < w - 2))
+                            _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                break;
+            case 'V':
+                for (int py = 0; py < h; py++)
+                    for (int px = 0; px < w; px++)
+                        if ((px == 1 && py < h - 2) || (px == w - 2 && py < h - 2) || (py - px == h - w && px > 1 && px < w / 2) || (py + px == w - 1 + h - 2 && px > w / 2 && px < w - 2))
+                            _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                break;
+            case 'W':
+                for (int py = 0; py < h; py++)
+                    for (int px = 0; px < w; px++)
+                        if (px == 1 || px == w - 2 || (py == px && py > h / 2) || (py == w - 1 - px && py > h / 2))
+                            _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                break;
+            case 'X':
+                for (int py = 0; py < h; py++)
+                    for (int px = 0; px < w; px++)
+                        if (px == py || px == w - 1 - py)
+                            _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                break;
+            case 'Y':
+                for (int py = 0; py < h; py++)
+                    for (int px = 0; px < w; px++)
+                        if ((px == py && py < h / 2) || (px == w - 1 - py && py < h / 2) || (px == w / 2 && py >= h / 2))
+                            _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                break;
+            case 'Z':
+                for (int py = 0; py < h; py++)
+                    for (int px = 0; px < w; px++)
+                        if (py == 0 || py == h - 1 || px == w - 1 - py)
+                            _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                break;
+            // Digits 0-9
+            case '0':
+                for (int py = 0; py < h; py++)
+                    for (int px = 0; px < w; px++)
+                        if (((px == 1 || px == w - 2) && py > 0 && py < h - 1) || ((py == 0 || py == h - 1) && px > 1 && px < w - 2))
+                            _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                break;
+            case '1':
+                for (int py = 0; py < h; py++)
+                    for (int px = 0; px < w; px++)
+                        if (px == w / 2 || (py == h - 1 && px > 1 && px < w - 2))
+                            _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                break;
+            case '2':
+                for (int py = 0; py < h; py++)
+                    for (int px = 0; px < w; px++)
+                        if ((py == 0 && px > 1 && px < w - 2) || (py == h / 2 && px > 1 && px < w - 2) || (py == h - 1 && px > 1 && px < w - 2) || (px == w - 2 && py > 0 && py < h / 2) || (px == 1 && py > h / 2 && py < h - 1))
+                            _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                break;
+            case '3':
+                for (int py = 0; py < h; py++)
+                    for (int px = 0; px < w; px++)
+                        if ((py == 0 && px > 1 && px < w - 2) || (py == h / 2 && px > 1 && px < w - 2) || (py == h - 1 && px > 1 && px < w - 2) || (px == w - 2 && py > 0 && py < h - 1))
+                            _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                break;
+            case '4':
+                for (int py = 0; py < h; py++)
+                    for (int px = 0; px < w; px++)
+                        if ((px == 1 && py < h / 2) || (px == w - 2 && py > 0 && py < h - 1) || (py == h / 2 && px > 1 && px < w - 2))
+                            _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                break;
+            case '5':
+                for (int py = 0; py < h; py++)
+                    for (int px = 0; px < w; px++)
+                        if ((py == 0 && px > 1 && px < w - 2) || (py == h / 2 && px > 1 && px < w - 2) || (py == h - 1 && px > 1 && px < w - 2) || (px == 1 && py > 0 && py < h / 2) || (px == w - 2 && py > h / 2 && py < h - 1))
+                            _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                break;
+            case '6':
+                for (int py = 0; py < h; py++)
+                    for (int px = 0; px < w; px++)
+                        if ((px == 1 && py > 0 && py < h - 1) || (py == 0 && px > 1 && px < w - 2) || (py == h / 2 && px > 1 && px < w - 2) || (py == h - 1 && px > 1 && px < w - 2) || (px == w - 2 && py > h / 2 && py < h - 1))
+                            _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                break;
+            case '7':
+                for (int py = 0; py < h; py++)
+                    for (int px = 0; px < w; px++)
+                        if (py == 0 || (px == w - 2 && py > 0 && py < h - 1))
+                            _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                break;
+            case '8':
+                for (int py = 0; py < h; py++)
+                    for (int px = 0; px < w; px++)
+                        if (((px == 1 || px == w - 2) && py > 0 && py < h - 1) || ((py == 0 || py == h - 1) && px > 1 && px < w - 2) || (py == h / 2 && px > 1 && px < w - 2))
+                            _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                break;
+            case '9':
+                for (int py = 0; py < h; py++)
+                    for (int px = 0; px < w; px++)
+                        if ((px == w - 2 && py > 0 && py < h - 1) || (py == 0 && px > 1 && px < w - 2) || (py == h / 2 && px > 1 && px < w - 2) || (py == h - 1 && px > 1 && px < w - 2) || (px == 1 && py > 0 && py < h / 2))
+                            _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                break;
+            case ':':
+                for (int py = 4; py < 6; py++)
+                    for (int px = 4; px < 6; px++)
+                        _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                for (int py = 10; py < 12; py++)
+                    for (int px = 4; px < 6; px++)
+                        _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                break;
+            case '!':
+                for (int py = 2; py < 10; py++)
+                    for (int px = 4; px < 6; px++)
+                        _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                for (int py = 12; py < 14; py++)
+                    for (int px = 4; px < 6; px++)
+                        _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                break;
+            case '-':
+                for (int px = 2; px < w - 2; px++)
+                    _sdl.RenderDrawPoint(_renderer, x + px, y + h / 2);
+                break;
+            case '.':
+                for (int py = h - 3; py < h - 1; py++)
+                    for (int px = 4; px < 6; px++)
+                        _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                break;
+            case ' ':
+                break;
+            default:
+                // Draw a rectangle for truly unknown chars
+                for (int py = 0; py < h; py++)
+                    for (int px = 0; px < w; px++)
+                        if (py == 0 || py == h - 1 || px == 0 || px == w - 1)
+                            _sdl.RenderDrawPoint(_renderer, x + px, y + py);
+                break;
+        }
+    }
+
+    public int GetScreenWidth()
+    {
+        return _camera.Width;
+    }
+
+    public int GetScreenHeight()
+    {
+        return _camera.Height;
     }
 }

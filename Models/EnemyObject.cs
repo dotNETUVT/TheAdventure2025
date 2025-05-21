@@ -89,8 +89,9 @@ public class EnemyObject : GameObject
         // Check if player's sword hits enemy
         if (player.State.State == PlayerObject.PlayerState.Attack)
         {
-            int hitRadius = 60;
-            int sideHitRadius = 30;
+            // Use player's attack reach multiplier for more damage with buffs
+            int hitRadius = (int)(60 * player.AttackReachMultiplier);
+            int sideHitRadius = (int)(30 * player.AttackReachMultiplier);
 
             double dx = Position.X - player.Position.X;
             double dy = Position.Y - player.Position.Y;
@@ -125,7 +126,7 @@ public class EnemyObject : GameObject
         return false;
     }
 
-    public bool CheckBombHit(int bombX, int bombY)
+    public bool CheckBombHit(int bombX, int bombY, float radiusMultiplier = 1.0f)
     {
         if (!IsAlive)
         {
@@ -133,7 +134,9 @@ public class EnemyObject : GameObject
         }
 
         // Check if bomb explosion hits enemy
-        const int bombRadius = 80;
+        const int baseBombRadius = 80;
+        int bombRadius = (int)(baseBombRadius * radiusMultiplier);
+
         double dx = Position.X - bombX;
         double dy = Position.Y - bombY;
         double distance = Math.Sqrt(dx * dx + dy * dy);
@@ -157,7 +160,7 @@ public class EnemyObject : GameObject
         double dx = Position.X - player.Position.X;
         double dy = Position.Y - player.Position.Y;
         double distance = Math.Sqrt(dx * dx + dy * dy);
-        
+
         // Make collision detection more forgiving
         // Use a slightly smaller collision radius and ignore if player is attacking
         if (player.State.State == PlayerObject.PlayerState.Attack)
@@ -165,7 +168,7 @@ public class EnemyObject : GameObject
             // During attack animation, player has temporary invincibility
             return false;
         }
-        
+
         // Use a more forgiving collision radius (75% of visual radius)
         int collisionThreshold = _enemyRadius * 3 / 4;
         return distance < collisionThreshold;
@@ -173,9 +176,18 @@ public class EnemyObject : GameObject
 
     public void Die()
     {
-        IsAlive = false;
-        _deathTime = DateTimeOffset.Now;
+        if (IsAlive)
+        {
+            IsAlive = false;
+            _deathTime = DateTimeOffset.Now;
+
+            // Notify any listeners that the enemy has been defeated
+            OnEnemyDefeated?.Invoke(this);
+        }
     }
+
+    // Event that gets fired when enemy dies - Engine will subscribe to this
+    public static event Action<EnemyObject>? OnEnemyDefeated;
 
     public void Render(GameRenderer renderer)
     {

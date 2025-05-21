@@ -1,10 +1,20 @@
-using Silk.NET.Maths;
+using System;
+using System.Collections.Generic;
 
 namespace TheAdventure.Models;
 
 public class PlayerObject : RenderableGameObject
 {
-    private const int _speed = 128; // pixels per second
+    private int _baseSpeed = 128; // pixels per second
+
+    // Player stats modifiable by buffs
+    private float _speedMultiplier = 1.0f;
+    private float _attackReachMultiplier = 1.0f;
+    private int _maxBombs = 1;
+    private float _bombRadiusMultiplier = 1.0f;
+
+    // Tracking active buffs
+    private readonly List<PlayerBuff> _activeBuffs = new();
 
     public enum PlayerStateDirection
     {
@@ -26,9 +36,41 @@ public class PlayerObject : RenderableGameObject
 
     public (PlayerState State, PlayerStateDirection Direction) State { get; private set; }
 
+    // New properties for wave system
+    public int CurrentSpeed => (int)(_baseSpeed * _speedMultiplier);
+    public float AttackReachMultiplier => _attackReachMultiplier;
+    public int MaxBombs => _maxBombs;
+    public float BombRadiusMultiplier => _bombRadiusMultiplier;
+    public IReadOnlyList<PlayerBuff> ActiveBuffs => _activeBuffs;
+
     public PlayerObject(SpriteSheet spriteSheet, int x, int y) : base(spriteSheet, (x, y))
     {
         SetState(PlayerState.Idle, PlayerStateDirection.Down);
+    }
+
+    public void ApplyBuff(PlayerBuffType buffType)
+    {
+        var buff = PlayerBuff.CreateBuff(buffType);
+        _activeBuffs.Add(buff);
+
+        // Apply buff effects
+        switch (buffType)
+        {
+            case PlayerBuffType.SpeedBoost:
+                _speedMultiplier *= buff.Value;
+                break;
+            case PlayerBuffType.DamageBoost:
+                _attackReachMultiplier *= buff.Value;
+                break;
+            case PlayerBuffType.ExtraBomb:
+                _maxBombs += 1;
+                break;
+            case PlayerBuffType.BombRadius:
+                _bombRadiusMultiplier *= buff.Value;
+                break;
+            case PlayerBuffType.HealthRestore:
+                break;
+        }
     }
 
     public void SetState(PlayerState state)
@@ -92,7 +134,7 @@ public class PlayerObject : RenderableGameObject
             return;
         }
 
-        var pixelsToMove = _speed * (time / 1000.0);
+        var pixelsToMove = CurrentSpeed * (time / 1000.0);
 
         var x = Position.X + (int)(right * pixelsToMove);
         x -= (int)(left * pixelsToMove);
