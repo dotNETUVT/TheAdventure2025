@@ -67,7 +67,7 @@ public unsafe class GameRenderer
                     _sdl.FreeSurface(imageSurface);
                     throw new Exception("Failed to create texture from surface.");
                 }
-                
+                _sdl.SetTextureBlendMode(imageTexture, BlendMode.Blend);
                 _sdl.FreeSurface(imageSurface);
                 
                 _textureData[_textureId] = textureInfo;
@@ -77,7 +77,17 @@ public unsafe class GameRenderer
 
         return _textureId++;
     }
-
+    
+    public void RenderTextureScreen(int textureId, Rectangle<int> src, Rectangle<int> dst,
+        RendererFlip flip = RendererFlip.None, double angle = 0.0, Point center = default)
+    {
+        if (_texturePointers.TryGetValue(textureId, out var imageTexture))
+        {
+            _sdl.RenderCopyEx(_renderer, (Texture*)imageTexture, in src,
+                in dst, angle, in center, flip);
+        }
+    }  
+    
     public void RenderTexture(int textureId, Rectangle<int> src, Rectangle<int> dst,
         RendererFlip flip = RendererFlip.None, double angle = 0.0, Point center = default)
     {
@@ -110,4 +120,7 @@ public unsafe class GameRenderer
     {
         _sdl.RenderPresent(_renderer);
     }
+    
+    public (int Width, int Height) GetTextureSize(int texId)
+        => _textureData.TryGetValue(texId, out var d) ? (d.Width, d.Height) : (0,0);
 }
