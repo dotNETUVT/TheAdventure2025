@@ -6,47 +6,30 @@ public unsafe class Input
 {
     private readonly Sdl _sdl;
 
-    public EventHandler<(int x, int y)>? OnMouseClick;
+    public event EventHandler<(int x, int y)>? OnMouseClick;
 
-    public Input(Sdl sdl)
-    {
-        _sdl = sdl;
-    }
+    public Input(Sdl sdl) => _sdl = sdl;
 
-    public bool IsLeftPressed()
-    {
-        ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
-        return keyboardState[(int)KeyCode.Left] == 1;
-    }
+    private ReadOnlySpan<byte> KeyboardState => new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
 
-    public bool IsRightPressed()
-    {
-        ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
-        return keyboardState[(int)KeyCode.Right] == 1;
-    }
+    private bool IsKeyDown(KeyCode key) => KeyboardState[(int)key] == 1;
 
-    public bool IsUpPressed()
-    {
-        ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
-        return keyboardState[(int)KeyCode.Up] == 1;
-    }
+    public bool IsLeftPressed()  => IsKeyDown(KeyCode.Left);
+    public bool IsRightPressed() => IsKeyDown(KeyCode.Right);
+    public bool IsUpPressed()    => IsKeyDown(KeyCode.Up);
+    public bool IsDownPressed()  => IsKeyDown(KeyCode.Down);
 
-    public bool IsDownPressed()
-    {
-        ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
-        return keyboardState[(int)KeyCode.Down] == 1;
-    }
+    public bool IsKeyAPressed() => IsKeyDown(KeyCode.A);
+    public bool IsKeyBPressed() => IsKeyDown(KeyCode.B);
 
-    public bool IsKeyAPressed()
-    {
-        ReadOnlySpan<byte> _keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
-        return _keyboardState[(int)KeyCode.A] == 1;
-    }
+    public bool IsDashPressed() =>
+        IsKeyDown(KeyCode.Space) || IsKeyDown(KeyCode.LShift) || IsKeyDown(KeyCode.RShift);
 
-    public bool IsKeyBPressed()
+    public (int X, int Y) GetMousePosition()
     {
-        ReadOnlySpan<byte> _keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
-        return _keyboardState[(int)KeyCode.B] == 1;
+        int x = 0, y = 0;
+        _sdl.GetMouseState(&x, &y);
+        return (x, y);
     }
 
     public bool ProcessInput()
@@ -54,119 +37,16 @@ public unsafe class Input
         Event ev = new Event();
         while (_sdl.PollEvent(ref ev) != 0)
         {
-            if (ev.Type == (uint)EventType.Quit)
-            {
-                return true;
-            }
+            if (ev.Type == (uint)EventType.Quit) return true;
 
             switch (ev.Type)
             {
-                case (uint)EventType.Windowevent:
-                {
-                    switch (ev.Window.Event)
-                    {
-                        case (byte)WindowEventID.Shown:
-                        case (byte)WindowEventID.Exposed:
-                        {
-                            break;
-                        }
-                        case (byte)WindowEventID.Hidden:
-                        {
-                            break;
-                        }
-                        case (byte)WindowEventID.Moved:
-                        {
-                            break;
-                        }
-                        case (byte)WindowEventID.SizeChanged:
-                        {
-                            break;
-                        }
-                        case (byte)WindowEventID.Minimized:
-                        case (byte)WindowEventID.Maximized:
-                        case (byte)WindowEventID.Restored:
-                            break;
-                        case (byte)WindowEventID.Enter:
-                        {
-                            break;
-                        }
-                        case (byte)WindowEventID.Leave:
-                        {
-                            break;
-                        }
-                        case (byte)WindowEventID.FocusGained:
-                        {
-                            break;
-                        }
-                        case (byte)WindowEventID.FocusLost:
-                        {
-                            break;
-                        }
-                        case (byte)WindowEventID.Close:
-                        {
-                            break;
-                        }
-                        case (byte)WindowEventID.TakeFocus:
-                        {
-                            _sdl.SetWindowInputFocus(_sdl.GetWindowFromID(ev.Window.WindowID));
-                            break;
-                        }
-                    }
-
-                    break;
-                }
-
-                case (uint)EventType.Fingermotion:
-                {
-                    break;
-                }
-
-                case (uint)EventType.Mousemotion:
-                {
-                    break;
-                }
-
-                case (uint)EventType.Fingerdown:
-                {
-                    break;
-                }
                 case (uint)EventType.Mousebuttondown:
-                {
                     if (ev.Button.Button == (byte)MouseButton.Primary)
-                    {
                         OnMouseClick?.Invoke(this, (ev.Button.X, ev.Button.Y));
-                    }
-
                     break;
-                }
-
-                case (uint)EventType.Fingerup:
-                {
-                    break;
-                }
-
-                case (uint)EventType.Mousebuttonup:
-                {
-                    break;
-                }
-
-                case (uint)EventType.Mousewheel:
-                {
-                    break;
-                }
-
-                case (uint)EventType.Keyup:
-                {
-                    break;
-                }
-
-                case (uint)EventType.Keydown:
-                {
-                    break;
-                }
             }
         }
-
         return false;
     }
 }
