@@ -3,16 +3,19 @@ using Silk.NET.SDL;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using TheAdventure.Models;
-using Point = Silk.NET.SDL.Point;
+using System.IO;
+using System;
+using System.Collections.Generic;
+using Point = Silk.NET.SDL.Point; // Explicitly use Silk.NET.SDL.Point
 
 namespace TheAdventure;
 
 public unsafe class GameRenderer
 {
-    private Sdl _sdl;
-    private Renderer* _renderer;
-    private GameWindow _window;
-    private Camera _camera;
+    private readonly Sdl _sdl; // Changed to readonly
+    private readonly Renderer* _renderer; // Changed to readonly
+    private readonly GameWindow _window; // Changed to readonly
+    private readonly Camera _camera; // Changed to readonly
 
     private Dictionary<int, IntPtr> _texturePointers = new();
     private Dictionary<int, TextureData> _textureData = new();
@@ -21,16 +24,21 @@ public unsafe class GameRenderer
     public GameRenderer(Sdl sdl, GameWindow window)
     {
         _sdl = sdl;
-        
         _renderer = (Renderer*)window.CreateRenderer();
+        if (_renderer == null) throw new Exception("Failed to create renderer: " + _sdl.GetErrorS());
         _sdl.SetRenderDrawBlendMode(_renderer, BlendMode.Blend);
-        
         _window = window;
         var windowSize = window.Size;
         _camera = new Camera(windowSize.Width, windowSize.Height);
     }
 
-    public void SetWorldBounds(Rectangle<int> bounds)
+    public void ResetCamera(int targetX, int targetY)
+    {
+        _camera.Reset(targetX, targetY);
+    }
+
+    // Pass Rectangle<int> by 'in' to avoid copying and satisfy warning CS9192/CS9195
+    public void SetWorldBounds(in Rectangle<int> bounds)
     {
         _camera.SetWorldBounds(bounds);
     }
@@ -40,9 +48,19 @@ public unsafe class GameRenderer
         _camera.LookAt(x, y);
     }
 
+    public void AdjustCameraZoom(int scrollY)
+    {
+        _camera.AdjustZoom(scrollY);
+    }
+
     public int LoadTexture(string fileName, out TextureData textureInfo)
     {
-        using (var fStream = new FileStream(fileName, FileMode.Open))
+        if (!File.Exists(fileName))
+        {
+            textureInfo = default;
+            throw new FileNotFoundException($"Texture file not found: {fileName}");
+        }
+        using (var fStream = new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.Read))
         {
             var image = Image.Load<Rgba32>(fStream);
             textureInfo = new TextureData()
@@ -54,40 +72,56 @@ public unsafe class GameRenderer
             image.CopyPixelDataTo(imageRAWData.AsSpan());
             fixed (byte* data = imageRAWData)
             {
-                var imageSurface = _sdl.CreateRGBSurfaceWithFormatFrom(data, textureInfo.Width,
-                    textureInfo.Height, 8, textureInfo.Width * 4, (uint)PixelFormatEnum.Rgba32);
+                // For CreateRGBSurfaceWithFormatFrom, depth is bits per pixel. For RGBA32, it's 32.
+                // Pitch is bytes per row: width * bytes_per_pixel. For RGBA32, bytes_per_pixel is 4.
+                var imageSurface = _sdl.CreateRGBSurfaceWithFormatFrom((void*)data, textureInfo.Width,
+                    textureInfo.Height, 32, textureInfo.Width * 4, (uint)PixelFormatEnum.Rgba32);
                 if (imageSurface == null)
                 {
-                    throw new Exception("Failed to create surface from image data.");
+                    throw new Exception("Failed to create surface from image data. SDL Error: " + _sdl.GetErrorS());
                 }
-                
+
                 var imageTexture = _sdl.CreateTextureFromSurface(_renderer, imageSurface);
+                _sdl.FreeSurface(imageSurface);
                 if (imageTexture == null)
                 {
-                    _sdl.FreeSurface(imageSurface);
-                    throw new Exception("Failed to create texture from surface.");
+                    throw new Exception("Failed to create texture from surface. SDL Error: " + _sdl.GetErrorS());
                 }
-                
-                _sdl.FreeSurface(imageSurface);
-                
+
                 _textureData[_textureId] = textureInfo;
                 _texturePointers[_textureId] = (IntPtr)imageTexture;
             }
         }
-
         return _textureId++;
     }
 
-    public void RenderTexture(int textureId, Rectangle<int> src, Rectangle<int> dst,
-        RendererFlip flip = RendererFlip.None, double angle = 0.0, Point center = default)
+    // Use 'in' for struct parameters src and dstWorldRect
+    public void RenderTexture(int textureId, in Rectangle<int> src, in Rectangle<int> dstWorldRect,
+        RendererFlip flip = RendererFlip.None, double angle = 0.0, in Point center = default) // 'in Point center'
     {
         if (_texturePointers.TryGetValue(textureId, out var imageTexture))
         {
-            var translatedDst = _camera.ToScreenCoordinates(dst);
-            _sdl.RenderCopyEx(_renderer, (Texture*)imageTexture, in src,
-                in translatedDst,
+            var translatedDstScreenRect = _camera.ToScreenCoordinates(dstWorldRect);
+            // The _sdl.RenderCopyEx function itself will take these.
+            // If Silk.NET's wrapper expects refs for these struct parameters,
+            // passing them directly as 'in' variables to this method is good.
+            _sdl.RenderCopyEx(_renderer, (Texture*)imageTexture, src,
+                translatedDstScreenRect, // This is a local struct variable, passed by value to RenderCopyEx wrapper
                 angle,
-                in center, flip);
+                center, flip);
+        }
+    }
+
+    // Use 'in' for struct parameters src and dstScreenRect
+    public void RenderUITexture(int textureId, in Rectangle<int> src, in Rectangle<int> dstScreenRect,
+        RendererFlip flip = RendererFlip.None, double angle = 0.0, in Point center = default) // 'in Point center'
+    {
+        if (_texturePointers.TryGetValue(textureId, out var imageTexture))
+        {
+            _sdl.RenderCopyEx(_renderer, (Texture*)imageTexture, src,
+                dstScreenRect,
+                angle,
+                center, flip);
         }
     }
 
@@ -95,17 +129,14 @@ public unsafe class GameRenderer
     {
         return _camera.ToWorldCoordinates(new Vector2D<int>(x, y));
     }
-
     public void SetDrawColor(byte r, byte g, byte b, byte a)
     {
         _sdl.SetRenderDrawColor(_renderer, r, g, b, a);
     }
-
     public void ClearScreen()
     {
         _sdl.RenderClear(_renderer);
     }
-
     public void PresentFrame()
     {
         _sdl.RenderPresent(_renderer);

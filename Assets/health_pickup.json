@@ -1,0 +1,25 @@
+{
+  "rowCount": 1,
+  "columnCount": 1,
+  "frameWidth": 35,
+  "frameHeight": 25,
+  "frameCenter": {
+    "offsetX": 30,
+    "offsetY": 30
+  },
+  "fileName": "ui_heart.jpg",
+  "animations": {
+    "Idle": {
+      "startFrame": {
+        "row": 0,
+        "col": 0
+      },
+      "endFrame": {
+        "row": 0,
+        "col": 0
+      },
+      "durationMs": 1000,
+      "loop": true
+    }
+  }
+}
