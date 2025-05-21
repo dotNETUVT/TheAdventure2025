@@ -28,6 +28,7 @@ public class Engine
         _input = input;
 
         _input.OnMouseClick += (_, coords) => AddBomb(coords.x, coords.y);
+
     }
 
     public void SetupWorld()
@@ -94,6 +95,10 @@ public class Engine
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
         bool isAttacking = _input.IsKeyAPressed() && (up + down + left + right <= 1);
         bool addBomb = _input.IsKeyBPressed();
+        bool isReset = _input.IsKeyRPressed();
+        bool showHelp = _input.IsKeyHPressed();
+
+
 
         _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame);
         if (isAttacking)
@@ -107,6 +112,17 @@ public class Engine
         {
             AddBomb(_player.Position.X, _player.Position.Y, false);
         }
+
+        if (isReset)
+        {
+            ResetPlayerPosition();
+        }
+
+        if (showHelp)
+        {
+            ShowHelpMenu();
+        }
+
     }
 
     public void RenderFrame()
@@ -215,4 +231,24 @@ public class Engine
         TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
         _gameObjects.Add(bomb.Id, bomb);
     }
+
+    public void ResetPlayerPosition()
+    {
+        if (_player != null)
+        {
+            _player.Position = new(100, 100);
+        }
+    }
+
+    public void ShowHelpMenu()
+    {
+        Console.WriteLine("🎮 COMENZI DISPONIBILE:");
+        Console.WriteLine("⬅  ➡  ⬆  ⬇  — mișcare");
+        Console.WriteLine("[A] — atacă");
+        Console.WriteLine("[B] — plasează bombă");
+        Console.WriteLine("[R] — resetează poziția jucătorului");
+        Console.WriteLine("[H] — afișează acest meniu de ajutor");
+    }
+
+
 }
