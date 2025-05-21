@@ -18,17 +18,38 @@ public unsafe class GameRenderer
     private Dictionary<int, TextureData> _textureData = new();
     private int _textureId;
 
+    public int GetWindowWidth() => _window.Size.Width;
+    public int GetWindowHeight() => _window.Size.Height;
+
+
     public GameRenderer(Sdl sdl, GameWindow window)
     {
         _sdl = sdl;
-        
+
         _renderer = (Renderer*)window.CreateRenderer();
         _sdl.SetRenderDrawBlendMode(_renderer, BlendMode.Blend);
-        
+
         _window = window;
         var windowSize = window.Size;
         _camera = new Camera(windowSize.Width, windowSize.Height);
     }
+
+    public void DrawHealthBar(int currentHealth, int maxHealth, int screenX, int screenY, int width = 200, int height = 20)
+    {
+        float healthPercent = currentHealth / (float)maxHealth;
+        int filledWidth = (int)(width * healthPercent);
+
+        // Background bar (dark red)
+        SetDrawColor(80, 0, 0, 255);
+        var bgRect = new Rectangle<int>(screenX, screenY, width, height);
+        _sdl.RenderFillRect(_renderer, &bgRect);
+
+        // Foreground bar (bright red)
+        SetDrawColor(255, 0, 0, 255);
+        var fgRect = new Rectangle<int>(screenX, screenY, filledWidth, height);
+        _sdl.RenderFillRect(_renderer, &fgRect);
+    }
+
 
     public void SetWorldBounds(Rectangle<int> bounds)
     {
@@ -60,16 +81,16 @@ public unsafe class GameRenderer
                 {
                     throw new Exception("Failed to create surface from image data.");
                 }
-                
+
                 var imageTexture = _sdl.CreateTextureFromSurface(_renderer, imageSurface);
                 if (imageTexture == null)
                 {
                     _sdl.FreeSurface(imageSurface);
                     throw new Exception("Failed to create texture from surface.");
                 }
-                
+
                 _sdl.FreeSurface(imageSurface);
-                
+
                 _textureData[_textureId] = textureInfo;
                 _texturePointers[_textureId] = (IntPtr)imageTexture;
             }
@@ -110,4 +131,25 @@ public unsafe class GameRenderer
     {
         _sdl.RenderPresent(_renderer);
     }
+    
+
+    public void DrawGameOverScreen()
+{
+    
+    SetDrawColor(0, 0, 0, 200); // RGBA
+    var screenRect = new Rectangle<int>(0, 0, _window.Size.Width, _window.Size.Height);
+    _sdl.RenderFillRect(_renderer, &screenRect);
+
+    
+    SetDrawColor(255, 0, 0, 255);
+    var boxWidth = 300;
+    var boxHeight = 80;
+    var centerX = (_window.Size.Width - boxWidth) / 2;
+    var centerY = (_window.Size.Height - boxHeight) / 2;
+    var textRect = new Rectangle<int>(centerX, centerY, boxWidth, boxHeight);
+    _sdl.RenderFillRect(_renderer, &textRect);
+
+
+}
+
 }

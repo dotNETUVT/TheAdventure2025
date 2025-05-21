@@ -6,6 +6,10 @@ public class PlayerObject : RenderableGameObject
 {
     private const int _speed = 128; // pixels per second
 
+    public int MaxHealth { get; private set; } = 100;
+    public int CurrentHealth { get; private set; } = 100;
+
+
     public enum PlayerStateDirection
     {
         None = 0,
@@ -117,7 +121,7 @@ public class PlayerObject : RenderableGameObject
         else
         {
             newState = PlayerState.Move;
-            
+
             if (y < Position.Y && newDirection != PlayerStateDirection.Up)
             {
                 newDirection = PlayerStateDirection.Up;
@@ -146,4 +150,23 @@ public class PlayerObject : RenderableGameObject
 
         Position = (x, y);
     }
+    
+    public void TakeDamage(int amount)
+{
+    CurrentHealth -= amount;
+    if (CurrentHealth < 0)
+        CurrentHealth = 0;
+
+    if (CurrentHealth == 0)
+    {
+        GameOver();
+    }
+}
+
+public string GetHealthBar(int barLength = 20)
+{
+    int filled = (int)((CurrentHealth / (float)MaxHealth) * barLength);
+    return "[" + new string('█', filled) + new string('-', barLength - filled) + "]";
+}
+
 }
