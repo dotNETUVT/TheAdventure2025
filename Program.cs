@@ -34,6 +34,12 @@ public static class Program
                 engine.ProcessFrame();
                 engine.RenderFrame();
 
+                // Check if we should exit due to player death animation finishing
+                if (engine.ShouldExit)
+                {
+                    quit = true;
+                }
+
                 Thread.Sleep(13);
             }
         }
