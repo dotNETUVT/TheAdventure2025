@@ -53,6 +53,20 @@ public class Camera
         }
     }
 
+    public void LookAtPlayers(int x1, int y1, int x2, int y2)
+    {
+        int midX = (x1 + x2) / 2;
+        int midY = (y1 + y2) / 2;
+
+        int left = _worldBounds.Origin.X;
+        int right = _worldBounds.Origin.X + _worldBounds.Size.X;
+        int top = _worldBounds.Origin.Y;
+        int bottom = _worldBounds.Origin.Y + _worldBounds.Size.Y;
+
+        _x = Math.Clamp(midX, left, right);
+        _y = Math.Clamp(midY, top, bottom);
+    }
+
     public Rectangle<int> ToScreenCoordinates(Rectangle<int> rect)
     {
         return rect.GetTranslated(new Vector2D<int>(Width / 2 - X, Height / 2 - Y));

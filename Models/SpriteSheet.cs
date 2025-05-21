@@ -1,5 +1,6 @@
 using Silk.NET.Maths;
 using Silk.NET.SDL;
+using SixLabors.ImageSharp.PixelFormats;
 
 namespace TheAdventure.Models;
 
@@ -29,9 +30,9 @@ public class SpriteSheet
     private DateTimeOffset _animationStart = DateTimeOffset.MinValue;
 
     public SpriteSheet(GameRenderer renderer, string fileName, int rowCount, int columnCount, int frameWidth,
-        int frameHeight, (int OffsetX, int OffsetY) frameCenter)
+        int frameHeight, (int OffsetX, int OffsetY) frameCenter, Func<Rgba32, Rgba32>? pixelProcessor = null)
     {
-        _textureId = renderer.LoadTexture(fileName, out var textureData);
+        _textureId = renderer.LoadTexture(fileName, out var textureData, pixelProcessor);
 
         RowCount = rowCount;
         ColumnCount = columnCount;

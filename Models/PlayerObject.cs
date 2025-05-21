@@ -1,5 +1,6 @@
 ﻿using Silk.NET.Maths;
 using Silk.NET.SDL;
+using SixLabors.ImageSharp.PixelFormats;
 
 namespace TheAdventure.Models;
 
@@ -19,8 +20,31 @@ public class PlayerObject : GameObject
 
     public int BombCount { get; private set; } = 5;
 
-    public PlayerObject(GameRenderer renderer)
+    public PlayerObject(GameRenderer renderer, bool isPlayerOne = false)
     {
+        Func<Rgba32, Rgba32>? tint = null;
+
+        if (isPlayerOne)
+        {
+            // Simple bluish tint: reduce red, boost blue
+            tint = color => new Rgba32(
+                (byte)(color.R * 0.5),
+                (byte)(color.G * 0.6),
+                (byte)Math.Min(255, color.B * 1.2),
+                color.A
+            );
+        }
+        else
+        {
+            // Orange ish for Player 2
+            tint = color => new Rgba32(
+                (byte)Math.Min(255, color.R * 1.4),
+                (byte)(color.G * 1.2),
+                (byte)(color.B * 0.5),
+                color.A
+            );
+        }
+
         // load the full player sprite sheet
         _spriteSheet = new SpriteSheet(
             renderer,
@@ -29,7 +53,8 @@ public class PlayerObject : GameObject
             columnCount: 6,
             frameWidth: 48,
             frameHeight: 48,
-            frameCenter: (24, 42)
+            frameCenter: (24, 42),
+            pixelProcessor: tint
         );
 
         // define animations
@@ -121,5 +146,16 @@ public class PlayerObject : GameObject
     {
         if (BombCount > 0) { BombCount--; return true; }
         return false;
+    }
+
+    public void ClampToWorld(Rectangle<int> bounds)
+    {
+        int left = bounds.Origin.X + 10;
+        int right = bounds.Origin.X + bounds.Size.X - 10;
+        int top = bounds.Origin.Y + 25;
+        int bottom = bounds.Origin.Y + bounds.Size.Y - 25;
+
+        X = Math.Clamp(X, left, right);
+        Y = Math.Clamp(Y, top, bottom);
     }
 }

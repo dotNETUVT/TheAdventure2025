@@ -18,6 +18,11 @@ public unsafe class GameRenderer
     private Dictionary<int, TextureData> _textureData = new();
     private int _textureId;
 
+    public int ScreenWidth => _window.Size.Width;
+    public int ScreenHeight => _window.Size.Height;
+
+    public Rectangle<int> WorldBounds { get; private set; }
+
     public GameRenderer(Sdl sdl, GameWindow window)
     {
         _sdl = sdl;
@@ -32,19 +37,33 @@ public unsafe class GameRenderer
 
     public void SetWorldBounds(Rectangle<int> bounds)
     {
+        WorldBounds = bounds;
         _camera.SetWorldBounds(bounds);
     }
 
-    public void CameraLookAt(int x, int y)
+    public void CameraLookAt(int x1, int y1, int x2, int y2)
     {
-        _camera.LookAt(x, y);
+        //_camera.LookAt(x, y);
+        _camera.LookAtPlayers(x1, y1, x2, y2);
     }
 
-    public int LoadTexture(string fileName, out TextureData textureInfo)
+    public int LoadTexture(string fileName, out TextureData textureInfo, Func<Rgba32, Rgba32>? pixelProcessor = null)
     {
         using (var fStream = new FileStream(fileName, FileMode.Open))
         {
             var image = Image.Load<Rgba32>(fStream);
+
+            if (pixelProcessor != null)
+            {
+                for (int y = 0; y < image.Height; y++)
+                {
+                    for (int x = 0; x < image.Width; x++)
+                    {
+                        image[x, y] = pixelProcessor(image[x, y]);
+                    }
+                }
+            }
+
             textureInfo = new TextureData()
             {
                 Width = image.Width,

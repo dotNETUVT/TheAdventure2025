@@ -20,6 +20,11 @@ public class Engine
 
     private Level _currentLevel = new();
     private PlayerObject? _player;
+    private PlayerObject? _player2;
+    private bool _wasEnterPressed = false;
+    private bool _wasRightShiftPressed = false;
+    private bool _wasLeftShiftPressed = false;
+
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
 
@@ -33,7 +38,11 @@ public class Engine
 
     public void SetupWorld()
     {
-        _player = new(_renderer);
+        _player = new(_renderer, isPlayerOne: true);
+        _player2 = new(_renderer);
+        _player2.X = _player.X - 50; // slight offset so they're not overlapping
+        _player2.Y = _player.Y;
+
 
         var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
         var level = JsonSerializer.Deserialize<Level>(levelContent);
@@ -84,41 +93,79 @@ public class Engine
         var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
         _lastUpdate = currentTime;
 
-        double up = _input.IsUpPressed() ? 1.0 : 0.0;
-        double down = _input.IsDownPressed() ? 1.0 : 0.0;
-        double left = _input.IsLeftPressed() ? 1.0 : 0.0;
-        double right = _input.IsRightPressed() ? 1.0 : 0.0;
+        // Player 1 (Arrow keys)
+        double up1 = _input.IsUpPressed() ? 1.0 : 0.0;
+        double down1 = _input.IsDownPressed() ? 1.0 : 0.0;
+        double left1 = _input.IsLeftPressed() ? 1.0 : 0.0;
+        double right1 = _input.IsRightPressed() ? 1.0 : 0.0;
+        _player?.UpdatePosition(up1, down1, left1, right1, (int)msSinceLastFrame);
 
-        _player?.UpdatePosition(up, down, left, right, (int)msSinceLastFrame);
+        // Player 2 (WASD)
+        double up2 = _input.IsWPressed() ? 1.0 : 0.0;
+        double down2 = _input.IsSPressed() ? 1.0 : 0.0;
+        double left2 = _input.IsAPressed() ? 1.0 : 0.0;
+        double right2 = _input.IsDPressed() ? 1.0 : 0.0;
+        _player2?.UpdatePosition(up2, down2, left2, right2, (int)msSinceLastFrame);
 
-        // Place Bombs
-        bool isSpacePressed = _input.IsSpacePressed();
-        if (isSpacePressed && !_wasSpacePressed && _player != null)
+        // --- Place Bombs ---
+        // Player 1: Enter to place
+        bool isEnterPressed = _input.IsEnterPressed();
+        if (isEnterPressed && !_wasEnterPressed && _player != null)
         {
             if (_player.TryUseBomb())
-            {
-                // Adjust coordinates to have bomb placed at correct position
-                int bombX = _player.X;
-                int bombY = _player.Y - 5;
-                AddBomb(bombX, bombY);
-            }
+                AddBomb(_player.X, _player.Y - 5);
+        }
+        _wasEnterPressed = isEnterPressed;
+
+        // Player 2: Space to place bomb
+        bool isSpacePressed = _input.IsSpacePressed();
+        if (isSpacePressed && !_wasSpacePressed && _player2 != null)
+        {
+            if (_player2.TryUseBomb())
+                AddBomb(_player2.X, _player2.Y - 5);
         }
         _wasSpacePressed = isSpacePressed;
 
-        // Open chests
-        bool isEPressed = _input.IsEPressed();
-        if (isEPressed && !_wasEPressed && _player != null && _player.BombCount < 5)
+        // --- Open chests ---
+        // Player 1: Right Shift to open chests
+        bool isRightShiftPressed = _input.IsRightShiftPressed();
+        if (isRightShiftPressed && !_wasRightShiftPressed && _player != null && _player.BombCount < 5)
         {
             foreach (var chest in _chests)
             {
                 if (chest.CanInteract((_player.X, _player.Y)))
                 {
                     chest.Open(bombs => _player.AddBomb(bombs));
-                    break; // Only open one chest at a time
+                    break;
                 }
             }
         }
-        _wasEPressed = isEPressed;
+        _wasRightShiftPressed = isRightShiftPressed;
+
+        // Player 2: Left Shift to open chests
+        bool isLeftShiftPressed = _input.IsLeftShiftPressed();
+        if (isLeftShiftPressed && !_wasLeftShiftPressed && _player2 != null && _player2.BombCount < 5)
+        {
+            foreach (var chest in _chests)
+            {
+                if (chest.CanInteract((_player2.X, _player2.Y)))
+                {
+                    chest.Open(bombs => _player2.AddBomb(bombs));
+                    break;
+                }
+            }
+        }
+        _wasLeftShiftPressed = isLeftShiftPressed;
+
+
+        // Calculate max distance based on camera view (window size)
+        int maxX = (int)(_renderer.ScreenWidth * 0.95); // Padding to avoid edge clipping
+        int maxY = (int)(_renderer.ScreenHeight * 0.95);
+
+        ClampPlayersTogether(maxX, maxY);
+
+        _player?.ClampToWorld(_renderer.WorldBounds);
+        _player2?.ClampToWorld(_renderer.WorldBounds);
     }
 
     public void RenderFrame()
@@ -126,12 +173,18 @@ public class Engine
         _renderer.SetDrawColor(0, 0, 0, 255);
         _renderer.ClearScreen();
 
-        _renderer.CameraLookAt(_player!.X, _player!.Y);
+        _renderer.CameraLookAt(_player!.X, _player!.Y, _player2!.X, _player2!.Y);
 
         RenderTerrain();
         RenderAllObjects();
 
-        RenderHUD();
+        // Right HUD for Player 1
+        if (_player != null) 
+            RenderHUD(_player, alignRight: true);
+
+        // Left HUD for Player 2
+        if (_player2 != null)
+            RenderHUD(_player2, alignRight: false);
 
         _renderer.PresentFrame();
     }
@@ -154,6 +207,7 @@ public class Engine
         }
 
         _player?.Render(_renderer);
+        _player2?.Render(_renderer);
     }
 
     public void RenderTerrain()
@@ -226,10 +280,8 @@ public class Engine
         _gameObjects.Add(bomb.Id, bomb);
     }
 
-    private void RenderHUD()
+    private void RenderHUD(PlayerObject player, bool alignRight = false)
     {
-        if (_player == null) return;
-
         int maxBombs = 5;
         int gap = 2;
         int barWidth = maxBombs * 30 - gap;
@@ -238,15 +290,23 @@ public class Engine
         int totalGapWidth = (maxBombs - 1) * gap;
         int segmentWidth = (barWidth - totalGapWidth) / maxBombs;
 
-        // Draw background
-        var backgroundRect = new Rectangle<int>(margin, margin, barWidth, barHeight);
+        int screenWidth = _renderer.ScreenWidth;
+        int xStart = alignRight
+            ? screenWidth - margin - barWidth
+            : margin;
+
+        // Draw background bar in the correct position
+        var backgroundRect = new Rectangle<int>(xStart, margin, barWidth, barHeight);
         _renderer.FillScreenRectangle(backgroundRect, 128, 128, 128, 255);
 
         // Draw each bomb segment with spacing
-        for (int i = 0; i < _player.BombCount; i++)
+        for (int i = 0; i < player.BombCount; i++)
         {
-            int x = margin + i * (segmentWidth + gap);
-            var segmentRect = new Rectangle<int>(x, margin, segmentWidth, barHeight);
+            int segmentX = alignRight
+                ? xStart + i * (segmentWidth + gap)
+                : xStart + i * (segmentWidth + gap);
+
+            var segmentRect = new Rectangle<int>(segmentX, margin, segmentWidth, barHeight);
             _renderer.FillScreenRectangle(segmentRect, 255, 0, 0, 255);
         }
 
@@ -316,6 +376,31 @@ public class Engine
 
             _chests.Add(chest);
             _gameObjects.Add(chest.Id, chest);
+        }
+    }
+
+    private void ClampPlayersTogether(int maxX, int maxY)
+    {
+        // Calculate horizontal and vertical separation
+        int dx = _player2!.X - _player!.X;
+        int dy = _player2.Y - _player.Y;
+
+        // Clamp X-axis
+        if (Math.Abs(dx) > maxX)
+        {
+            int excess = (Math.Abs(dx) - maxX) * Math.Sign(dx);
+            int adjustment = excess / 2;
+            _player.X += adjustment;
+            _player2.X -= adjustment;
+        }
+
+        // Clamp Y-axis
+        if (Math.Abs(dy) > maxY)
+        {
+            int excess = (Math.Abs(dy) - maxY) * Math.Sign(dy);
+            int adjustment = excess / 2;
+            _player.Y += adjustment;
+            _player2.Y -= adjustment;
         }
     }
 }

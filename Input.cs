@@ -49,6 +49,49 @@ public unsafe class Input
         return keyboardState[(int)KeyCode.E] == 1;
     }
 
+    public bool IsWPressed()
+    {
+        ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
+        return keyboardState[(int)KeyCode.W] == 1;
+    }
+
+    public bool IsAPressed()
+    {
+        ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
+        return keyboardState[(int)KeyCode.A] == 1;
+    }
+
+    public bool IsSPressed()
+    {
+        ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
+        return keyboardState[(int)KeyCode.S] == 1;
+    }
+
+    public bool IsDPressed()
+    {
+        ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
+        return keyboardState[(int)KeyCode.D] == 1;
+    }
+
+    public bool IsEnterPressed()
+    {
+        ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
+        return keyboardState[(int)KeyCode.Return] == 1;
+    }
+
+    public bool IsLeftShiftPressed()
+    {
+        ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
+        return keyboardState[(int)KeyCode.LShift] == 1;
+    }
+
+    public bool IsRightShiftPressed()
+    {
+        ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
+        return keyboardState[(int)KeyCode.RShift] == 1;
+    }
+
+
     public bool ProcessInput()
     {
         Event ev = new Event();
