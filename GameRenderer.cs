@@ -17,17 +17,19 @@ public unsafe class GameRenderer
     private Dictionary<int, IntPtr> _texturePointers = new();
     private Dictionary<int, TextureData> _textureData = new();
     private int _textureId;
+    private int _score;
 
     public GameRenderer(Sdl sdl, GameWindow window)
     {
         _sdl = sdl;
-        
+
         _renderer = (Renderer*)window.CreateRenderer();
         _sdl.SetRenderDrawBlendMode(_renderer, BlendMode.Blend);
-        
+
         _window = window;
         var windowSize = window.Size;
         _camera = new Camera(windowSize.Width, windowSize.Height);
+        _score = 0;
     }
 
     public void SetWorldBounds(Rectangle<int> bounds)
@@ -60,16 +62,16 @@ public unsafe class GameRenderer
                 {
                     throw new Exception("Failed to create surface from image data.");
                 }
-                
+
                 var imageTexture = _sdl.CreateTextureFromSurface(_renderer, imageSurface);
                 if (imageTexture == null)
                 {
                     _sdl.FreeSurface(imageSurface);
                     throw new Exception("Failed to create texture from surface.");
                 }
-                
+
                 _sdl.FreeSurface(imageSurface);
-                
+
                 _textureData[_textureId] = textureInfo;
                 _texturePointers[_textureId] = (IntPtr)imageTexture;
             }
@@ -77,6 +79,84 @@ public unsafe class GameRenderer
 
         return _textureId++;
     }
+    public int GetScore()
+    {
+        return _score;
+    }
+
+    public void RenderTextCentered(string text, int centerX, int centerY, int fontSize)
+    {
+
+        Console.WriteLine($"Render Text: '{text}' at ({centerX}, {centerY}) with font size {fontSize}");
+    }
+
+    public void UpdateScore(int points)
+    {
+        _score += points;
+    }
+
+    public void RenderScoreWithoutTexture()
+    {
+        // Define the position and size of each digit
+        int startX = 10; // Starting X position
+        int startY = 10; // Starting Y position
+        int digitWidth = 20; // Width of each digit
+        int digitHeight = 40; // Height of each digit
+        int spacing = 5; // Spacing between digits
+
+
+        string scoreText = _score.ToString();
+
+        foreach (char digit in scoreText)
+        {
+
+            int digitValue = digit - '0';
+            RenderDigit(digitValue, startX, startY, digitWidth, digitHeight);
+
+            startX += digitWidth + spacing;
+        }
+    }
+
+    private void RenderDigit(int digit, int x, int y, int width, int height)
+    {
+
+        var segments = new[]
+        {
+        new Rectangle<int>(x, y, width, height / 5),
+        new Rectangle<int>(x, y, width / 5, height / 2),
+        new Rectangle<int>(x + width - width / 5, y, width / 5, height / 2),
+        new Rectangle<int>(x, y + height / 2 - height / 10, width, height / 5),
+        new Rectangle<int>(x, y + height / 2, width / 5, height / 2),
+        new Rectangle<int>(x + width - width / 5, y + height / 2, width / 5, height / 2),
+        new Rectangle<int>(x, y + height - height / 5, width, height / 5)
+    };
+
+
+        var digitSegments = new[]
+        {
+        new[] { true, true, true, false, true, true, true },
+        new[] { false, false, true, false, false, true, false },
+        new[] { true, false, true, true, true, false, true },
+        new[] { true, false, true, true, false, true, true },
+        new[] { false, true, true, true, false, true, false },
+        new[] { true, true, false, true, false, true, true },
+        new[] { true, true, false, true, true, true, true },
+        new[] { true, false, true, false, false, true, false },
+        new[] { true, true, true, true, true, true, true },
+        new[] { true, true, true, true, false, true, true }
+    };
+
+
+        for (int i = 0; i < segments.Length; i++)
+        {
+            if (digitSegments[digit][i])
+            {
+                _sdl.SetRenderDrawColor(_renderer, 255, 255, 255, 255);
+                _sdl.RenderFillRect(_renderer, in segments[i]);
+            }
+        }
+    }
+
 
     public void RenderTexture(int textureId, Rectangle<int> src, Rectangle<int> dst,
         RendererFlip flip = RendererFlip.None, double angle = 0.0, Point center = default)

@@ -34,8 +34,27 @@ public static class Program
                 engine.ProcessFrame();
                 engine.RenderFrame();
 
+                if (engine.IsBombAdded())
+                {
+                    Console.WriteLine("Game Over: A bomb has appeared!");
+                    Console.WriteLine($"Final Score: {gameRenderer.GetScore()}");
+                    break;
+                }
+
+                gameRenderer.RenderScoreWithoutTexture();
                 Thread.Sleep(13);
             }
+
+        }
+
+        static void DisplayGameOverMessage(GameRenderer renderer, GameWindow window, int score)
+        {
+            renderer.ClearScreen();
+            renderer.SetDrawColor(255, 255, 255, 255); // White background
+
+
+            renderer.PresentFrame();
+            Thread.Sleep(3000);
         }
 
         sdl.Quit();
