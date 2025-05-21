@@ -1,0 +1,27 @@
+{
+  "Image": "coin.png",
+  "FileName": "coin.png",
+  "FrameWidth": 35,
+  "FrameHeight": 35,
+  "RowCount": 1,
+  "ColumnCount": 1,
+  "FrameCenter": {
+    "OffsetX": 32,
+    "OffsetY": 32
+  },
+  "DefaultAnimation": "Idle",
+  "Animations": {
+    "Idle": {
+      "StartFrame": {
+        "Row": 0,
+        "Col": 0
+      },
+      "EndFrame": {
+        "Row": 0,
+        "Col": 0
+      },
+      "DurationMs": 1000,
+      "Loop": true
+    }
+  }
+}
