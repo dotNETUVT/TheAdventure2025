@@ -1,5 +1,6 @@
 ﻿using Silk.NET.SDL;
 using Thread = System.Threading.Thread;
+using TheAdventure2025.Models.Data; // ✅ Add this to access Inventory and Item
 
 namespace TheAdventure;
 
@@ -7,6 +8,26 @@ public static class Program
 {
     public static void Main()
     {
+        // ✅ Inventory demo — happens BEFORE game loop
+        var inventory = new Inventory();
+        inventory.AddItem(new Item("Sword", ItemType.Weapon, Rarity.Common));
+        inventory.AddItem(new Item("Magic Wand", ItemType.Weapon, Rarity.Rare));
+        inventory.AddItem(new Item("Health Potion", ItemType.Potion, Rarity.Common));
+        inventory.AddItem(new Item("Ancient Hammer", ItemType.Tool, Rarity.Legendary));
+
+        Console.WriteLine("🧰 All Inventory Items:");
+        foreach (var item in inventory.GetAllItems())
+            Console.WriteLine(item);
+
+        Console.WriteLine("\n🟣 Rare Items:");
+        foreach (var item in inventory.FilterByRarity(Rarity.Rare))
+            Console.WriteLine(item);
+
+        Console.WriteLine("\n⚔️  Weapons:");
+        foreach (var item in inventory.FilterByType(ItemType.Weapon))
+            Console.WriteLine(item);
+
+        // ✅ Game engine starts here (your original code)
         var sdl = new Sdl(new SdlContext());
 
         var sdlInitResult = sdl.Init(Sdl.InitVideo | Sdl.InitAudio | Sdl.InitEvents | Sdl.InitTimer |

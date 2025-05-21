@@ -250,4 +250,5 @@ public enum KeyCode : UInt16
     AudioFastForward = 286,
 
     Count = 512,
+    Plus = 513,
 };
