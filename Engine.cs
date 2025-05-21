@@ -103,7 +103,7 @@ public class Engine
         {
             _player.Attack();
         }
-        
+        // ce fac aici?
         _scriptEngine.ExecuteAll(this);
 
         if (addBomb)
