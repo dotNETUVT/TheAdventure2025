@@ -24,10 +24,10 @@ public unsafe class GameRenderer
     public GameRenderer(Sdl sdl, GameWindow window)
     {
         _sdl = sdl;
-        
+
         _renderer = (Renderer*)window.CreateRenderer();
         _sdl.SetRenderDrawBlendMode(_renderer, BlendMode.Blend);
-        
+
         _window = window;
         var windowSize = window.Size;
         _camera = new GameCamera(windowSize.Width, windowSize.Height);
@@ -63,16 +63,16 @@ public unsafe class GameRenderer
                 {
                     throw new Exception("Failed to create surface from image data.");
                 }
-                
+
                 var imageTexture = _sdl.CreateTextureFromSurface(_renderer, imageSurface);
                 if (imageTexture == null)
                 {
                     _sdl.FreeSurface(imageSurface);
                     throw new Exception("Failed to create texture from surface.");
                 }
-                
+
                 _sdl.FreeSurface(imageSurface);
-                
+
                 _textureData[_textureId] = textureInfo;
                 _texturePointers[_textureId] = (IntPtr)imageTexture;
             }
@@ -115,41 +115,77 @@ public unsafe class GameRenderer
     }
 
     // Method to dynamically render text
-    public IntPtr RenderTextAsTexture(string text, int fontSize = 24, string fontName = "Arial", int width = 400, int height = 50)
+    public IntPtr RenderTextAsTexture(string text, int fontSize = 24, string fontName = "Arial", int width = 600, int height = 60)
     {
-    var font = SystemFonts.CreateFont(fontName, fontSize, FontStyle.Regular);
+        var font = SystemFonts.CreateFont(fontName, fontSize, FontStyle.Regular);
 
-    using var image = new Image<Rgba32>(width, height);
-    image.Mutate(ctx =>
-    {
-        ctx.Fill(SixLabors.ImageSharp.Color.Transparent);
-        ctx.DrawText(text, font, SixLabors.ImageSharp.Color.White, new SixLabors.ImageSharp.PointF(5, 5));
-    });
+        using var image = new Image<Rgba32>(width, height);
+        image.Mutate(ctx =>
+        {
+            ctx.Fill(SixLabors.ImageSharp.Color.Transparent);
+            ctx.DrawText(text, font, SixLabors.ImageSharp.Color.White, new SixLabors.ImageSharp.PointF(5, 5));
+        });
 
-    var pixelData = new byte[width * height * 4];
-    image.CopyPixelDataTo(pixelData);
+        var pixelData = new byte[width * height * 4];
+        image.CopyPixelDataTo(pixelData);
 
-    fixed (byte* data = pixelData)
-    {
-        var surface = _sdl.CreateRGBSurfaceWithFormatFrom(
-            data, width, height, 32, width * 4, (uint)PixelFormatEnum.Rgba32);
+        fixed (byte* data = pixelData)
+        {
+            var surface = _sdl.CreateRGBSurfaceWithFormatFrom(
+                data, width, height, 32, width * 4, (uint)PixelFormatEnum.Rgba32);
 
-        if (surface == null)
-            throw new Exception("Failed to create surface from rendered text.");
+            if (surface == null)
+                throw new Exception("Failed to create surface from rendered text.");
 
-        var texture = _sdl.CreateTextureFromSurface(_renderer, surface);
-        _sdl.FreeSurface(surface);
+            var texture = _sdl.CreateTextureFromSurface(_renderer, surface);
+            _sdl.FreeSurface(surface);
 
-        return (IntPtr)texture;
-    }
+            return (IntPtr)texture;
+        }
     }
 
     // Method to render the stats of the player
-    public void RenderStats(PlayerObject player)
+    public void RenderStats(PlayerObject player, bool isPaused, double remainingTime)
     {
-        string stats = $"Health: {player.Health}  Score: {player.Score}  Bombs: {player.BombsPlaced}";
+        int minutes = (int)remainingTime / 60;
+        int seconds = (int)remainingTime % 60;
+        string timeFormatted = $"{minutes:D2}:{seconds:D2}";
+
+        string stats = $"Health: {player.Health}  Score: {player.Score}  Bombs: {player.BombsPlaced} Time: {timeFormatted}";
+        if (isPaused)
+        {
+            stats += "  [PAUSED]";
+        }
+
         var texture = RenderTextAsTexture(stats);
-        var dst = new Rectangle<int>(10, 10, 400, 50);
+        var dst = new Rectangle<int>(10, 10, 700, 60); // Widened for pause label
         _sdl.RenderCopy(_renderer, (Texture*)texture, null, &dst);
+
     }
+    
+    public void RenderGameOver()
+    {
+        // "GAME OVER!" text
+        var gameOverTexture = RenderTextAsTexture("GAME OVER!", 48, "Arial", 400, 100);
+        var gameOverDst = new Rectangle<int>(
+            (800 - 400) / 2, // Centered horizontally
+            200,             // Vertical position (adjust if needed)
+            400,
+            100
+        );
+        _sdl.RenderCopy(_renderer, (Texture*)gameOverTexture, null, &gameOverDst);
+
+        // "Press R to restart" text
+        var restartTexture = RenderTextAsTexture("Press R to restart", 28, "Arial", 400, 60);
+        var restartDst = new Rectangle<int>(
+            (800 - 400) / 2, // Centered horizontally
+            200 + 100 ,  // Below the first text with 10px spacing
+            400,
+            60
+        );
+        _sdl.RenderCopy(_renderer, (Texture*)restartTexture, null, &restartDst);
+    }
+
+
+
 }

@@ -1,5 +1,6 @@
 using Silk.NET.SDL;
 
+
 namespace TheAdventure;
 
 public unsafe class InputLogic
@@ -175,6 +176,13 @@ public unsafe class InputLogic
         {
             _gameLogic.RestartGame();
         }
+
+        if (keyboardState[(int)KeyCode.P] == 1)
+        {
+            _gameLogic.TogglePause();
+            System.Threading.Thread.Sleep(200);
+        }
+
         
         _gameLogic.UpdatePlayerPosition(up, down, left, right, timeSinceLastFrame);
 

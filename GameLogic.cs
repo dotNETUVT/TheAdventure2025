@@ -19,6 +19,11 @@ public class GameLogic
     private int _bombIds = 100;
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
 
+    private bool _isPaused = false;
+    private double _remainingTime = 200.0; // 200 seconds
+    private bool _gameOver = false;
+
+
     public GameLogic(GameRenderer renderer)
     {
         _renderer = renderer;
@@ -68,27 +73,45 @@ public class GameLogic
 
         _currentLevel = level;
     }
-
+    
     public void ProcessFrame()
     {
+        if (_isPaused || _gameOver) return;
+
+        var deltaTime = (DateTimeOffset.Now - _lastUpdate).TotalSeconds;
+        _lastUpdate = DateTimeOffset.Now;
+
+        _remainingTime -= deltaTime;
+
+        if (_remainingTime <= 0 || _player!.Health <= 0)
+        {
+            _gameOver = true;
+            return;
+        }
     }
-    
+
+
     public void RenderFrame()
     {
         var currentTime = DateTimeOffset.Now;
         var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
         _lastUpdate = currentTime;
-        
+
         _renderer.SetDrawColor(0, 0, 0, 255);
         _renderer.ClearScreen();
-        
+
         _renderer.CameraLookAt(_player!.X, _player!.Y);
-        
+
         RenderTerrain();
         RenderAllObjects(msSinceLastFrame);
 
         //Use the RenderStats to display the statistics
-       _renderer.RenderStats(_player);
+        _renderer.RenderStats(_player, _isPaused, _remainingTime);
+
+        if (_gameOver)
+        {
+            _renderer.RenderGameOver();
+        }
 
         _renderer.PresentFrame();
     }
@@ -118,11 +141,20 @@ public class GameLogic
 
     public void UpdatePlayerPosition(double up, double down, double left, double right, int timeSinceLastUpdateInMs)
     {
+        if (_isPaused || _gameOver)
+        {
+            return;
+        }
         _player?.UpdatePosition(up, down, left, right, timeSinceLastUpdateInMs);
     }
 
     public void AddBomb(int screenX, int screenY)
     {
+         if (_isPaused || _gameOver)
+        {
+            return;
+        }
+
         var worldCoords = _renderer.ToWorldCoordinates(screenX, screenY);
         AnimatedGameObject bomb =
             new AnimatedGameObject(Path.Combine("Assets", "BombExploding.png"), _renderer, 2, 13, 13, 1,
@@ -177,18 +209,24 @@ public class GameLogic
             }
         }
     }
-
+    
+    public void TogglePause()
+    {
+        _isPaused = !_isPaused;
+    }
 
     //For Restart Mechanism
     public void RestartGame()
     {
-    _player = new PlayerObject(_renderer);
-    _player.Health = 100;  // Reset health
-    _player.Score = 0;     // Reset score
-    _bombIds = 100;        // Reset bomb counter
-    _gameObjects.Clear();  // Clear existing game objects
-
-    // Optionally reset other game states like level, time, etc.
+        _player = new PlayerObject(_renderer);
+        _player.Health = 100;
+        _player.Score = 0;
+        _bombIds = 100;
+        _gameObjects.Clear();
+        _remainingTime = 200.0;
+        _isPaused = false;
+        _gameOver = false;
     }
+
 
 }
