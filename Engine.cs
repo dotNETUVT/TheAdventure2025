@@ -22,12 +22,26 @@ public class Engine
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
 
+    private bool _wasCKeyPressed = false;
+    private bool _useAltColor = false;
+
+    private bool _isPaused = false;
+    private bool _wasPKeyPressed = false;
+
+    private bool _wasHelpKeyPressed = false;
+    private bool _showingHelp = false;
+    private bool _gameOverShown = false;
+    private int _lives = 3;
+    private double _damageFlashTime = 0;
+
+
     public Engine(GameRenderer renderer, Input input)
     {
         _renderer = renderer;
         _input = input;
 
         _input.OnMouseClick += (_, coords) => AddBomb(coords.x, coords.y);
+
     }
 
     public void SetupWorld()
@@ -88,6 +102,34 @@ public class Engine
             return;
         }
 
+        // Detectare taste
+        bool togglePause = _input.IsKeyPPressed();
+        bool toggleColor = _input.IsKeyCPressed();
+        bool showHelp = _input.IsKeyHPressed();
+
+        // Toggle pauză
+        if (togglePause && !_wasPKeyPressed)
+        {
+            _isPaused = !_isPaused;
+            Console.WriteLine(_isPaused ? "⏸ Pauză activată" : "▶ Pauză dezactivată");
+        }
+        _wasPKeyPressed = togglePause;
+
+        // Meniu Help
+        if (showHelp && !_wasHelpKeyPressed)
+        {
+            _showingHelp = !_showingHelp;
+            ShowHelpMenu();
+        }
+        _wasHelpKeyPressed = showHelp;
+
+        // Dacă suntem în pauză, nu mai continuăm
+        if (_isPaused)
+        {
+            return;
+        }
+
+        // Comenzi joc
         double up = _input.IsUpPressed() ? 1.0 : 0.0;
         double down = _input.IsDownPressed() ? 1.0 : 0.0;
         double left = _input.IsLeftPressed() ? 1.0 : 0.0;
@@ -96,26 +138,51 @@ public class Engine
         bool addBomb = _input.IsKeyBPressed();
 
         _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame);
+
         if (isAttacking)
         {
             _player.Attack();
         }
-        
+
         _scriptEngine.ExecuteAll(this);
 
         if (addBomb)
         {
             AddBomb(_player.Position.X, _player.Position.Y, false);
         }
+
+        // Toggle culoare fundal
+        if (toggleColor && !_wasCKeyPressed)
+        {
+            _useAltColor = !_useAltColor;
+        }
+        _wasCKeyPressed = toggleColor;
     }
 
     public void RenderFrame()
     {
-        _renderer.SetDrawColor(0, 0, 0, 255);
+        if (_useAltColor)
+        {
+            _renderer.SetDrawColor(0, 0, 255, 255); // Albastru
+        }
+        else
+        {
+            _renderer.SetDrawColor(0, 0, 0, 255); // Negru
+        }
+
         _renderer.ClearScreen();
+        if (_damageFlashTime > 0)
+        {
+            _renderer.SetDrawColor(255, 0, 0, 100); // roșu semi-transparent
+            _renderer.FillScreen(); // asigură-te că există metoda asta în GameRenderer
+            _damageFlashTime -= 1;
+        }
+
+
 
         var playerPosition = _player!.Position;
         _renderer.CameraLookAt(playerPosition.X, playerPosition.Y);
+        //_renderer.RenderText($"Lives: {_lives}", 10, 30);
 
         RenderTerrain();
         RenderAllObjects();
@@ -148,9 +215,27 @@ public class Engine
             var deltaX = Math.Abs(_player.Position.X - tempGameObject.Position.X);
             var deltaY = Math.Abs(_player.Position.Y - tempGameObject.Position.Y);
             if (deltaX < 32 && deltaY < 32)
+        {
+            if (_lives > 0)
             {
-                _player.GameOver();
+                _lives--;
+                _damageFlashTime = 30;
+
+                if (_lives <= 0 && !_gameOverShown)
+                {
+                    _player.GameOver();
+                    Console.Clear();
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("\n\n GAME OVER \n");
+                    Console.ResetColor();
+                    _gameOverShown = true;
+                }
+                else if (_lives > 0)
+                {
+                    Console.WriteLine($"Vieti ramase  : {_lives}");
+                }
             }
+        }
         }
 
         _player?.Render(_renderer);
@@ -215,4 +300,15 @@ public class Engine
         TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
         _gameObjects.Add(bomb.Id, bomb);
     }
+
+    public void ShowHelpMenu()
+    {
+        Console.WriteLine("🎮 COMENZI DISPONIBILE:");
+        Console.WriteLine("⬅  ➡  ⬆  ⬇  — mișcare");
+        Console.WriteLine("[A] — atacă");
+        Console.WriteLine("[B] — plasează bombă");
+        Console.WriteLine("[P] — pauză / reluare joc");
+        Console.WriteLine("[H] — afișează acest meniu de ajutor");
+        Console.WriteLine("[C] — schimbă culoarea fundalului");
+    }
 }
