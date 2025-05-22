@@ -18,6 +18,7 @@ public unsafe class GameRenderer
     private Dictionary<int, TextureData> _textureData = new();
     private int _textureId;
 
+
     public GameRenderer(Sdl sdl, GameWindow window)
     {
         _sdl = sdl;
@@ -28,6 +29,7 @@ public unsafe class GameRenderer
         _window = window;
         var windowSize = window.Size;
         _camera = new Camera(windowSize.Width, windowSize.Height);
+
     }
 
     public void SetWorldBounds(Rectangle<int> bounds)
@@ -110,4 +112,11 @@ public unsafe class GameRenderer
     {
         _sdl.RenderPresent(_renderer);
     }
+
+    public void FillScreen()
+    {
+        Rectangle<int> screenRect = new(0, 0, _window.Size.Width, _window.Size.Height);
+        _sdl.RenderFillRect(_renderer, &screenRect);
+    }
+
 }
