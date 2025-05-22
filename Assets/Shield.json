@@ -1,0 +1,19 @@
+{
+  "rowCount": 1,
+  "columnCount": 1,
+  "frameWidth": 32,
+  "frameHeight": 32,
+  "frameCenter": {
+    "offsetX": 16,
+    "offsetY": 16
+  },
+  "fileName": "Shield.png",
+  "animations": {
+    "Idle": {
+      "startFrame": { "row": 0, "col": 0 },
+      "endFrame": { "row": 0, "col": 0 },
+      "durationMs": 3000,
+      "loop": true
+    }
+  }
+}

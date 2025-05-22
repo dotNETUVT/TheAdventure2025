@@ -4,6 +4,7 @@ namespace TheAdventure.Models;
 
 public class PlayerObject : RenderableGameObject
 {
+    public bool IsShielded { get; set; } = false;
     private const int _speed = 128; // pixels per second
 
     public enum PlayerStateDirection

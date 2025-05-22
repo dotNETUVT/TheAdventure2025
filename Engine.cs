@@ -133,11 +133,14 @@ public class Engine
         RenderTerrain();
         RenderAllObjects();
 
-        // --- HUD: Health & Score cu font custom ---
-        var hpTex = CreateUITextTexture($"HP: {_player.Health}", System.Drawing.Color.White);
-        var scoreTex = CreateUITextTexture($"Score: {_player.Score}", System.Drawing.Color.Yellow);
-        DrawUIText(hpTex, 10, 10);
+        var scoreTex = CreateUITextTexture($"Score: {_player.Score}", System.Drawing.Color.White);
+        var hpTex = CreateUITextTexture($"HP: {_player.Health}", System.Drawing.Color.Red);
         DrawUIText(scoreTex, 10, 40);
+        DrawUIText(hpTex, 10, 10);
+        var shieldStatus = _player.IsShielded ? "Shield Activated" : "Shield Deactivated";
+        var shieldColor = _player.IsShielded ? System.Drawing.Color.Cyan : System.Drawing.Color.Black;
+        var shieldTex = CreateUITextTexture(shieldStatus, shieldColor);
+        DrawUIText(shieldTex, 10, 70);
         _renderer.PresentFrame();
     }
 
@@ -150,16 +153,33 @@ public class Engine
             foreach (var gameObject in GetRenderables())
             {
                 if (gameObject is TemporaryGameObject tempGameObject &&
-                    tempGameObject.SpriteSheet != null &&
-                    tempGameObject.SpriteSheet.FileName == "MagicPotion.png")
+                    tempGameObject.SpriteSheet != null)
                 {
-                    var deltaX = Math.Abs(_player.Position.X - tempGameObject.Position.X);
-                    var deltaY = Math.Abs(_player.Position.Y - tempGameObject.Position.Y);
-                    if (deltaX < 32 && deltaY < 32)
+                    // MagicPotion pickup
+                    if (tempGameObject.SpriteSheet.FileName == "MagicPotion.png")
                     {
-                        _player.Heal(40);
-                        toRemove.Add(tempGameObject.Id);
-                        continue;
+                        var deltaX = Math.Abs(_player.Position.X - tempGameObject.Position.X);
+                        var deltaY = Math.Abs(_player.Position.Y - tempGameObject.Position.Y);
+                        if (deltaX < 32 && deltaY < 32)
+                        {
+                            _player.Heal(40);
+                            Console.WriteLine("Ai luat viata!");
+                            toRemove.Add(tempGameObject.Id);
+                            continue;
+                        }
+                    }
+                    // Shield pickup
+                    else if (tempGameObject.SpriteSheet.FileName == "Shield.png")
+                    {
+                        var deltaX = Math.Abs(_player.Position.X - tempGameObject.Position.X);
+                        var deltaY = Math.Abs(_player.Position.Y - tempGameObject.Position.Y);
+                        if (deltaX < 32 && deltaY < 32)
+                        {
+                            _player.IsShielded = true;
+                            Console.WriteLine("Ai luat shield!");
+                            toRemove.Add(tempGameObject.Id);
+                            continue;
+                        }
                     }
                 }
             }
@@ -185,13 +205,22 @@ public class Engine
 
             var tempGameObject = (TemporaryGameObject)gameObject!;
             // Only bombs deal damage on expiration
-            if (tempGameObject.SpriteSheet != null && tempGameObject.SpriteSheet.FileName != "MagicPotion.png")
+            if (tempGameObject.SpriteSheet != null && tempGameObject.SpriteSheet.FileName == "BombExploding.png")
             {
                 var deltaX = Math.Abs(_player.Position.X - tempGameObject.Position.X);
                 var deltaY = Math.Abs(_player.Position.Y - tempGameObject.Position.Y);
                 if (deltaX < 32 && deltaY < 32)
                 {
-                    _player.TakeDamage(40);
+                    if (_player.IsShielded)
+                    {
+                        Console.WriteLine("Ai fost aparat de shield!");
+                        _player.IsShielded = false;
+                    }
+                    else
+                    {
+                        Console.WriteLine("Te-a lovit bomba!");
+                        _player.TakeDamage(40);
+                    }
                 }
             }
         }
@@ -200,7 +229,7 @@ public class Engine
     }
 
     public void RenderTerrain()
-    {
+    {   
 
 
         foreach (var currentLayer in _currentLevel.Layers)
@@ -270,6 +299,21 @@ public class Engine
 
         TemporaryGameObject potion = new(spriteSheet, 3.0, (worldCoords.X, worldCoords.Y));
         _gameObjects.Add(potion.Id, potion);
+    }
+
+    public int AddShield(int X, int Y, bool translateCoordinates = true)
+    {
+        var worldCoords = translateCoordinates ? _renderer.ToWorldCoordinates(X, Y) : new Vector2D<int>(X, Y);
+        SpriteSheet spriteSheet = SpriteSheet.Load(_renderer, "Shield.json", "Assets");
+        spriteSheet.ActivateAnimation("Idle");
+        TemporaryGameObject shield = new(spriteSheet, 5.0, (worldCoords.X, worldCoords.Y));
+        _gameObjects.Add(shield.Id, shield);
+        return shield.Id;
+    }
+
+    public void RemoveShield(int id)
+    {
+        _gameObjects.Remove(id, out _);
     }
 
     public void AddGameObject(GameObject obj)
