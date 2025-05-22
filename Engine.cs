@@ -73,18 +73,27 @@ public class Engine
 
         _currentLevel = level;
 
-        AddFence(150, 150);
-        AddFence(200, 200);
-        AddFence(100, 600);
-        AddFence(300, 300);
-        AddFence(350, 350);
-        AddFence(350, 80);
-        AddFence(400, 400);
-        AddFence(300, 400);
-        AddFence(450, 45);
-        AddFence(500, 89);
-        AddFence(500, 800);
-
+        AddFlower(150, 150);
+        AddFlower(200, 200);
+        AddFlower(100, 600);
+        AddFlower(300, 300);
+        AddFlower(350, 350);
+        AddFlower(350, 80);
+        AddFlower(400, 400);
+        AddFlower(300, 400);
+        AddFlower(450, 45);
+        AddFlower(500, 89);
+        AddFlower(500, 800);
+        AddFlower(50, 100);
+        AddFlower(120, 200);
+        AddFlower(300, 250);
+        AddFlower(400, 350);
+        AddFlower(500, 100);
+        AddFlower(600, 400);
+        AddFlower(700, 150);
+        AddFlower(800, 300);
+        AddFlower(900, 450);
+        AddFlower(1000, 200);
 
 
     }
@@ -113,9 +122,6 @@ public class Engine
             }
         }
     }
-
-
-
 
     public void RenderFrame()
     {
@@ -204,19 +210,20 @@ public class Engine
 
         TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
         _gameObjects.Add(bomb.Id, bomb);
+
+        _bombAdded = true;
     }
 
     public bool IsBombAdded()
     {
-        return _bombAdded; // Expose the bomb state
+        return _bombAdded;
     }
-
-    public void AddFence(int x, int y, bool translateCoordinates = true)
+    public void AddFlower(int x, int y, bool translateCoordinates = true)
     {
         var worldCoords = translateCoordinates ? _renderer.ToWorldCoordinates(x, y) : new Silk.NET.Maths.Vector2D<int>(x, y);
-
-        SpriteSheet spriteSheet = SpriteSheet.Load(_renderer, "Fence.json", "Assets");
-        FenceObject fence = new FenceObject(spriteSheet, (worldCoords.X, worldCoords.Y));
-        _gameObjects.Add(fence.Id, fence);
+        SpriteSheet spriteSheet = SpriteSheet.Load(_renderer, "Flower.json", "Assets");
+        FlowerObject flower = new FlowerObject(spriteSheet, (worldCoords.X, worldCoords.Y));
+        _gameObjects.Add(flower.Id, flower);
     }
+
 }
