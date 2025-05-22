@@ -120,7 +120,7 @@
         "col": 3
       },
       "durationMs": 300,
-      "loop": true,
+      "loop": false,
       "flip": 1
     },
     "AttackRight": {
@@ -133,7 +133,7 @@
         "col": 3
       },
       "durationMs": 300,
-      "loop": true,
+      "loop": false,
       "flip": 0
     },
     "AttackDown": {
@@ -146,7 +146,7 @@
         "col": 3
       },
       "durationMs": 300,
-      "loop": true,
+      "loop": false,
       "flip": 0
     },
     "AttackUp": {
@@ -159,7 +159,7 @@
         "col": 3
       },
       "durationMs": 300,
-      "loop": true,
+      "loop": false,
       "flip": 0
     },
     "GameOver": {

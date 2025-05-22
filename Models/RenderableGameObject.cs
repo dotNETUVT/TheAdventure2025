@@ -1,4 +1,5 @@
 using Silk.NET.SDL;
+using Silk.NET.Maths;
 
 namespace TheAdventure.Models;
 
@@ -22,5 +23,12 @@ public class RenderableGameObject : GameObject
     public virtual void Render(GameRenderer renderer)
     {
         SpriteSheet.Render(renderer, Position, Angle, RotationCenter);
+    }
+
+    public virtual Rectangle<int> GetBoundingBox()
+    {
+        int topLeftX = Position.X - SpriteSheet.FrameCenter.OffsetX;
+        int topLeftY = Position.Y - SpriteSheet.FrameCenter.OffsetY;
+        return new Rectangle<int>(topLeftX, topLeftY, SpriteSheet.FrameWidth, SpriteSheet.FrameHeight);
     }
 }
