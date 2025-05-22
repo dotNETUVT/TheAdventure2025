@@ -4,6 +4,7 @@ namespace TheAdventure.Models;
 
 public class PlayerObject : RenderableGameObject
 {
+    public bool IsShielded { get; set; } = false;
     private const int _speed = 128; // pixels per second
 
     public enum PlayerStateDirection
@@ -25,6 +26,10 @@ public class PlayerObject : RenderableGameObject
     }
 
     public (PlayerState State, PlayerStateDirection Direction) State { get; private set; }
+
+    public int Health { get; private set; } = 100;
+    public int Score { get; private set; } = 0;
+    private double _scoreTimer = 0;
 
     public PlayerObject(SpriteSheet spriteSheet, int x, int y) : base(spriteSheet, (x, y))
     {
@@ -52,7 +57,6 @@ public class PlayerObject : RenderableGameObject
         {
             SpriteSheet.ActivateAnimation(null);
         }
-
         else if (state == PlayerState.GameOver)
         {
             SpriteSheet.ActivateAnimation(Enum.GetName(state));
@@ -80,6 +84,29 @@ public class PlayerObject : RenderableGameObject
 
         var direction = State.Direction;
         SetState(PlayerState.Attack, direction);
+    }
+
+    public void TakeDamage(int amount)
+    {
+        if (State.State == PlayerState.GameOver)
+            return;
+
+        Health -= amount;
+        if (Health <= 0)
+        {
+            Health = 0;
+            GameOver();
+        }
+    }
+
+    public void Heal(int amount)
+    {
+        if (State.State == PlayerState.GameOver)
+            return;
+
+        Health += amount;
+        if (Health > 100)
+            Health = 100;
     }
 
     public void UpdatePosition(double up, double down, double left, double right, int width, int height, double time)
@@ -117,7 +144,7 @@ public class PlayerObject : RenderableGameObject
         else
         {
             newState = PlayerState.Move;
-            
+
             if (y < Position.Y && newDirection != PlayerStateDirection.Up)
             {
                 newDirection = PlayerStateDirection.Up;
@@ -145,5 +172,14 @@ public class PlayerObject : RenderableGameObject
         }
 
         Position = (x, y);
+
+        _scoreTimer += time;
+        if (_scoreTimer >= 1000)
+        {
+            Score += 10;
+            _scoreTimer = 0;
+        }
+
+       
     }
 }

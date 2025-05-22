@@ -1,0 +1,73 @@
+using System.Reflection;
+using System.Text.Json;
+using Silk.NET.Maths;
+using TheAdventure.Models;
+using TheAdventure.Models.Data;
+using TheAdventure.Scripting;
+using ImGuiNET;
+using SixLabors.ImageSharp.Drawing.Processing;
+using SixLabors.ImageSharp.Processing;
+using Silk.NET.Input;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Formats.Png;
+
+namespace TheAdventure;
+
+public class Engine
+{
+    public GameRenderer Renderer => _renderer;
+    public PlayerObject? Player => _player;
+    private readonly GameRenderer _renderer;
+    private readonly Input _input;
+    private readonly ScriptEngine _scriptEngine = new();
+
+    private readonly Dictionary<int, GameObject> _gameObjects = new();
+    private readonly Dictionary<string, TileSet> _loadedTileSets = new();
+    private readonly Dictionary<int, Tile> _tileIdMap = new();
+
+    private Level _currentLevel = new();
+    private PlayerObject? _player;
+    // ... restul clasei ...
+
+    public void RemoveGameObject(int id)
+    {
+        _gameObjects.Remove(id, out _);
+    }
+    
+    private (int textureId, int width, int height) CreateUITextTexture(string text, System.Drawing.Color color)
+    {
+        using var image = new SixLabors.ImageSharp.Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(200, 50);
+        image.Mutate(ctx =>
+        {
+            ctx.Clear(new SixLabors.ImageSharp.PixelFormats.Rgba32(0, 0, 0, 0));
+            var fontCollection = new SixLabors.Fonts.FontCollection();
+            var fontFamily = fontCollection.Add("Assets/Fonts/arial.ttf");
+            var font = fontFamily.CreateFont(24, SixLabors.Fonts.FontStyle.Bold);
+            ctx.DrawText(text, font, new SixLabors.ImageSharp.PixelFormats.Rgba32(color.R, color.G, color.B, color.A), new SixLabors.ImageSharp.PointF(0, 0));
+        });
+
+        using (var ms = new System.IO.MemoryStream())
+        {
+            image.Save(ms, new PngEncoder());
+            ms.Position = 0;
+            var textureId = _renderer.LoadTexture(ms, out var texData);
+            return (textureId, texData.Width, texData.Height);
+        }
+    }
+
+    // Desenează textul pe UI (HUD), resetând camera ca să fie mereu în colțul ecranului
+    private void DrawUIText((int textureId, int width, int height) tex, int x, int y)
+    {
+        var originalCameraPos = _renderer.ToWorldCoordinates(0, 0);
+        _renderer.CameraLookAt(0, 0);
+
+        _renderer.RenderTexture(
+            tex.textureId,
+            new Silk.NET.Maths.Rectangle<int>(0, 0, tex.width, tex.height),
+            new Silk.NET.Maths.Rectangle<int>(x, y, tex.width, tex.height)
+        );
+
+        _renderer.CameraLookAt(originalCameraPos.X, originalCameraPos.Y);
+    }
+}
