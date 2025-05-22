@@ -4,11 +4,18 @@ using Silk.NET.Maths;
 using TheAdventure.Models;
 using TheAdventure.Models.Data;
 using TheAdventure.Scripting;
+using ImGuiNET;
+using SixLabors.ImageSharp.Drawing.Processing;
+using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp.Formats.Png;
+using Silk.NET.Input;
 
 namespace TheAdventure;
 
 public class Engine
 {
+    public GameRenderer Renderer => _renderer;
+    public PlayerObject? Player => _player;
     private readonly GameRenderer _renderer;
     private readonly Input _input;
     private readonly ScriptEngine _scriptEngine = new();
@@ -21,6 +28,9 @@ public class Engine
     private PlayerObject? _player;
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
+    private DateTime _lastConsoleLog = DateTime.Now;
+
+  
 
     public Engine(GameRenderer renderer, Input input)
     {
@@ -28,11 +38,14 @@ public class Engine
         _input = input;
 
         _input.OnMouseClick += (_, coords) => AddBomb(coords.x, coords.y);
+        
+
     }
 
     public void SetupWorld()
     {
         _player = new(SpriteSheet.Load(_renderer, "Player.json", "Assets"), 100, 100);
+
 
         var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
         var level = JsonSerializer.Deserialize<Level>(levelContent);
@@ -120,12 +133,38 @@ public class Engine
         RenderTerrain();
         RenderAllObjects();
 
+        // --- HUD: Health & Score cu font custom ---
+        var hpTex = CreateUITextTexture($"HP: {_player.Health}", System.Drawing.Color.White);
+        var scoreTex = CreateUITextTexture($"Score: {_player.Score}", System.Drawing.Color.Yellow);
+        DrawUIText(hpTex, 10, 10);
+        DrawUIText(scoreTex, 10, 40);
         _renderer.PresentFrame();
     }
 
     public void RenderAllObjects()
     {
         var toRemove = new List<int>();
+        // --- Check for potion collision before rendering ---
+        if (_player != null)
+        {
+            foreach (var gameObject in GetRenderables())
+            {
+                if (gameObject is TemporaryGameObject tempGameObject &&
+                    tempGameObject.SpriteSheet != null &&
+                    tempGameObject.SpriteSheet.FileName == "MagicPotion.png")
+                {
+                    var deltaX = Math.Abs(_player.Position.X - tempGameObject.Position.X);
+                    var deltaY = Math.Abs(_player.Position.Y - tempGameObject.Position.Y);
+                    if (deltaX < 32 && deltaY < 32)
+                    {
+                        _player.Heal(40);
+                        toRemove.Add(tempGameObject.Id);
+                        continue;
+                    }
+                }
+            }
+        }
+        // --- Normal rendering and bomb expiration logic ---
         foreach (var gameObject in GetRenderables())
         {
             gameObject.Render(_renderer);
@@ -145,11 +184,15 @@ public class Engine
             }
 
             var tempGameObject = (TemporaryGameObject)gameObject!;
-            var deltaX = Math.Abs(_player.Position.X - tempGameObject.Position.X);
-            var deltaY = Math.Abs(_player.Position.Y - tempGameObject.Position.Y);
-            if (deltaX < 32 && deltaY < 32)
+            // Only bombs deal damage on expiration
+            if (tempGameObject.SpriteSheet != null && tempGameObject.SpriteSheet.FileName != "MagicPotion.png")
             {
-                _player.GameOver();
+                var deltaX = Math.Abs(_player.Position.X - tempGameObject.Position.X);
+                var deltaY = Math.Abs(_player.Position.Y - tempGameObject.Position.Y);
+                if (deltaX < 32 && deltaY < 32)
+                {
+                    _player.TakeDamage(40);
+                }
             }
         }
 
@@ -158,6 +201,8 @@ public class Engine
 
     public void RenderTerrain()
     {
+
+
         foreach (var currentLayer in _currentLevel.Layers)
         {
             for (int i = 0; i < _currentLevel.Width; ++i)
@@ -215,4 +260,62 @@ public class Engine
         TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
         _gameObjects.Add(bomb.Id, bomb);
     }
+
+    public void AddPotion(int X, int Y, bool translateCoordinates = true)
+    {
+        var worldCoords = translateCoordinates ? _renderer.ToWorldCoordinates(X, Y) : new Vector2D<int>(X, Y);
+
+        SpriteSheet spriteSheet = SpriteSheet.Load(_renderer, "MagicPotion.json", "Assets");
+        spriteSheet.ActivateAnimation("Idle");
+
+        TemporaryGameObject potion = new(spriteSheet, 3.0, (worldCoords.X, worldCoords.Y));
+        _gameObjects.Add(potion.Id, potion);
+    }
+
+    public void AddGameObject(GameObject obj)
+    {
+        if (!_gameObjects.ContainsKey(obj.Id))
+            _gameObjects.Add(obj.Id, obj);
+    }
+
+    public void RemoveGameObject(int id)
+    {
+        _gameObjects.Remove(id, out _);
+    }
+    
+    private (int textureId, int width, int height) CreateUITextTexture(string text, System.Drawing.Color color)
+{
+    using var image = new SixLabors.ImageSharp.Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(200, 50);
+    image.Mutate(ctx =>
+    {
+        ctx.Clear(new SixLabors.ImageSharp.PixelFormats.Rgba32(0, 0, 0, 0));
+        var fontCollection = new SixLabors.Fonts.FontCollection();
+        var fontFamily = fontCollection.Add("Assets/Fonts/arial.ttf");
+        var font = fontFamily.CreateFont(24, SixLabors.Fonts.FontStyle.Bold);
+        ctx.DrawText(text, font, new SixLabors.ImageSharp.PixelFormats.Rgba32(color.R, color.G, color.B, color.A), new SixLabors.ImageSharp.PointF(0, 0));
+    });
+
+    using (var ms = new System.IO.MemoryStream())
+    {
+        image.Save(ms, new SixLabors.ImageSharp.Formats.Png.PngEncoder());
+        ms.Position = 0;
+        var textureId = _renderer.LoadTexture(ms, out var texData);
+        return (textureId, texData.Width, texData.Height);
+    }
+}
+
+// Desenează textul pe UI (HUD), resetând camera ca să fie mereu în colțul ecranului
+private void DrawUIText((int textureId, int width, int height) tex, int x, int y)
+{
+    var originalCameraPos = _renderer.ToWorldCoordinates(0, 0);
+    _renderer.CameraLookAt(0, 0);
+
+    _renderer.RenderTexture(
+        tex.textureId,
+        new Silk.NET.Maths.Rectangle<int>(0, 0, tex.width, tex.height),
+        new Silk.NET.Maths.Rectangle<int>(x, y, tex.width, tex.height)
+    );
+
+    _renderer.CameraLookAt(originalCameraPos.X, originalCameraPos.Y);
+}
 }

@@ -19,12 +19,14 @@ public unsafe class GameWindow : IDisposable
     private IntPtr _window;
     private readonly Sdl _sdl;
 
+    public IntPtr Handle => _window;
+
     public GameWindow(Sdl sdl)
     {
         _sdl = sdl;
         _window = (IntPtr)sdl.CreateWindow(
             "The Adventure", Sdl.WindowposUndefined, Sdl.WindowposUndefined, 640, 400,
-            (uint)WindowFlags.Resizable | (uint)WindowFlags.AllowHighdpi
+            (uint)WindowFlags.Resizable | (uint)WindowFlags.AllowHighdpi | (uint)WindowFlags.Opengl
         );
 
         if (_window == IntPtr.Zero)

@@ -18,6 +18,9 @@ public unsafe class GameRenderer
     private Dictionary<int, TextureData> _textureData = new();
     private int _textureId;
 
+    public IntPtr WindowHandle => _window.Handle;
+    public Sdl Sdl => _sdl;
+
     public GameRenderer(Sdl sdl, GameWindow window)
     {
         _sdl = sdl;
@@ -28,6 +31,7 @@ public unsafe class GameRenderer
         _window = window;
         var windowSize = window.Size;
         _camera = new Camera(windowSize.Width, windowSize.Height);
+
     }
 
     public void SetWorldBounds(Rectangle<int> bounds)
@@ -78,6 +82,43 @@ public unsafe class GameRenderer
         return _textureId++;
     }
 
+    public int LoadTexture(System.IO.Stream stream, out TextureData textureInfo)
+    {
+        var image = Image.Load<Rgba32>(stream);
+        textureInfo = new TextureData()
+        {
+            Width = image.Width,
+            Height = image.Height
+        };
+        var imageRAWData = new byte[textureInfo.Width * textureInfo.Height * 4];
+        image.CopyPixelDataTo(imageRAWData.AsSpan());
+        unsafe
+        {
+            fixed (byte* data = imageRAWData)
+            {
+                var imageSurface = _sdl.CreateRGBSurfaceWithFormatFrom(data, textureInfo.Width,
+                    textureInfo.Height, 8, textureInfo.Width * 4, (uint)PixelFormatEnum.Rgba32);
+                if (imageSurface == null)
+                {
+                    throw new Exception("Failed to create surface from image data.");
+                }
+
+                var imageTexture = _sdl.CreateTextureFromSurface(_renderer, imageSurface);
+                if (imageTexture == null)
+                {
+                    _sdl.FreeSurface(imageSurface);
+                    throw new Exception("Failed to create texture from surface.");
+                }
+
+                _sdl.FreeSurface(imageSurface);
+
+                _textureData[_textureId] = textureInfo;
+                _texturePointers[_textureId] = (IntPtr)imageTexture;
+            }
+        }
+        return _textureId++;
+    }
+
     public void RenderTexture(int textureId, Rectangle<int> src, Rectangle<int> dst,
         RendererFlip flip = RendererFlip.None, double angle = 0.0, Point center = default)
     {
@@ -101,6 +142,7 @@ public unsafe class GameRenderer
         _sdl.SetRenderDrawColor(_renderer, r, g, b, a);
     }
 
+
     public void ClearScreen()
     {
         _sdl.RenderClear(_renderer);
@@ -110,4 +152,6 @@ public unsafe class GameRenderer
     {
         _sdl.RenderPresent(_renderer);
     }
+
+
 }

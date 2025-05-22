@@ -1,4 +1,4 @@
-﻿using Silk.NET.SDL;
+using Silk.NET.SDL;
 using Thread = System.Threading.Thread;
 
 namespace TheAdventure;
@@ -8,6 +8,11 @@ public static class Program
     public static void Main()
     {
         var sdl = new Sdl(new SdlContext());
+
+        // Setează atributele contextului OpenGL înainte de orice fereastră/context!
+        sdl.GLSetAttribute(GLattr.ContextMajorVersion, 3);
+        sdl.GLSetAttribute(GLattr.ContextMinorVersion, 3);
+        sdl.GLSetAttribute(GLattr.ContextProfileMask, (int)GLprofile.Core);
 
         var sdlInitResult = sdl.Init(Sdl.InitVideo | Sdl.InitAudio | Sdl.InitEvents | Sdl.InitTimer |
                                      Sdl.InitGamecontroller |
