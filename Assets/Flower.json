@@ -1,0 +1,12 @@
+﻿{
+  "rowCount": 1,
+  "columnCount": 1,
+  "frameWidth": 22,
+  "frameHeight": 60,
+  "frameCenter": {
+    "offsetX": 16,
+    "offsetY": 16
+  },
+  "fileName": "flower_complete.png",
+  "animations": {}
+}
