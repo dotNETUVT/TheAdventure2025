@@ -49,6 +49,18 @@ public unsafe class Input
         return _keyboardState[(int)KeyCode.B] == 1;
     }
 
+    private bool _wasEscapePressed = false;
+    public bool IsEscapePressed()
+    {
+        ReadOnlySpan<byte> _keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
+        bool isCurrentlyPressed = _keyboardState[(int)KeyCode.Escape] == 1;
+        
+        // Bandaid fix for simulating key down
+        bool result = isCurrentlyPressed && !_wasEscapePressed;
+        _wasEscapePressed = isCurrentlyPressed;
+        return result;
+    }
+
     public bool ProcessInput()
     {
         Event ev = new Event();
