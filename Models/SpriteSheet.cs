@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Silk.NET.Maths;
 using Silk.NET.SDL;
 
@@ -41,8 +41,16 @@ public class SpriteSheet
     
     public bool AnimationFinished { get; private set; }
 
+    public event Action<string>? OnAnimationFinished;
+
+
     private int _textureId = -1;
     private DateTimeOffset _animationStart = DateTimeOffset.MinValue;
+
+    private bool _isPaused = false;
+    private DateTimeOffset _pauseStart;
+    private TimeSpan _pauseAccumulated = TimeSpan.Zero;
+
 
     public static SpriteSheet Load(GameRenderer renderer, string fileName, string directory)
     {
@@ -109,12 +117,17 @@ public class SpriteSheet
         {
             var totalFrames = (ActiveAnimation.EndFrame.Row - ActiveAnimation.StartFrame.Row) * ColumnCount +
                 ActiveAnimation.EndFrame.Col - ActiveAnimation.StartFrame.Col;
-            var currentFrame = (int)((DateTimeOffset.Now - _animationStart).TotalMilliseconds /
+            var effectiveTime = _isPaused
+    ? _pauseStart - _animationStart - _pauseAccumulated
+    : DateTimeOffset.Now - _animationStart - _pauseAccumulated;
+
+            var currentFrame = (int)(effectiveTime.TotalMilliseconds /
                                      (ActiveAnimation.DurationMs / (double)totalFrames));
+
             if (currentFrame > totalFrames)
             {
                 AnimationFinished = true;
-                
+
                 if (ActiveAnimation.Loop)
                 {
                     _animationStart = DateTimeOffset.Now;
@@ -122,9 +135,12 @@ public class SpriteSheet
                 }
                 else
                 {
+                    // === NOTIFICARE: animația s-a terminat ===
+                    OnAnimationFinished?.Invoke(GetAnimationName(ActiveAnimation));
                     currentFrame = totalFrames;
                 }
             }
+
 
             var currentRow = ActiveAnimation.StartFrame.Row + currentFrame / ColumnCount;
             var currentCol = ActiveAnimation.StartFrame.Col + currentFrame % ColumnCount;
@@ -135,4 +151,30 @@ public class SpriteSheet
                 ActiveAnimation.Flip, angle, rotationCenter);
         }
     }
+    private string GetAnimationName(Animation animation)
+    {
+        foreach (var pair in Animations)
+        {
+            if (pair.Value == animation)
+                return pair.Key;
+        }
+
+        return string.Empty;
+    }
+
+    public void Pause()
+    {
+        if (_isPaused) return;
+        _isPaused = true;
+        _pauseStart = DateTimeOffset.Now;
+    }
+
+    public void Resume()
+    {
+        if (!_isPaused) return;
+        _pauseAccumulated += DateTimeOffset.Now - _pauseStart;
+        _isPaused = false;
+    }
+
+
 }

@@ -1,9 +1,11 @@
-using System.Reflection;
+﻿using System.Reflection;
 using System.Text.Json;
 using Silk.NET.Maths;
 using TheAdventure.Models;
 using TheAdventure.Models.Data;
 using TheAdventure.Scripting;
+using TheAdventure.Audio;
+
 
 namespace TheAdventure;
 
@@ -21,6 +23,21 @@ public class Engine
     private PlayerObject? _player;
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
+
+    private bool _wasAPressedLastFrame = false;
+    private bool _isAttacking = false;
+    private DateTimeOffset _attackStartTime = DateTimeOffset.MinValue;
+    private const double _attackDurationMs = 500; // durata atacului in ms
+    private bool _sprintEnabled = false;
+    private readonly Audio.AudioPlayer _swordSound = new("Assets/sword_slash.wav");
+
+    private bool _isPaused = false;
+    private bool _wasPPressedLastFrame = false;
+
+    private bool _awaitingExitConfirmation = false;
+
+    private bool IsGameFrozen() => _isPaused || _awaitingExitConfirmation;
+
 
     public Engine(GameRenderer renderer, Input input)
     {
@@ -79,35 +96,149 @@ public class Engine
 
     public void ProcessFrame()
     {
+
+        if (_awaitingExitConfirmation)
+        {
+            foreach (var obj in _gameObjects.Values)
+            {
+                if (obj is TemporaryGameObject temp)
+                {
+                    temp.Pause();
+                }
+            }
+
+            if (_input.IsKeyYPressed())
+            {
+                Environment.Exit(0);
+            }
+            else if (_input.IsKeyNPressed())
+            {
+                _awaitingExitConfirmation = false;
+
+                foreach (var obj in _gameObjects.Values)
+                {
+                    if (obj is TemporaryGameObject temp)
+                    {
+                        temp.Resume();
+                    }
+                }
+            }
+
+            return;
+        }
+
+
         var currentTime = DateTimeOffset.Now;
         var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
         _lastUpdate = currentTime;
 
-        if (_player == null)
+        bool pPressedNow = _input.IsKeyPPressed();
+        bool pJustPressed = pPressedNow && !_wasPPressedLastFrame;
+        _wasPPressedLastFrame = pPressedNow;
+
+
+
+        if (pJustPressed)
         {
-            return;
+            _isPaused = !_isPaused;
+
+            foreach (var obj in _gameObjects.Values)
+            {
+                if (obj is TemporaryGameObject temp)
+                {
+                    if (IsGameFrozen())
+                        temp.Pause();
+                    else
+                        temp.Resume();
+                }
+            }
         }
+
+        if (IsGameFrozen())
+        {
+            return; 
+        }
+
+        if (_input.IsEscapePressed())
+        {
+            _awaitingExitConfirmation = true;
+        }
+
+
+        if (_player == null) return;
 
         double up = _input.IsUpPressed() ? 1.0 : 0.0;
         double down = _input.IsDownPressed() ? 1.0 : 0.0;
         double left = _input.IsLeftPressed() ? 1.0 : 0.0;
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
-        bool isAttacking = _input.IsKeyAPressed() && (up + down + left + right <= 1);
-        bool addBomb = _input.IsKeyBPressed();
 
-        _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame);
-        if (isAttacking)
-        {
-            _player.Attack();
-        }
+        bool wPressed = _input.IsWPressed();
+        bool aPressedNow = _input.IsKeyAPressed();
+        bool aJustPressed = aPressedNow && !_wasAPressedLastFrame;
+        _wasAPressedLastFrame = aPressedNow;
+
+        _sprintEnabled = wPressed;
+        double speedMultiplier = _sprintEnabled ? 1.5 : 1.0;
+
         
-        _scriptEngine.ExecuteAll(this);
+        if (aJustPressed && !_isAttacking)
+        {
+            _player.Attack();              
+            _swordSound.Play();            
+            _attackStartTime = currentTime;
+            _isAttacking = true;
+        }
 
-        if (addBomb)
+        if (_isAttacking && (currentTime - _attackStartTime).TotalMilliseconds >= _attackDurationMs)
+        {
+            _isAttacking = false;
+        }
+
+        if (!_isAttacking)
+        {
+            var timeWithSprint = msSinceLastFrame * speedMultiplier;
+
+            int width = (_currentLevel.Width ?? 100) * (_currentLevel.TileWidth ?? 32);
+            int height = (_currentLevel.Height ?? 100) * (_currentLevel.TileHeight ?? 32);
+
+            _player.UpdatePosition(up, down, left, right, width, height, timeWithSprint);
+        }
+
+        if (_input.IsKeyBPressed())
         {
             AddBomb(_player.Position.X, _player.Position.Y, false);
         }
+
+        // Bombe și coliziune
+        var toRemove = _gameObjects
+            .Where(pair => pair.Value is TemporaryGameObject t && t.IsExpired)
+            .Select(pair => pair.Key)
+            .ToList();
+
+        foreach (var id in toRemove)
+        {
+            if (_gameObjects.TryGetValue(id, out var gameObject) &&
+                gameObject is TemporaryGameObject tempObject)
+            {
+                var dx = Math.Abs(_player.Position.X - tempObject.Position.X);
+                var dy = Math.Abs(_player.Position.Y - tempObject.Position.Y);
+                if (dx < 32 && dy < 32)
+                {
+                    _player.GameOver();
+                }
+            }
+
+            _gameObjects.Remove(id);
+
+        }
+        if (!_isPaused)
+        {
+            _scriptEngine.ExecuteAll(this);
+        }
+
     }
+
+
 
     public void RenderFrame()
     {
@@ -154,6 +285,18 @@ public class Engine
         }
 
         _player?.Render(_renderer);
+        if (IsGameFrozen())
+        {
+            _renderer.DrawText("GAME PAUSED", 250, 200);
+        }
+
+        if (_awaitingExitConfirmation)
+        {
+            _renderer.DrawText("Ești sigur că vrei să ieși? [Y / N]", 180, 250);
+        }
+
+
+
     }
 
     public void RenderTerrain()
@@ -215,4 +358,6 @@ public class Engine
         TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
         _gameObjects.Add(bomb.Id, bomb);
     }
+
+
 }
