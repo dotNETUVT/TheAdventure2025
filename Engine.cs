@@ -149,11 +149,29 @@ public class Engine
             var deltaY = Math.Abs(_player.Position.Y - tempGameObject.Position.Y);
             if (deltaX < 32 && deltaY < 32)
             {
-                _player.GameOver();
+                _player.TakeDamage(25); // Take 25 damage from bomb
             }
         }
 
         _player?.Render(_renderer);
+
+        // Draw health bar above player
+        if (_player != null)
+        {
+            var barWidth = 48;
+            var barHeight = 6;
+            var healthPercent = (float)_player.CurrentHealth / _player.MaxHealth;
+            var playerPos = _player.Position;
+            var barX = playerPos.X - barWidth / 2;
+            var barY = playerPos.Y - 40; // above the player sprite
+
+            // Background (red)
+            _renderer.SetDrawColor(200, 40, 40, 255);
+            _renderer.FillRect(barX, barY, barWidth, barHeight);
+            // Foreground (green)
+            _renderer.SetDrawColor(40, 200, 40, 255);
+            _renderer.FillRect(barX, barY, (int)(barWidth * healthPercent), barHeight);
+        }
     }
 
     public void RenderTerrain()
