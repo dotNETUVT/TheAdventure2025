@@ -22,6 +22,9 @@ public class Engine
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
 
+    // Pentru afișarea vieților doar când se schimbă
+    private int _lastLivesShown = -1;
+
     public Engine(GameRenderer renderer, Input input)
     {
         _renderer = renderer;
@@ -30,7 +33,9 @@ public class Engine
 
     public void SetupWorld()
     {
-        _player = new(SpriteSheet.Load(_renderer, "Player.json", "Assets"), 100, 100);
+        _player = new PlayerObject(SpriteSheet.Load(_renderer, "Player.json", "Assets"), 100, 100);
+        _player.Lives = 3;
+        _player.ResetGameOver();
 
         var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
         var level = JsonSerializer.Deserialize<Level>(levelContent);
@@ -51,8 +56,7 @@ public class Engine
             _loadedTileSets[tileSet.Name] = tileSet;
         }
 
-        if (level.Width == null || level.Height == null ||
-            level.TileWidth == null || level.TileHeight == null)
+        if (level.Width == null || level.Height == null || level.TileWidth == null || level.TileHeight == null)
         {
             throw new Exception("Invalid level dimensions");
         }
@@ -120,6 +124,13 @@ public class Engine
         RenderTerrain();
         RenderAllObjects();
 
+        // Afișăm viețile doar când se schimbă
+        if (_player != null && _player.Lives != _lastLivesShown)
+        {
+            Console.WriteLine($"Lives: {_player.Lives}");
+            _lastLivesShown = _player.Lives;
+        }
+
         _renderer.PresentFrame();
     }
 
@@ -146,7 +157,12 @@ public class Engine
 
             if (deltaX < 32 && deltaY < 32)
             {
-                _player.GameOver();
+                _player.DecreaseLife();
+
+                if (_player.Lives <= 0)
+                {
+                    _player.GameOver();
+                }
             }
             else if (!_player.IsGameOver)
             {
@@ -157,40 +173,39 @@ public class Engine
         _player?.Render(_renderer);
     }
 
-public void RenderTerrain()
-{
-    foreach (var layer in _currentLevel.Layers)
+    public void RenderTerrain()
     {
-        if (layer.Width == null || layer.Height == null || layer.Data == null)
-            continue;
-
-        for (int i = 0; i < layer.Width; ++i)
+        foreach (var layer in _currentLevel.Layers)
         {
-            for (int j = 0; j < layer.Height; ++j)
+            if (layer.Width == null || layer.Height == null || layer.Data == null)
+                continue;
+
+            for (int i = 0; i < layer.Width; ++i)
             {
-                int dataIndex = j * layer.Width.Value + i;
-                int? tileIdNullable = layer.Data[dataIndex];
+                for (int j = 0; j < layer.Height; ++j)
+                {
+                    int dataIndex = j * layer.Width.Value + i;
+                    int? tileIdNullable = layer.Data[dataIndex];
 
-                if (!tileIdNullable.HasValue)
-                    continue;
+                    if (!tileIdNullable.HasValue)
+                        continue;
 
-                int tileId = tileIdNullable.Value - 1;
+                    int tileId = tileIdNullable.Value - 1;
 
-                if (!_tileIdMap.TryGetValue(tileId, out var tile))
-                    continue;
+                    if (!_tileIdMap.TryGetValue(tileId, out var tile))
+                        continue;
 
-                int tileWidth = tile.ImageWidth ?? 0;
-                int tileHeight = tile.ImageHeight ?? 0;
+                    int tileWidth = tile.ImageWidth ?? 0;
+                    int tileHeight = tile.ImageHeight ?? 0;
 
-                var srcRect = new Rectangle<int>(0, 0, tileWidth, tileHeight);
-                var dstRect = new Rectangle<int>(i * tileWidth, j * tileHeight, tileWidth, tileHeight);
+                    var srcRect = new Rectangle<int>(0, 0, tileWidth, tileHeight);
+                    var dstRect = new Rectangle<int>(i * tileWidth, j * tileHeight, tileWidth, tileHeight);
 
-                _renderer.RenderTexture(tile.TextureId, srcRect, dstRect);
+                    _renderer.RenderTexture(tile.TextureId, srcRect, dstRect);
+                }
             }
         }
     }
-}
-
 
     public IEnumerable<RenderableGameObject> GetRenderables()
     {
@@ -207,7 +222,7 @@ public void RenderTerrain()
     {
         var coords = translateCoordinates ? _renderer.ToWorldCoordinates(x, y) : new Vector2D<int>(x, y);
 
-        Console.WriteLine($"AddBomb called at ({coords.X}, {coords.Y})");
+        
 
         SpriteSheet sheet = SpriteSheet.Load(_renderer, "BombExploding.json", "Assets");
         sheet.ActivateAnimation("Explode");
@@ -222,8 +237,9 @@ public void RenderTerrain()
         _gameObjects.Clear();
         _loadedTileSets.Clear();
         _tileIdMap.Clear();
-        _scriptEngine = new ScriptEngine(); // releases locked DLLs
+        _scriptEngine = new ScriptEngine(); // eliberează DLL-urile blocate
         ScoreSystem.Reset();
         SetupWorld();
+        _lastLivesShown = -1; // să afișeze viețile după restart
     }
 }

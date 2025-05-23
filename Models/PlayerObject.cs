@@ -3,9 +3,11 @@ using Silk.NET.Maths;
 namespace TheAdventure.Models;
 
 public class PlayerObject : RenderableGameObject
-{public bool IsGameOver { get; private set; } = false;
+{
+    public bool IsGameOver { get; private set; } = false;
+    public int Lives { get; set; } = 3;
 
-    private const int _speed = 128; // pixels per second
+    private const int _speed = 128; // pixeli per secundă
 
     public enum PlayerStateDirection
     {
@@ -40,24 +42,15 @@ public class PlayerObject : RenderableGameObject
     public void SetState(PlayerState state, PlayerStateDirection direction)
     {
         if (State.State == PlayerState.GameOver)
-        {
             return;
-        }
 
         if (State.State == state && State.Direction == direction)
-        {
             return;
-        }
 
         if (state == PlayerState.None && direction == PlayerStateDirection.None)
-        {
             SpriteSheet.ActivateAnimation(null);
-        }
-
         else if (state == PlayerState.GameOver)
-        {
             SpriteSheet.ActivateAnimation(Enum.GetName(state));
-        }
         else
         {
             var animationName = Enum.GetName(state) + Enum.GetName(direction);
@@ -67,24 +60,27 @@ public class PlayerObject : RenderableGameObject
         State = (state, direction);
     }
 
-public void GameOver()
-{
-    if (!IsGameOver)
+    public void GameOver()
     {
-        IsGameOver = true;
-        SetState(PlayerState.GameOver, PlayerStateDirection.None);
-        Console.WriteLine("Player has died.");
-        Console.WriteLine("Press R to Restart...");
+        if (!IsGameOver)
+        {
+            IsGameOver = true;
+            SetState(PlayerState.GameOver, PlayerStateDirection.None);
+            Console.WriteLine("Player has died.");
+            Console.WriteLine("Press R to Restart...");
+        }
     }
-}
 
+    public void ResetGameOver()
+    {
+        IsGameOver = false;
+        SetState(PlayerState.Idle, PlayerStateDirection.Down);
+    }
 
     public void Attack()
     {
         if (State.State == PlayerState.GameOver)
-        {
             return;
-        }
 
         var direction = State.Direction;
         SetState(PlayerState.Attack, direction);
@@ -93,9 +89,7 @@ public void GameOver()
     public void UpdatePosition(double up, double down, double left, double right, int width, int height, double time)
     {
         if (State.State == PlayerState.GameOver)
-        {
             return;
-        }
 
         var pixelsToMove = _speed * (time / 1000.0);
 
@@ -113,9 +107,7 @@ public void GameOver()
             if (State.State == PlayerState.Attack)
             {
                 if (SpriteSheet.AnimationFinished)
-                {
                     newState = PlayerState.Idle;
-                }
             }
             else
             {
@@ -125,33 +117,30 @@ public void GameOver()
         else
         {
             newState = PlayerState.Move;
-            
+
             if (y < Position.Y && newDirection != PlayerStateDirection.Up)
-            {
                 newDirection = PlayerStateDirection.Up;
-            }
 
             if (y > Position.Y && newDirection != PlayerStateDirection.Down)
-            {
                 newDirection = PlayerStateDirection.Down;
-            }
 
             if (x < Position.X && newDirection != PlayerStateDirection.Left)
-            {
                 newDirection = PlayerStateDirection.Left;
-            }
 
             if (x > Position.X && newDirection != PlayerStateDirection.Right)
-            {
                 newDirection = PlayerStateDirection.Right;
-            }
         }
 
         if (newState != State.State || newDirection != State.Direction)
-        {
             SetState(newState, newDirection);
-        }
 
         Position = (x, y);
     }
+
+    public void DecreaseLife()
+    {
+        if (Lives > 0)
+            Lives--;
+    }
 }
+
