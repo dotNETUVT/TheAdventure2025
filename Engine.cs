@@ -14,6 +14,9 @@ public class Engine
     private readonly Input _input;
     private readonly ScriptEngine _scriptEngine = new();
 
+    private double _shakeTime;
+
+
     public bool Paused { get; private set; } = false;
 
     private readonly Dictionary<int, GameObject> _gameObjects = new();
@@ -28,6 +31,11 @@ public class Engine
     private double _survivedTime = 0.0;
 
     public double SurvivedTime => _survivedTime;
+    public double ShakeTime
+    {
+    get => _shakeTime;
+    set => _shakeTime = value;
+    }
 
     private double _footprintTimer = 0;       
     private const double FootprintInterval = 0.2; 
@@ -101,6 +109,12 @@ public class Engine
         var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
         _lastUpdate = currentTime;
 
+        if (_shakeTime > 0)
+        {
+            _shakeTime -= msSinceLastFrame / 1000.0;
+            if (_shakeTime < 0) _shakeTime = 0;
+        }
+        
         _survivedTime += msSinceLastFrame / 1000.0;
 
 
@@ -133,13 +147,15 @@ public class Engine
         {
             _player.Attack();
         }
-        
+
         _scriptEngine.ExecuteAll(this);
 
         if (addBomb)
         {
             AddBomb(_player.Position.X, _player.Position.Y, false);
         }
+        
+      
     }
 
     public void AddFootprint(int x, int y)
@@ -155,7 +171,7 @@ public class Engine
         _renderer.ClearScreen();
 
         var playerPosition = _player!.Position;
-        _renderer.CameraLookAt(playerPosition.X, playerPosition.Y);
+        _renderer.CameraLookAt(playerPosition.X, playerPosition.Y, ShakeTime);
 
         RenderTerrain();
         RenderAllObjects();
@@ -252,6 +268,7 @@ public class Engine
 
     public void AddBomb(int X, int Y, bool translateCoordinates = true)
     {
+        _shakeTime = 0.3;
         var worldCoords = translateCoordinates ? _renderer.ToWorldCoordinates(X, Y) : new Vector2D<int>(X, Y);
 
         bool isBig = Random.Shared.NextDouble() < 0.2;

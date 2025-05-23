@@ -40,8 +40,14 @@ public unsafe class GameRenderer
         _camera.SetWorldBounds(bounds);
     }
 
-    public void CameraLookAt(int x, int y)
+    public void CameraLookAt(int x, int y, double shakeTime = 0)
     {
+        if (shakeTime > 0)
+        {
+            var magnitude = (float)(shakeTime * 40); 
+            x += (int)(Random.Shared.NextDouble() * (2 * magnitude) - magnitude);
+            y += (int)(Random.Shared.NextDouble() * (2 * magnitude) - magnitude);
+        }
         _camera.LookAt(x, y);
     }
 
