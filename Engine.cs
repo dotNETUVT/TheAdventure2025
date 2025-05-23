@@ -4,6 +4,7 @@ using Silk.NET.Maths;
 using TheAdventure.Models;
 using TheAdventure.Models.Data;
 using TheAdventure.Scripting;
+using static TheAdventure.Models.SpriteSheet;
 
 namespace TheAdventure;
 
@@ -246,10 +247,15 @@ public class Engine
     {
         var worldCoords = translateCoordinates ? _renderer.ToWorldCoordinates(X, Y) : new Vector2D<int>(X, Y);
 
+        bool isBig = Random.Shared.NextDouble() < 0.2;
+        double ttl = isBig ? 3.0 : 2.1; 
+
         SpriteSheet spriteSheet = SpriteSheet.Load(_renderer, "BombExploding.json", "Assets");
         spriteSheet.ActivateAnimation("Explode");
+        
+        spriteSheet.Scale = isBig ? 2.3 : 1.0;
 
-        TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
+        TemporaryGameObject bomb = new(spriteSheet, ttl, (worldCoords.X, worldCoords.Y));
         _gameObjects.Add(bomb.Id, bomb);
     }
 }

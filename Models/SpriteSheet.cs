@@ -35,6 +35,7 @@ public class SpriteSheet
     public Offset FrameCenter { get; set; }
     public int TextureId => _textureId;
 
+    public double Scale { get; set; } = 1.0;    
 
     public string? FileName { get; set; }
 
@@ -142,10 +143,22 @@ public class SpriteSheet
         var currentRow = ActiveAnimation.StartFrame.Row + currentFrame / ColumnCount;
         var currentCol = ActiveAnimation.StartFrame.Col + currentFrame % ColumnCount;
 
+        int sw = (int)(FrameWidth  * Scale);
+        int sh = (int)(FrameHeight * Scale);
+        int ox = (int)(FrameCenter.OffsetX * Scale);
+        int oy = (int)(FrameCenter.OffsetY * Scale);
+
+        var dstRect = new Rectangle<int>(
+            dest.X - ox,
+            dest.Y - oy,
+            sw,
+            sh
+        );
+
         renderer.RenderTexture(
             _textureId,
             new Rectangle<int>(currentCol * FrameWidth, currentRow * FrameHeight, FrameWidth, FrameHeight),
-            new Rectangle<int>(dest.X - FrameCenter.OffsetX, dest.Y - FrameCenter.OffsetY, FrameWidth, FrameHeight),
+            dstRect,
             ActiveAnimation.Flip,
             angle,
             rotationCenter
