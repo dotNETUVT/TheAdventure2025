@@ -21,6 +21,8 @@ public class Engine
     private PlayerObject? _player;
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
+    
+    private int _forceFieldId = 0;
 
     public Engine(GameRenderer renderer, Input input)
     {
@@ -93,12 +95,19 @@ public class Engine
         double left = _input.IsLeftPressed() ? 1.0 : 0.0;
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
         bool isAttacking = _input.IsKeyAPressed() && (up + down + left + right <= 1);
+        bool isDefending = _input.IsKeyDPressed();
         bool addBomb = _input.IsKeyBPressed();
 
         _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame);
         if (isAttacking)
         {
             _player.Attack();
+        }
+        
+        if (isDefending && _player.State.State != PlayerObject.PlayerState.GameOver)
+        {
+            _player.Defend();
+            CreateForceField(_player.Position.X, _player.Position.Y);
         }
         
         _scriptEngine.ExecuteAll(this);
@@ -128,10 +137,30 @@ public class Engine
         var toRemove = new List<int>();
         foreach (var gameObject in GetRenderables())
         {
-            gameObject.Render(_renderer);
-            if (gameObject is TemporaryGameObject { IsExpired: true } tempGameObject)
+            if (_player != null && gameObject is TemporaryGameObject tempGameObject)
             {
-                toRemove.Add(tempGameObject.Id);
+                var deltaX = Math.Abs(_player.Position.X - tempGameObject.Position.X);
+                var deltaY = Math.Abs(_player.Position.Y - tempGameObject.Position.Y);
+
+                if (_player.State.State == PlayerObject.PlayerState.Defend && deltaX < 32 && deltaY < 32)
+                {
+                    
+                    int dx = tempGameObject.Position.X - _player.Position.X;
+                    int dy = tempGameObject.Position.Y - _player.Position.Y;
+                    double length = Math.Sqrt(dx * dx + dy * dy);
+                    if (length == 0) length = 1;
+
+                    int newX = _player.Position.X + (int)(dx / length * 64);
+                    int newY = _player.Position.Y + (int)(dy / length * 64);
+                    tempGameObject.Position = (newX, newY);
+                }
+            }
+
+            gameObject.Render(_renderer);
+
+            if (gameObject is TemporaryGameObject { IsExpired: true } expiredTempGameObject)
+            {
+                toRemove.Add(expiredTempGameObject.Id);
             }
         }
 
@@ -147,7 +176,8 @@ public class Engine
             var tempGameObject = (TemporaryGameObject)gameObject!;
             var deltaX = Math.Abs(_player.Position.X - tempGameObject.Position.X);
             var deltaY = Math.Abs(_player.Position.Y - tempGameObject.Position.Y);
-            if (deltaX < 32 && deltaY < 32)
+
+            if (deltaX < 32 && deltaY < 32 && tempGameObject.Id != _forceFieldId)
             {
                 _player.GameOver();
             }
@@ -155,7 +185,7 @@ public class Engine
 
         _player?.Render(_renderer);
     }
-
+    
     public void RenderTerrain()
     {
         foreach (var currentLayer in _currentLevel.Layers)
@@ -214,5 +244,26 @@ public class Engine
 
         TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
         _gameObjects.Add(bomb.Id, bomb);
+    }
+
+    public void CreateForceField(int X, int Y)
+    {
+        if (_forceFieldId != 0)
+        {
+            _gameObjects.Remove(_forceFieldId, out var gameObject);
+            if (gameObject is TemporaryGameObject tempGameObject)
+            {
+                tempGameObject.IsExpired = true;
+            }
+        }
+
+        var worldCoords = new Vector2D<int>(X, Y);
+
+        SpriteSheet spriteSheet = SpriteSheet.Load(_renderer, "ForceField.json", "Assets");
+        spriteSheet.ActivateAnimation("Expand");
+
+        TemporaryGameObject forceField = new(spriteSheet, 0.6, (worldCoords.X, worldCoords.Y));
+        _gameObjects.Add(forceField.Id, forceField);
+        _forceFieldId = forceField.Id;
     }
 }
