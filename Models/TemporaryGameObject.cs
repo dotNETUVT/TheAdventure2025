@@ -15,4 +15,9 @@ public class TemporaryGameObject : RenderableGameObject
         Ttl = ttl;
         _spawnTime = DateTimeOffset.Now;
     }
+
+    public override void Render(GameRenderer renderer, bool paused = false)
+    {
+        base.Render(renderer, paused);
+    }
 }

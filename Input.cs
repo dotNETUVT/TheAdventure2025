@@ -12,7 +12,11 @@ public unsafe class Input
     {
         _sdl = sdl;
     }
-
+    public bool IsPausePressed()
+    {
+        ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
+        return keyboardState[(int)KeyCode.Escape] == 1;
+    }
     public bool IsLeftPressed()
     {
         ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
