@@ -1,9 +1,12 @@
-using Silk.NET.Maths;
+﻿using Silk.NET.Maths;
 using Silk.NET.SDL;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using TheAdventure.Models;
 using Point = Silk.NET.SDL.Point;
+using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp.Drawing.Processing;
+using SixLabors.Fonts;
 
 namespace TheAdventure;
 
@@ -110,4 +113,53 @@ public unsafe class GameRenderer
     {
         _sdl.RenderPresent(_renderer);
     }
+
+    public void DrawText(string message, int x, int y)
+    {
+        using var fontStream = File.OpenRead("Assets/OpenSans-Regular.ttf");
+        var collection = new FontCollection();
+        var fontFamily = collection.Add(fontStream);
+        var font = fontFamily.CreateFont(24);
+
+        int width = 400;
+        int height = 100;
+
+        using var img = new Image<Rgba32>(width, height);
+        img.Mutate(ctx =>
+        {
+            ctx.Clear(SixLabors.ImageSharp.Color.Transparent);
+            ctx.DrawText(message, font, SixLabors.ImageSharp.Color.White, new PointF(0, 0));
+        });
+
+
+        byte[] pixelData = new byte[width * height * 4];
+        img.CopyPixelDataTo(pixelData);
+
+        fixed (byte* data = pixelData)
+        {
+            var surface = _sdl.CreateRGBSurfaceWithFormatFrom(
+                data,
+                width,
+                height,
+                32,
+                width * 4,
+                (uint)PixelFormatEnum.Rgba32);
+
+            if (surface == null)
+                throw new Exception("Failed to create surface for text.");
+
+            var texture = _sdl.CreateTextureFromSurface(_renderer, surface);
+            if (texture == null)
+                throw new Exception("Failed to create texture from surface.");
+
+            var rect = new Rectangle<int>(x, y, width, height);
+            _sdl.RenderCopy(_renderer, texture, null, in rect);
+
+            _sdl.DestroyTexture(texture);
+            _sdl.FreeSurface(surface);
+        }
+    }
+
+
+
 }
