@@ -11,7 +11,7 @@ public unsafe class GameRenderer
 {
     private Sdl _sdl;
     private Renderer* _renderer;
-    private GameWindow _window;
+    public static GameWindow window;
     private Camera _camera;
 
     private Dictionary<int, IntPtr> _texturePointers = new();
@@ -25,7 +25,7 @@ public unsafe class GameRenderer
         _renderer = (Renderer*)window.CreateRenderer();
         _sdl.SetRenderDrawBlendMode(_renderer, BlendMode.Blend);
         
-        _window = window;
+        GameRenderer.window = window;
         var windowSize = window.Size;
         _camera = new Camera(windowSize.Width, windowSize.Height);
     }
