@@ -21,6 +21,7 @@ public class PlayerObject : RenderableGameObject
         Idle,
         Move,
         Attack,
+        Defend,
         GameOver
     }
 
@@ -80,6 +81,16 @@ public class PlayerObject : RenderableGameObject
 
         var direction = State.Direction;
         SetState(PlayerState.Attack, direction);
+    }
+
+    public void Defend()
+    {
+        if (State.State == PlayerState.GameOver)
+        {
+            return;
+        }
+        
+        SetState(PlayerState.Defend, PlayerStateDirection.None);
     }
 
     public void UpdatePosition(double up, double down, double left, double right, int width, int height, double time)
