@@ -4,6 +4,7 @@ using Silk.NET.Maths;
 using TheAdventure.Models;
 using TheAdventure.Models.Data;
 using TheAdventure.Scripting;
+using static TheAdventure.Models.SpriteSheet;
 
 namespace TheAdventure;
 
@@ -13,6 +14,11 @@ public class Engine
     private readonly Input _input;
     private readonly ScriptEngine _scriptEngine = new();
 
+    private double _shakeTime;
+
+
+    public bool Paused { get; private set; } = false;
+
     private readonly Dictionary<int, GameObject> _gameObjects = new();
     private readonly Dictionary<string, TileSet> _loadedTileSets = new();
     private readonly Dictionary<int, Tile> _tileIdMap = new();
@@ -21,7 +27,18 @@ public class Engine
     private PlayerObject? _player;
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
+    private SpriteSheet _footprintSheet;      
+    private double _survivedTime = 0.0;
 
+    public double SurvivedTime => _survivedTime;
+    public double ShakeTime
+    {
+    get => _shakeTime;
+    set => _shakeTime = value;
+    }
+
+    private double _footprintTimer = 0;       
+    private const double FootprintInterval = 0.2; 
     public Engine(GameRenderer renderer, Input input)
     {
         _renderer = renderer;
@@ -30,9 +47,15 @@ public class Engine
         _input.OnMouseClick += (_, coords) => AddBomb(coords.x, coords.y);
     }
 
+    public void TogglePause()
+    {
+        Paused = !Paused;
+    }
+
     public void SetupWorld()
     {
         _player = new(SpriteSheet.Load(_renderer, "Player.json", "Assets"), 100, 100);
+        _footprintSheet = SpriteSheet.Load(_renderer, "Footprint.json", "Assets");
 
         var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
         var level = JsonSerializer.Deserialize<Level>(levelContent);
@@ -79,9 +102,21 @@ public class Engine
 
     public void ProcessFrame()
     {
+        if (Paused)
+            return;
+
         var currentTime = DateTimeOffset.Now;
         var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
         _lastUpdate = currentTime;
+
+        if (_shakeTime > 0)
+        {
+            _shakeTime -= msSinceLastFrame / 1000.0;
+            if (_shakeTime < 0) _shakeTime = 0;
+        }
+        
+        _survivedTime += msSinceLastFrame / 1000.0;
+
 
         if (_player == null)
         {
@@ -96,17 +131,38 @@ public class Engine
         bool addBomb = _input.IsKeyBPressed();
 
         _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame);
+
+        var moveSum = up + down + left + right;
+        if (moveSum > 0)
+        {
+            _footprintTimer -= msSinceLastFrame / 1000.0;
+            if (_footprintTimer <= 0)
+            {
+                _footprintTimer = FootprintInterval;
+                AddFootprint(_player.Position.X, _player.Position.Y);
+            }
+        }
+
         if (isAttacking)
         {
             _player.Attack();
         }
-        
+
         _scriptEngine.ExecuteAll(this);
 
         if (addBomb)
         {
             AddBomb(_player.Position.X, _player.Position.Y, false);
         }
+        
+      
+    }
+
+    public void AddFootprint(int x, int y)
+    {
+        // TTL = 1 second
+        var fp = new TemporaryGameObject(_footprintSheet, 1.0, (x, y));
+        _gameObjects.Add(fp.Id, fp);
     }
 
     public void RenderFrame()
@@ -115,10 +171,15 @@ public class Engine
         _renderer.ClearScreen();
 
         var playerPosition = _player!.Position;
-        _renderer.CameraLookAt(playerPosition.X, playerPosition.Y);
+        _renderer.CameraLookAt(playerPosition.X, playerPosition.Y, ShakeTime);
 
         RenderTerrain();
         RenderAllObjects();
+
+        if (Paused)
+        {
+            _renderer.DrawPausedOverlay();
+        }
 
         _renderer.PresentFrame();
     }
@@ -128,7 +189,7 @@ public class Engine
         var toRemove = new List<int>();
         foreach (var gameObject in GetRenderables())
         {
-            gameObject.Render(_renderer);
+            gameObject.Render(_renderer, Paused);
             if (gameObject is TemporaryGameObject { IsExpired: true } tempGameObject)
             {
                 toRemove.Add(tempGameObject.Id);
@@ -153,7 +214,7 @@ public class Engine
             }
         }
 
-        _player?.Render(_renderer);
+        _player?.Render(_renderer, Paused);
     }
 
     public void RenderTerrain()
@@ -207,12 +268,18 @@ public class Engine
 
     public void AddBomb(int X, int Y, bool translateCoordinates = true)
     {
+        _shakeTime = 0.3;
         var worldCoords = translateCoordinates ? _renderer.ToWorldCoordinates(X, Y) : new Vector2D<int>(X, Y);
+
+        bool isBig = Random.Shared.NextDouble() < 0.2;
+        double ttl = isBig ? 3.0 : 2.1; 
 
         SpriteSheet spriteSheet = SpriteSheet.Load(_renderer, "BombExploding.json", "Assets");
         spriteSheet.ActivateAnimation("Explode");
+        
+        spriteSheet.Scale = isBig ? 2.3 : 1.0;
 
-        TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
+        TemporaryGameObject bomb = new(spriteSheet, ttl, (worldCoords.X, worldCoords.Y));
         _gameObjects.Add(bomb.Id, bomb);
     }
 }

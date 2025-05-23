@@ -31,6 +31,12 @@ public static class Program
                 quit = input.ProcessInput();
                 if (quit) break;
 
+                if (input.IsPausePressed())
+                {
+                    engine.TogglePause();
+                    Thread.Sleep(200);
+                }
+                engine.ShakeTime = Math.Max(0, engine.ShakeTime - 0.013);
                 engine.ProcessFrame();
                 engine.RenderFrame();
 
