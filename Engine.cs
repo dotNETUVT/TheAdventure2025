@@ -39,6 +39,18 @@ public class Engine
     private bool IsGameFrozen() => _isPaused || _awaitingExitConfirmation;
 
 
+    private bool _isGameOver = false;
+
+    
+
+    private readonly MusicPlayer _music = new();
+
+    private int _heartTextureId;
+    private const int _maxLives = 3;
+    private int _currentLives = _maxLives;
+
+
+
     public Engine(GameRenderer renderer, Input input)
     {
         _renderer = renderer;
@@ -50,6 +62,12 @@ public class Engine
     public void SetupWorld()
     {
         _player = new(SpriteSheet.Load(_renderer, "Player.json", "Assets"), 100, 100);
+        _gameObjects.Clear();
+        _loadedTileSets.Clear();
+        _tileIdMap.Clear();
+        _music.PlayLoop("Assets/background_music.mp3");
+        _heartTextureId = _renderer.LoadTexture(Path.Combine("Assets", "heart.png"), out _);
+        _currentLives = _maxLives;
 
         var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
         var level = JsonSerializer.Deserialize<Level>(levelContent);
@@ -96,74 +114,76 @@ public class Engine
 
     public void ProcessFrame()
     {
-
+        // === ESC pressed → exit confirmation
         if (_awaitingExitConfirmation)
         {
             foreach (var obj in _gameObjects.Values)
-            {
-                if (obj is TemporaryGameObject temp)
-                {
-                    temp.Pause();
-                }
-            }
+                if (obj is TemporaryGameObject temp) temp.Pause();
 
             if (_input.IsKeyYPressed())
             {
+                _music.Stop();
                 Environment.Exit(0);
             }
             else if (_input.IsKeyNPressed())
             {
                 _awaitingExitConfirmation = false;
-
                 foreach (var obj in _gameObjects.Values)
-                {
-                    if (obj is TemporaryGameObject temp)
-                    {
-                        temp.Resume();
-                    }
-                }
+                    if (obj is TemporaryGameObject temp) temp.Resume();
             }
-
             return;
         }
 
+        // === R pressed during Game Over → reset game
+        if (_isGameOver)
+        {
+            if (_input.IsKeyRPressed())
+            {
+                _gameObjects.Clear();
+                _isPaused = false;
+                _awaitingExitConfirmation = false;
+                _isAttacking = false;
+                _isGameOver = false;
+                _player = null;
+                _music.Stop();
+                SetupWorld();
+            }
+            return;
+        }
 
-        var currentTime = DateTimeOffset.Now;
-        var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
-        _lastUpdate = currentTime;
+        // === ESC pressed → initiate exit
+        if (_input.IsEscapePressed())
+        {
+            _awaitingExitConfirmation = true;
+            return;
+        }
 
+        // === toggle pause with P
         bool pPressedNow = _input.IsKeyPPressed();
         bool pJustPressed = pPressedNow && !_wasPPressedLastFrame;
         _wasPPressedLastFrame = pPressedNow;
 
-
-
         if (pJustPressed)
         {
             _isPaused = !_isPaused;
-
             foreach (var obj in _gameObjects.Values)
             {
                 if (obj is TemporaryGameObject temp)
                 {
-                    if (IsGameFrozen())
-                        temp.Pause();
-                    else
-                        temp.Resume();
+                    if (_isPaused) temp.Pause();
+                    else temp.Resume();
                 }
             }
         }
 
-        if (IsGameFrozen())
-        {
-            return; 
-        }
+        // === if paused, halt logic
+        if (_isPaused)
+            return;
 
-        if (_input.IsEscapePressed())
-        {
-            _awaitingExitConfirmation = true;
-        }
-
+        // === Main game logic
+        var currentTime = DateTimeOffset.Now;
+        var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
+        _lastUpdate = currentTime;
 
         if (_player == null) return;
 
@@ -180,11 +200,10 @@ public class Engine
         _sprintEnabled = wPressed;
         double speedMultiplier = _sprintEnabled ? 1.5 : 1.0;
 
-        
         if (aJustPressed && !_isAttacking)
         {
-            _player.Attack();              
-            _swordSound.Play();            
+            _player.Attack();
+            _swordSound.Play();
             _attackStartTime = currentTime;
             _isAttacking = true;
         }
@@ -197,7 +216,6 @@ public class Engine
         if (!_isAttacking)
         {
             var timeWithSprint = msSinceLastFrame * speedMultiplier;
-
             int width = (_currentLevel.Width ?? 100) * (_currentLevel.TileWidth ?? 32);
             int height = (_currentLevel.Height ?? 100) * (_currentLevel.TileHeight ?? 32);
 
@@ -209,7 +227,7 @@ public class Engine
             AddBomb(_player.Position.X, _player.Position.Y, false);
         }
 
-        // Bombe și coliziune
+        // === Remove expired bombs and check collision
         var toRemove = _gameObjects
             .Where(pair => pair.Value is TemporaryGameObject t && t.IsExpired)
             .Select(pair => pair.Key)
@@ -224,19 +242,24 @@ public class Engine
                 var dy = Math.Abs(_player.Position.Y - tempObject.Position.Y);
                 if (dx < 32 && dy < 32)
                 {
-                    _player.GameOver();
+                    _currentLives--;
+
+                    if (_currentLives <= 0)
+                    {
+                        _player.GameOver();
+                        _isGameOver = true;
+                    }
                 }
+
+
             }
-
             _gameObjects.Remove(id);
-
-        }
-        if (!_isPaused)
-        {
-            _scriptEngine.ExecuteAll(this);
         }
 
+        // === Run scripts
+        _scriptEngine.ExecuteAll(this);
     }
+
 
 
 
@@ -295,7 +318,20 @@ public class Engine
             _renderer.DrawText("Ești sigur că vrei să ieși? [Y / N]", 180, 250);
         }
 
+        if (_isGameOver)
+        {
+            _renderer.DrawText("GAME OVER — Press R to restart", 180, 250);
+        }
 
+       // _renderer.DrawText($"Lives: {_player.Lives}", 20, 20);
+
+        
+        for (int i = 0; i < _currentLives; i++)
+        {
+            var dst = new Rectangle<int>(20 + i * 40, 20, 32, 32); // decalaj orizontal
+            var src = new Rectangle<int>(0, 0, 32, 32); // întreaga inimioară
+            _renderer.RenderTexture(_heartTextureId, src, dst);
+        }
 
     }
 

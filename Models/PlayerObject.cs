@@ -150,4 +150,18 @@ public class PlayerObject : RenderableGameObject
 
         Position = (x, y);
     }
+
+    public int Lives { get; private set; } = 3;
+
+    public bool IsDead => Lives <= 0;
+
+    public void HitByBomb()
+    {
+        Lives--;
+        if (IsDead)
+        {
+            GameOver();
+        }
+    }
+
 }
