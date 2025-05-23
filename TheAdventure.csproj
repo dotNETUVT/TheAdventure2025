@@ -11,9 +11,11 @@
     <ItemGroup>
       <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.13.0" />
       <PackageReference Include="Silk.NET.Input.Sdl" Version="2.22.0" />
+      <PackageReference Include="Silk.NET.OpenAL" Version="2.22.0" />
       <PackageReference Include="Silk.NET.SDL" Version="2.22.0" />
       <PackageReference Include="Silk.NET.Windowing.Sdl" Version="2.22.0" />
       <PackageReference Include="SixLabors.ImageSharp" Version="3.1.7" />
+      <PackageReference Include="System.Windows.Extensions" Version="9.0.5" />
     </ItemGroup>
 
     <ItemGroup>
