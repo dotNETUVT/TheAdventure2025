@@ -1,0 +1,49 @@
+{
+  "rowCount": 3,
+  "columnCount": 4,
+  "frameWidth": 32,
+  "frameHeight": 32,
+  "frameCenter": {
+    "offsetX": 16,
+    "offsetY": 28
+  },
+  "fileName": "slime.png",
+  "animations": {
+    "Idle": {
+      "startFrame": {
+        "row": 0,
+        "col": 0
+      },
+      "endFrame": {
+        "row": 0,
+        "col": 3
+      },
+      "durationMs": 2000,
+      "loop": true
+    },
+    "Jump": {
+      "startFrame": {
+        "row": 1,
+        "col": 0
+      },
+      "endFrame": {
+        "row": 1,
+        "col": 3
+      },
+      "durationMs": 400,
+      "loop": false
+    },
+    "Death": {
+      "startFrame": {
+        "row": 2,
+        "col": 0
+      },
+      "endFrame": {
+        "row": 2,
+        "col": 3
+      },
+      "durationMs": 800,
+      "loop": false
+    }
+  }
+}
