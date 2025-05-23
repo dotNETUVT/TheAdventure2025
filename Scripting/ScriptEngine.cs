@@ -95,7 +95,7 @@ public class ScriptEngine
         {
             return;
         }
-        
+
         Console.WriteLine($"Change detected for: {e.FullPath}");
         switch (e.ChangeType)
         {
@@ -112,44 +112,39 @@ public class ScriptEngine
     private IScript? Load(string file)
     {
         Console.WriteLine($"Loading script {file}");
-        FileInfo fileInfo = new FileInfo(file);
-        var fileOutput = fileInfo.FullName.Replace(fileInfo.Extension, ".dll");
-        var code = File.ReadAllText(fileInfo.FullName);
-        var syntaxTree = CSharpSyntaxTree.ParseText(code);
-        var compilation = CSharpCompilation.Create(fileInfo.Name.Replace(fileInfo.Extension, string.Empty),
-            new[] { syntaxTree },
-            _scriptReferences, new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-        using (var compiledScriptAssembly = new FileStream(fileOutput, FileMode.OpenOrCreate))
-        {
-            var result = compilation.Emit(compiledScriptAssembly);
-            if (!result.Success)
-            {
-                foreach (var diag in result.Diagnostics)
-                {
-                    if (diag.Severity == DiagnosticSeverity.Error)
-                    {
-                        Console.WriteLine(string.Join(";", diag.Descriptor.CustomTags));
-                        Console.WriteLine(
-                            $"{diag.Descriptor.MessageFormat.ToString()} - {code.Substring(diag.Location.SourceSpan.Start, diag.Location.SourceSpan.Length)} - {diag.Descriptor.HelpLinkUri.ToString()} - {diag.Location.ToString()}");
-                    }
-                }
 
-                throw new FileLoadException(file);
-            }
+        var code = File.ReadAllText(file);
+        var syntaxTree = CSharpSyntaxTree.ParseText(code);
+
+        var compilation = CSharpCompilation.Create(
+            Path.GetFileNameWithoutExtension(file) + "_" + Guid.NewGuid().ToString("N"),
+            new[] { syntaxTree },
+            _scriptReferences,
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+        using var ms = new MemoryStream();
+        var result = compilation.Emit(ms);
+
+        if (!result.Success)
+        {
+            foreach (var d in result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error))
+                Console.WriteLine(d.ToString());
+            return null;
         }
 
-        foreach (var type in Assembly.LoadFile(fileOutput).GetTypes())
-        {
-            if (type.IsAssignableTo(typeof(IScript)))
-            {
-                var instance = (IScript?)type.GetConstructor(Type.EmptyTypes)?.Invoke(null);
-                if (instance != null)
-                {
-                    instance.Initialize();
-                    _scripts.Add(file, instance);
-                }
+        ms.Position = 0;
+        var asm = Assembly.Load(ms.ToArray());
 
-                return instance;
+        _scripts.Remove(file, out _);
+
+        foreach (var t in asm.GetTypes())
+        {
+            if (!typeof(IScript).IsAssignableFrom(t)) continue;
+            if (Activator.CreateInstance(t) is IScript script)
+            {
+                script.Initialize();
+                _scripts[file] = script;
+                return script;
             }
         }
 
