@@ -110,4 +110,13 @@ public unsafe class GameRenderer
     {
         _sdl.RenderPresent(_renderer);
     }
+
+    // Draw a filled rectangle (used for health bar, etc.)
+    public void FillRect(int x, int y, int width, int height)
+    {
+        var rect = new Silk.NET.Maths.Rectangle<int>(x, y, width, height);
+        _sdl.RenderFillRect(_renderer, &rect);
+    }
+
+    public Camera Camera => _camera;
 }

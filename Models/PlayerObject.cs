@@ -26,6 +26,18 @@ public class PlayerObject : RenderableGameObject
 
     public (PlayerState State, PlayerStateDirection Direction) State { get; private set; }
 
+    public int MaxHealth { get; private set; } = 100;
+    public int CurrentHealth { get; private set; } = 100;
+
+    private bool _isDashing = false;
+    private double _dashTimeLeft = 0;
+    private double _dashCooldownLeft = 0;
+    private const double DashDuration = 0.2; 
+    private const double DashCooldown = 1.0; 
+    private const int DashSpeed = 350; 
+
+    public bool IsDashing => _isDashing;
+
     public PlayerObject(SpriteSheet spriteSheet, int x, int y) : base(spriteSheet, (x, y))
     {
         SetState(PlayerState.Idle, PlayerStateDirection.Down);
@@ -145,5 +157,48 @@ public class PlayerObject : RenderableGameObject
         }
 
         Position = (x, y);
+    }
+
+    public void TakeDamage(int amount)
+    {
+        if (State.State == PlayerState.GameOver)
+            return;
+        CurrentHealth -= amount;
+        if (CurrentHealth <= 0)
+        {
+            CurrentHealth = 0;
+            GameOver();
+        }
+    }
+
+    public void Heal(int amount)
+    {
+        if (State.State == PlayerState.GameOver)
+            return;
+        CurrentHealth += amount;
+        if (CurrentHealth > MaxHealth)
+            CurrentHealth = MaxHealth;
+    }
+
+    public void TryStartDash()
+    {
+        if (!_isDashing && _dashCooldownLeft <= 0 && State.State != PlayerState.GameOver)
+        {
+            _isDashing = true;
+            _dashTimeLeft = DashDuration;
+            _dashCooldownLeft = DashCooldown + DashDuration;
+        }
+    }
+
+    public void UpdateDash(double deltaSeconds)
+    {
+        if (_dashCooldownLeft > 0)
+            _dashCooldownLeft -= deltaSeconds;
+        if (_isDashing)
+        {
+            _dashTimeLeft -= deltaSeconds;
+            if (_dashTimeLeft <= 0)
+                _isDashing = false;
+        }
     }
 }
