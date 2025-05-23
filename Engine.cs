@@ -25,6 +25,10 @@ public class Engine
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
     private SpriteSheet _footprintSheet;      
+    private double _survivedTime = 0.0;
+
+    public double SurvivedTime => _survivedTime;
+
     private double _footprintTimer = 0;       
     private const double FootprintInterval = 0.2; 
     public Engine(GameRenderer renderer, Input input)
@@ -96,6 +100,9 @@ public class Engine
         var currentTime = DateTimeOffset.Now;
         var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
         _lastUpdate = currentTime;
+
+        _survivedTime += msSinceLastFrame / 1000.0;
+
 
         if (_player == null)
         {
