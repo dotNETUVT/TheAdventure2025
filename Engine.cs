@@ -95,7 +95,18 @@ public class Engine
         bool isAttacking = _input.IsKeyAPressed() && (up + down + left + right <= 1);
         bool addBomb = _input.IsKeyBPressed();
 
-        _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame);
+        // Dash logic
+        bool dashPressed = _input.IsKeyDPressed();
+        double deltaSeconds = msSinceLastFrame / 1000.0;
+        _player.UpdateDash(deltaSeconds);
+        if (dashPressed)
+        {
+            _player.TryStartDash();
+        }
+
+        // Use dash speed if dashing
+        double moveSpeed = _player.IsDashing ? 350 : 128;
+        _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame * (moveSpeed / 128));
         if (isAttacking)
         {
             _player.Attack();
@@ -165,12 +176,17 @@ public class Engine
             var barX = playerPos.X - barWidth / 2;
             var barY = playerPos.Y - 40; // above the player sprite
 
+            // Convert player world position to screen coordinates for health bar
+            var playerScreenRect = _renderer.Camera.ToScreenCoordinates(new Silk.NET.Maths.Rectangle<int>(playerPos.X, playerPos.Y, 1, 1));
+            var screenBarX = playerScreenRect.Origin.X - barWidth / 2;
+            var screenBarY = playerScreenRect.Origin.Y - 40;
+
             // Background (red)
             _renderer.SetDrawColor(200, 40, 40, 255);
-            _renderer.FillRect(barX, barY, barWidth, barHeight);
+            _renderer.FillRect(screenBarX, screenBarY, barWidth, barHeight);
             // Foreground (green)
             _renderer.SetDrawColor(40, 200, 40, 255);
-            _renderer.FillRect(barX, barY, (int)(barWidth * healthPercent), barHeight);
+            _renderer.FillRect(screenBarX, screenBarY, (int)(barWidth * healthPercent), barHeight);
         }
     }
 
