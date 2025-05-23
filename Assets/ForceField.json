@@ -1,0 +1,25 @@
+﻿{
+  "rowCount": 1,
+  "columnCount": 1,
+  "frameWidth": 16,
+  "frameHeight": 16,
+  "frameCenter": {
+    "offsetX": 8,
+    "offsetY": 8
+  },
+  "fileName": "ForceField.png",
+  "animations": {
+    "Expand": {
+      "startFrame": {
+        "row": 0,
+        "col": 0
+      },
+      "endFrame": {
+        "row": 0,
+        "col": 0
+      },
+      "durationMs": 500,
+      "loop": false
+    }
+  }
+}
