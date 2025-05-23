@@ -21,14 +21,24 @@ public unsafe class GameRenderer
     public GameRenderer(Sdl sdl, GameWindow window)
     {
         _sdl = sdl;
-        
+
         _renderer = (Renderer*)window.CreateRenderer();
         _sdl.SetRenderDrawBlendMode(_renderer, BlendMode.Blend);
-        
+
         _window = window;
         var windowSize = window.Size;
         _camera = new Camera(windowSize.Width, windowSize.Height);
     }
+
+    public int GetWindowWidth()
+{
+    return _window.Size.Width;
+}
+
+public int GetWindowHeight()
+{
+    return _window.Size.Height;
+}
 
     public void SetWorldBounds(Rectangle<int> bounds)
     {
@@ -60,16 +70,16 @@ public unsafe class GameRenderer
                 {
                     throw new Exception("Failed to create surface from image data.");
                 }
-                
+
                 var imageTexture = _sdl.CreateTextureFromSurface(_renderer, imageSurface);
                 if (imageTexture == null)
                 {
                     _sdl.FreeSurface(imageSurface);
                     throw new Exception("Failed to create texture from surface.");
                 }
-                
+
                 _sdl.FreeSurface(imageSurface);
-                
+
                 _textureData[_textureId] = textureInfo;
                 _texturePointers[_textureId] = (IntPtr)imageTexture;
             }
@@ -110,4 +120,40 @@ public unsafe class GameRenderer
     {
         _sdl.RenderPresent(_renderer);
     }
+    
+    public void DrawTitleScreen(int textureId, TextureData textureData)
+{
+    int screenW = _window.Size.Width;
+    int screenH = _window.Size.Height;
+
+    // Use the original size of the image
+    var srcRect = new Rectangle<int>(0, 0, textureData.Width, textureData.Height);
+
+    // Stretch to cover the entire screen
+    var dstRect = new Rectangle<int>(0, 0, screenW, screenH);
+
+    _sdl.RenderCopy(_renderer, (Texture*)_texturePointers[textureId], &srcRect, &dstRect);
+}
+
+public void DrawPauseOverlay()
+{
+    // Dimmed background
+    SetDrawColor(0, 0, 0, 150);
+    var overlay = new Rectangle<int>(0, 0, _window.Size.Width, _window.Size.Height);
+    _sdl.RenderFillRect(_renderer, &overlay);
+
+    // Red "Paused" box
+    SetDrawColor(255, 0, 0, 255);
+    var box = new Rectangle<int>(
+        (_window.Size.Width - 200) / 2,
+        (_window.Size.Height - 80) / 2,
+        200, 80
+    );
+    _sdl.RenderFillRect(_renderer, &box);
+}
+
+
+
+
+    
 }

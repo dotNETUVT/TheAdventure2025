@@ -7,8 +7,21 @@ using TheAdventure.Scripting;
 
 namespace TheAdventure;
 
-public class Engine
+public class Engine : IDisposable
 {
+
+
+
+    private enum GameState
+    {
+        TitleScreen,
+        Playing,
+        Paused,
+        GameOver
+    }
+
+    private GameState _state = GameState.TitleScreen;
+
     private readonly GameRenderer _renderer;
     private readonly Input _input;
     private readonly ScriptEngine _scriptEngine = new();
@@ -22,17 +35,49 @@ public class Engine
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
 
+    private int _gameOverTextureId;
+    private TextureData _gameOverTextureData;
+
+    private int _titleTextureId;
+    private TextureData _titleTextureData;
+
+    private SoundManager _soundManager;
+    private bool _gameOverSoundPlayed = false;
+
+    private int _pauseTextureId;
+    private TextureData _pauseTextureData;
+
+   
+
+
     public Engine(GameRenderer renderer, Input input)
     {
         _renderer = renderer;
         _input = input;
 
-        _input.OnMouseClick += (_, coords) => AddBomb(coords.x, coords.y);
+        _input.OnMouseClick += (_, coords) =>
+    {
+        if (_player == null) return;
+        if (_player.State.State == PlayerObject.PlayerState.GameOver) return;
+
+        AddBomb(coords.x, coords.y);
+    };
+
+
+
+        _soundManager = new SoundManager();
+
     }
 
     public void SetupWorld()
     {
+        _titleTextureId = _renderer.LoadTexture("Assets/TitleScreen.png", out _titleTextureData);
+        _pauseTextureId = _renderer.LoadTexture("Assets/PAUSED.png", out _pauseTextureData);
+
+
         _player = new(SpriteSheet.Load(_renderer, "Player.json", "Assets"), 100, 100);
+        _gameOverTextureId = _renderer.LoadTexture("Assets/GameOver.png", out _gameOverTextureData);
+
 
         var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
         var level = JsonSerializer.Deserialize<Level>(levelContent);
@@ -78,50 +123,139 @@ public class Engine
     }
 
     public void ProcessFrame()
+{
+    /* ─── time bookkeeping ─────────────────────────────────────────── */
+    var now           = DateTimeOffset.Now;
+    double msSinceLast = (now - _lastUpdate).TotalMilliseconds;
+    _lastUpdate        = now;
+
+    if (_player == null) return;
+
+    /* ─── TITLE SCREEN ─────────────────────────────────────────────── */
+    if (_state == GameState.TitleScreen)
     {
-        var currentTime = DateTimeOffset.Now;
-        var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
-        _lastUpdate = currentTime;
+        if (_input.IsKeyEnterPressed())
+            _state = GameState.Playing;
 
-        if (_player == null)
-        {
-            return;
-        }
-
-        double up = _input.IsUpPressed() ? 1.0 : 0.0;
-        double down = _input.IsDownPressed() ? 1.0 : 0.0;
-        double left = _input.IsLeftPressed() ? 1.0 : 0.0;
-        double right = _input.IsRightPressed() ? 1.0 : 0.0;
-        bool isAttacking = _input.IsKeyAPressed() && (up + down + left + right <= 1);
-        bool addBomb = _input.IsKeyBPressed();
-
-        _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame);
-        if (isAttacking)
-        {
-            _player.Attack();
-        }
-        
-        _scriptEngine.ExecuteAll(this);
-
-        if (addBomb)
-        {
-            AddBomb(_player.Position.X, _player.Position.Y, false);
-        }
+        return;                             // wait on title screen
     }
+
+    /* ─── GAME OVER : stop all gameplay / bombs / scripts ─────────── */
+    if (_player.State.State == PlayerObject.PlayerState.GameOver)
+        return;                             // nothing runs after death
+
+    /* ─── ACTIVE GAME LOGIC (runs only while alive) ───────────────── */
+    double up    = _input.IsUpPressed()    ? 1.0 : 0.0;
+    double down  = _input.IsDownPressed()  ? 1.0 : 0.0;
+    double left  = _input.IsLeftPressed()  ? 1.0 : 0.0;
+    double right = _input.IsRightPressed() ? 1.0 : 0.0;
+
+    bool attack  = _input.IsKeyAPressed()  && (up + down + left + right <= 1);
+    bool addBomb = _input.IsKeyBPressed();
+
+    _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLast);
+
+    if (attack)
+        _player.Attack();
+
+    /* scripts run only while alive */
+    _scriptEngine.ExecuteAll(this);
+
+    /* manual “B” bomb (alive only) */
+    if (addBomb)
+        AddBomb(_player.Position.X, _player.Position.Y, false);
+}
+
+
+
+
+
 
     public void RenderFrame()
+{
+    _renderer.SetDrawColor(0, 0, 0, 255);
+    _renderer.ClearScreen();
+
+    // ─── TITLE SCREEN ───────────────────────────────
+    if (_state == GameState.TitleScreen)
     {
-        _renderer.SetDrawColor(0, 0, 0, 255);
-        _renderer.ClearScreen();
-
-        var playerPosition = _player!.Position;
-        _renderer.CameraLookAt(playerPosition.X, playerPosition.Y);
-
-        RenderTerrain();
-        RenderAllObjects();
-
+        _renderer.DrawTitleScreen(_titleTextureId, _titleTextureData);
         _renderer.PresentFrame();
+        return;
     }
+
+    var playerPosition = _player!.Position;
+    _renderer.CameraLookAt(playerPosition.X, playerPosition.Y);
+
+    RenderTerrain();
+    RenderAllObjects();
+
+    /* ----------  PAUSED overlay  ---------- */
+if (_state == GameState.Paused)
+{
+    // 1) screen size
+    int w = _renderer.GetWindowWidth();
+    int h = _renderer.GetWindowHeight();
+
+    // 2) scale the image to 50 % × 30 % of the screen
+    int imgW = (int)(w * 0.5);
+    int imgH = (int)(h * 0.3);
+
+    // 3) destination (centered)
+    var dst = new Rectangle<int>(
+        (w - imgW) / 2,
+        (h - imgH) / 2,
+        imgW,
+        imgH);
+
+    // 4) source (full texture)
+    var src = new Rectangle<int>(
+        0, 0,
+        _pauseTextureData.Width,
+        _pauseTextureData.Height);
+
+    // 5) draw & present
+    _renderer.RenderTexture(_pauseTextureId, src, dst);
+    _renderer.PresentFrame();
+    return;                     // ⚠ stop the rest of the frame
+}
+
+
+
+
+    // ─── GAME OVER SCREEN ───────────────────────────────
+        if (_player != null && _player.State.State == PlayerObject.PlayerState.GameOver)
+        {
+            if (!_gameOverSoundPlayed)
+            {
+                _soundManager.PlayGameOverSound();
+                _gameOverSoundPlayed = true;
+            }
+
+            int screenW = _renderer.GetWindowWidth();
+            int screenH = _renderer.GetWindowHeight();
+
+            int imgW = (int)(screenW * 0.5);
+            int imgH = (int)(screenH * 0.3);
+
+            var dstRect = new Rectangle<int>(
+                (screenW - imgW) / 2,
+                (screenH - imgH) / 2,
+                imgW,
+                imgH
+            );
+
+            var srcRect = new Rectangle<int>(0, 0, _gameOverTextureData.Width, _gameOverTextureData.Height);
+
+            _renderer.RenderTexture(_gameOverTextureId, srcRect, dstRect);
+        }
+
+    _renderer.PresentFrame();
+}
+
+
+
+
 
     public void RenderAllObjects()
     {
@@ -215,4 +349,10 @@ public class Engine
         TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
         _gameObjects.Add(bomb.Id, bomb);
     }
+    
+    public void Dispose()
+{
+    _soundManager?.Dispose();
+}
+
 }

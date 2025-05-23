@@ -21,20 +21,23 @@ public static class Program
         {
             var input = new Input(sdl);
             var gameRenderer = new GameRenderer(sdl, gameWindow);
-            var engine = new Engine(gameRenderer, input);
 
-            engine.SetupWorld();
-
-            bool quit = false;
-            while (!quit)
+            // Dispose engine properly without changing logic
+            using (var engine = new Engine(gameRenderer, input))
             {
-                quit = input.ProcessInput();
-                if (quit) break;
+                engine.SetupWorld();
 
-                engine.ProcessFrame();
-                engine.RenderFrame();
+                bool quit = false;
+                while (!quit)
+                {
+                    quit = input.ProcessInput();
+                    if (quit) break;
 
-                Thread.Sleep(13);
+                    engine.ProcessFrame();
+                    engine.RenderFrame();
+
+                    Thread.Sleep(13);
+                }
             }
         }
 
