@@ -3,7 +3,8 @@ using Silk.NET.Maths;
 namespace TheAdventure.Models;
 
 public class PlayerObject : RenderableGameObject
-{
+{public bool IsGameOver { get; private set; } = false;
+
     private const int _speed = 128; // pixels per second
 
     public enum PlayerStateDirection
@@ -66,10 +67,17 @@ public class PlayerObject : RenderableGameObject
         State = (state, direction);
     }
 
-    public void GameOver()
+public void GameOver()
+{
+    if (!IsGameOver)
     {
+        IsGameOver = true;
         SetState(PlayerState.GameOver, PlayerStateDirection.None);
+        Console.WriteLine("Player has died.");
+        Console.WriteLine("Press R to Restart...");
     }
+}
+
 
     public void Attack()
     {
