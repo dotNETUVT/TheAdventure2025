@@ -19,8 +19,8 @@ public class RenderableGameObject : GameObject
         RotationCenter = rotationCenter;
     }
 
-    public virtual void Render(GameRenderer renderer)
+    public virtual void Render(GameRenderer renderer, bool paused = false)
     {
-        SpriteSheet.Render(renderer, Position, Angle, RotationCenter);
+        SpriteSheet.Render(renderer, Position, paused, Angle, RotationCenter);
     }
 }

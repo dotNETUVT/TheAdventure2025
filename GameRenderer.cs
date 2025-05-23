@@ -18,16 +18,21 @@ public unsafe class GameRenderer
     private Dictionary<int, TextureData> _textureData = new();
     private int _textureId;
 
+    private int? _pausedOverlayTextureId = null;
+
     public GameRenderer(Sdl sdl, GameWindow window)
     {
         _sdl = sdl;
-        
+
         _renderer = (Renderer*)window.CreateRenderer();
         _sdl.SetRenderDrawBlendMode(_renderer, BlendMode.Blend);
-        
+
         _window = window;
         var windowSize = window.Size;
         _camera = new Camera(windowSize.Width, windowSize.Height);
+
+        TextureData overlayInfo;
+        _pausedOverlayTextureId = LoadTexture("Assets/paused_overlay.webp", out overlayInfo);
     }
 
     public void SetWorldBounds(Rectangle<int> bounds)
@@ -76,6 +81,31 @@ public unsafe class GameRenderer
         }
 
         return _textureId++;
+    }
+
+    public void DrawPausedOverlay()
+    {
+        if (_pausedOverlayTextureId.HasValue)
+        {
+            var width = _window.Size.Width;
+            var height = _window.Size.Height;
+
+            var overlayInfo = _textureData[_pausedOverlayTextureId.Value];
+            var srcRect = new Rectangle<int>(0, 0, overlayInfo.Width, overlayInfo.Height);
+            var dstRect = new Rectangle<int>(0, 0, width, height);
+
+            if (_texturePointers.TryGetValue(_pausedOverlayTextureId.Value, out var imageTexture))
+            {
+                _sdl.SetTextureAlphaMod((Texture*)imageTexture, 128);
+            }
+
+            RenderTexture(_pausedOverlayTextureId.Value, srcRect, dstRect);
+
+            if (_texturePointers.TryGetValue(_pausedOverlayTextureId.Value, out imageTexture))
+            {
+                _sdl.SetTextureAlphaMod((Texture*)imageTexture, 255);
+            }
+        }
     }
 
     public void RenderTexture(int textureId, Rectangle<int> src, Rectangle<int> dst,

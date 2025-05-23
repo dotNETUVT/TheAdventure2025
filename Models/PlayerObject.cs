@@ -146,4 +146,9 @@ public class PlayerObject : RenderableGameObject
 
         Position = (x, y);
     }
+
+    public override void Render(GameRenderer renderer, bool paused = false)
+    {
+        SpriteSheet.Render(renderer, (Position.X, Position.Y), paused);
+    }
 }

@@ -13,6 +13,8 @@ public class Engine
     private readonly Input _input;
     private readonly ScriptEngine _scriptEngine = new();
 
+    public bool Paused { get; private set; } = false;
+
     private readonly Dictionary<int, GameObject> _gameObjects = new();
     private readonly Dictionary<string, TileSet> _loadedTileSets = new();
     private readonly Dictionary<int, Tile> _tileIdMap = new();
@@ -28,6 +30,11 @@ public class Engine
         _input = input;
 
         _input.OnMouseClick += (_, coords) => AddBomb(coords.x, coords.y);
+    }
+
+    public void TogglePause()
+    {
+        Paused = !Paused;
     }
 
     public void SetupWorld()
@@ -79,6 +86,9 @@ public class Engine
 
     public void ProcessFrame()
     {
+        if (Paused)
+            return;
+
         var currentTime = DateTimeOffset.Now;
         var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
         _lastUpdate = currentTime;
@@ -120,6 +130,11 @@ public class Engine
         RenderTerrain();
         RenderAllObjects();
 
+    if (Paused)
+    {
+        _renderer.DrawPausedOverlay();
+    }
+
         _renderer.PresentFrame();
     }
 
@@ -128,7 +143,7 @@ public class Engine
         var toRemove = new List<int>();
         foreach (var gameObject in GetRenderables())
         {
-            gameObject.Render(_renderer);
+            gameObject.Render(_renderer, Paused);
             if (gameObject is TemporaryGameObject { IsExpired: true } tempGameObject)
             {
                 toRemove.Add(tempGameObject.Id);
@@ -153,7 +168,7 @@ public class Engine
             }
         }
 
-        _player?.Render(_renderer);
+        _player?.Render(_renderer, Paused);
     }
 
     public void RenderTerrain()
