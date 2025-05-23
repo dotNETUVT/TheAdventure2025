@@ -23,7 +23,9 @@ public class Engine
     private PlayerObject? _player;
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
-
+    private SpriteSheet _footprintSheet;      
+    private double _footprintTimer = 0;       
+    private const double FootprintInterval = 0.2; 
     public Engine(GameRenderer renderer, Input input)
     {
         _renderer = renderer;
@@ -40,6 +42,7 @@ public class Engine
     public void SetupWorld()
     {
         _player = new(SpriteSheet.Load(_renderer, "Player.json", "Assets"), 100, 100);
+        _footprintSheet = SpriteSheet.Load(_renderer, "Footprint.json", "Assets");
 
         var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
         var level = JsonSerializer.Deserialize<Level>(levelContent);
@@ -106,6 +109,18 @@ public class Engine
         bool addBomb = _input.IsKeyBPressed();
 
         _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame);
+
+        var moveSum = up + down + left + right;
+        if (moveSum > 0)
+        {
+            _footprintTimer -= msSinceLastFrame / 1000.0;
+            if (_footprintTimer <= 0)
+            {
+                _footprintTimer = FootprintInterval;
+                AddFootprint(_player.Position.X, _player.Position.Y);
+            }
+        }
+
         if (isAttacking)
         {
             _player.Attack();
@@ -119,6 +134,13 @@ public class Engine
         }
     }
 
+    public void AddFootprint(int x, int y)
+    {
+        // TTL = 1 second
+        var fp = new TemporaryGameObject(_footprintSheet, 1.0, (x, y));
+        _gameObjects.Add(fp.Id, fp);
+    }
+
     public void RenderFrame()
     {
         _renderer.SetDrawColor(0, 0, 0, 255);
@@ -130,10 +152,10 @@ public class Engine
         RenderTerrain();
         RenderAllObjects();
 
-    if (Paused)
-    {
-        _renderer.DrawPausedOverlay();
-    }
+        if (Paused)
+        {
+            _renderer.DrawPausedOverlay();
+        }
 
         _renderer.PresentFrame();
     }

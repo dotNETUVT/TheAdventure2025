@@ -33,6 +33,8 @@ public class SpriteSheet
     public int FrameWidth { get; set; }
     public int FrameHeight { get; set; }
     public Offset FrameCenter { get; set; }
+    public int TextureId => _textureId;
+
 
     public string? FileName { get; set; }
 
