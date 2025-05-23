@@ -1,9 +1,14 @@
-using Silk.NET.Maths;
+﻿using Silk.NET.Maths;
 using Silk.NET.SDL;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using TheAdventure.Models;
 using Point = Silk.NET.SDL.Point;
+using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp.Drawing.Processing;
+using SixLabors.Fonts;
+
+
 
 namespace TheAdventure;
 
@@ -109,5 +114,49 @@ public unsafe class GameRenderer
     public void PresentFrame()
     {
         _sdl.RenderPresent(_renderer);
+    }
+
+    public void DrawText(string text, int x, int y)
+    {
+        var fontPath = Path.Combine("Assets", "Fonts", "OpenSans.ttf");
+        var fontCollection = new FontCollection();
+        var fontFamily = fontCollection.Add(fontPath);
+        var font = fontFamily.CreateFont(24);
+
+        var options = new TextOptions(font)
+        {
+            Dpi = 72,
+            Origin = new SixLabors.ImageSharp.PointF(0, 0)
+        };
+        var textRect = TextMeasurer.MeasureBounds(text, options);
+
+        int width = (int)MathF.Ceiling(textRect.Width);
+        int height = (int)MathF.Ceiling(textRect.Height);
+
+        using var image = new Image<Rgba32>(width, height);
+        image.Mutate(ctx => ctx.DrawText(text, font, SixLabors.ImageSharp.Color.White, new SixLabors.ImageSharp.PointF(0, 0)));
+
+        var rawData = new byte[width * height * 4];
+        image.CopyPixelDataTo(rawData);
+
+        fixed (byte* data = rawData)
+        {
+            var surface = _sdl.CreateRGBSurfaceWithFormatFrom(data, width, height, 32, width * 4, (uint)PixelFormatEnum.Rgba32);
+            if (surface == null)
+                return;
+
+            var texture = _sdl.CreateTextureFromSurface(_renderer, surface);
+            if (texture == null)
+            {
+                _sdl.FreeSurface(surface);
+                return;
+            }
+
+            var dstRect = new Rectangle<int>(x, y, width, height);
+            _sdl.RenderCopy(_renderer, texture, null, in dstRect);
+
+            _sdl.DestroyTexture(texture);
+            _sdl.FreeSurface(surface);
+        }
     }
 }
