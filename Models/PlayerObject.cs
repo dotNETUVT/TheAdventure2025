@@ -1,4 +1,4 @@
-using Silk.NET.Maths;
+﻿using Silk.NET.Maths;
 
 namespace TheAdventure.Models;
 
@@ -91,11 +91,15 @@ public class PlayerObject : RenderableGameObject
 
         var pixelsToMove = _speed * (time / 1000.0);
 
-        var x = Position.X + (int)(right * pixelsToMove);
-        x -= (int)(left * pixelsToMove);
+        var x = Position.X + (int)(right * pixelsToMove) - (int)(left * pixelsToMove);
+        var y = Position.Y + (int)(down * pixelsToMove) - (int)(up * pixelsToMove);
 
-        var y = Position.Y + (int)(down * pixelsToMove);
-        y -= (int)(up * pixelsToMove);
+        // Clamping: personajul rămâne în ecran
+        x = Math.Clamp(x, 0, width - 1);
+        int topMargin = SpriteSheet.FrameCenter.OffsetY / 2;
+        y = Math.Clamp(y, topMargin, height - 1);
+
+
 
         var newState = State.State;
         var newDirection = State.Direction;
@@ -146,4 +150,18 @@ public class PlayerObject : RenderableGameObject
 
         Position = (x, y);
     }
+
+    public int Lives { get; private set; } = 3;
+
+    public bool IsDead => Lives <= 0;
+
+    public void HitByBomb()
+    {
+        Lives--;
+        if (IsDead)
+        {
+            GameOver();
+        }
+    }
+
 }
