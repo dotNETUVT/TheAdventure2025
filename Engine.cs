@@ -21,13 +21,40 @@ public class Engine
     private PlayerObject? _player;
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
+    
+    private int _deathScreenTextureId;
+    private TextureData _deathScreenTextureData;
 
     public Engine(GameRenderer renderer, Input input)
     {
         _renderer = renderer;
         _input = input;
 
-        _input.OnMouseClick += (_, coords) => AddBomb(coords.x, coords.y);
+        _input.OnMouseClick += (_, coords) =>
+        {
+            if (_player == null)
+            {
+                return;
+            }
+            
+            if (_player.State.State == PlayerObject.PlayerState.GameOver)
+            {
+                if (coords.x >= 190 && coords.x <= 190 + 270 &&
+                    coords.y >= 190 && coords.y <= 190 + 66)
+                {
+                    _gameObjects.Clear();
+                    _tileIdMap.Clear();
+                    _loadedTileSets.Clear();
+                    _player = null;
+                    SetupWorld();
+                }
+
+                return;
+            }
+            
+            AddBomb(coords.x, coords.y);
+        };
+        _deathScreenTextureId = _renderer.LoadTexture("Assets/DeathScreen.png", out _deathScreenTextureData);
     }
 
     public void SetupWorld()
@@ -108,6 +135,7 @@ public class Engine
             AddBomb(_player.Position.X, _player.Position.Y, false);
         }
     }
+    
 
     public void RenderFrame()
     {
@@ -119,6 +147,13 @@ public class Engine
 
         RenderTerrain();
         RenderAllObjects();
+
+        if (_player.State.State == PlayerObject.PlayerState.GameOver)
+        {
+            var destRect = new Rectangle<int>(0, 0, GameRenderer.window.Size.Width, GameRenderer.window.Size.Height);
+            var srcRect = new Rectangle<int>(0, 0, _deathScreenTextureData.Width, _deathScreenTextureData.Height);
+            _renderer.RenderTexture(_deathScreenTextureId, srcRect, destRect);
+        }
 
         _renderer.PresentFrame();
     }
