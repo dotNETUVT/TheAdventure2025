@@ -5,6 +5,7 @@ namespace TheAdventure.Models;
 public class PlayerObject : RenderableGameObject
 {
     private const int _speed = 128; // pixels per second
+    private readonly KeyBindings _keyBindings;
 
     public enum PlayerStateDirection
     {
@@ -26,8 +27,9 @@ public class PlayerObject : RenderableGameObject
 
     public (PlayerState State, PlayerStateDirection Direction) State { get; private set; }
 
-    public PlayerObject(SpriteSheet spriteSheet, int x, int y) : base(spriteSheet, (x, y))
+    public PlayerObject(SpriteSheet spriteSheet, int x, int y, KeyBindings keyBindings) : base(spriteSheet, (x, y), "player")
     {
+        _keyBindings = keyBindings;
         SetState(PlayerState.Idle, PlayerStateDirection.Down);
     }
 

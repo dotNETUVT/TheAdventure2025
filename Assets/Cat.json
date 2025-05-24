@@ -1,0 +1,63 @@
+{
+  "rowCount": 1,
+  "columnCount": 10,
+  "frameWidth": 32,
+  "frameHeight": 32,
+  "frameCenter": {
+    "offsetX": 16,
+    "offsetY": 26
+  },
+  "fileName": "Cat.png",
+  "animations": {
+    "IdleDown": {
+      "startFrame": { "row": 0, "col": 0 },
+      "endFrame": { "row": 0, "col": 0 },
+      "durationMs": 1000,
+      "loop": true
+    },
+    "MoveDown": {
+      "startFrame": { "row": 0, "col": 0 },
+      "endFrame": { "row": 0, "col": 9 },
+      "durationMs": 500,
+      "loop": true
+    },
+    "IdleLeft": {
+      "startFrame": { "row": 0, "col": 0 },
+      "endFrame": { "row": 0, "col": 0 },
+      "durationMs": 1000,
+      "loop": true
+    },
+    "MoveLeft": {
+      "startFrame": { "row": 0, "col": 0 },
+      "endFrame": { "row": 0, "col": 9 },
+      "durationMs": 500,
+      "loop": true
+    },
+    "IdleRight": {
+      "startFrame": { "row": 0, "col": 0 },
+      "endFrame": { "row": 0, "col": 0 },
+      "durationMs": 1000,
+      "loop": true,
+      "flip": 1
+    },
+    "MoveRight": {
+      "startFrame": { "row": 0, "col": 0 },
+      "endFrame": { "row": 0, "col": 9 },
+      "durationMs": 500,
+      "loop": true,
+      "flip": 1
+    },
+    "IdleUp": {
+      "startFrame": { "row": 0, "col": 0 },
+      "endFrame": { "row": 0, "col": 0 },
+      "durationMs": 1000,
+      "loop": true
+    },
+    "MoveUp": {
+      "startFrame": { "row": 0, "col": 0 },
+      "endFrame": { "row": 0, "col": 9 },
+      "durationMs": 500,
+      "loop": true
+    }
+  }
+}

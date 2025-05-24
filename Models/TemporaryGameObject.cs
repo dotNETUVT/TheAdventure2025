@@ -9,8 +9,8 @@ public class TemporaryGameObject : RenderableGameObject
     
     private DateTimeOffset _spawnTime;
     
-    public TemporaryGameObject(SpriteSheet spriteSheet, double ttl, (int X, int Y) position, double angle = 0.0, Point rotationCenter = new())
-        : base(spriteSheet, position, angle, rotationCenter)
+    public TemporaryGameObject(SpriteSheet spriteSheet, double ttl, (int X, int Y) position, string type, double angle = 0.0, Point rotationCenter = new())
+        : base(spriteSheet, position, type, angle, rotationCenter)
     {
         Ttl = ttl;
         _spawnTime = DateTimeOffset.Now;

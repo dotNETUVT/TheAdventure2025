@@ -1,0 +1,19 @@
+{
+    "rowCount": 1,
+    "columnCount": 1,
+    "frameWidth": 49,
+    "frameHeight": 41,
+    "frameCenter": {
+        "offsetX": 24,
+        "offsetY": 35
+    },
+    "fileName": "Treat.png",
+    "animations": {
+        "Idle": {
+            "startFrame": {"row": 0,"col": 0},
+            "endFrame": {"row": 0,"col": 0},
+            "durationMs": 1000,
+            "loop": true
+        }
+    }
+}
