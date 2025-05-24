@@ -29,8 +29,6 @@ public class Engine
     {
         _renderer = renderer;
         _input = input;
-
-        _input.OnMouseClick += (_, coords) => AddBomb(coords.x, coords.y);
     }
 
     public void SetupWorld()
@@ -79,14 +77,7 @@ public class Engine
 
         _scriptEngine.LoadAll(Path.Combine("Assets", "Scripts"));
 
-        IGameState startState = new PlayingState(
-            null,
-            _renderer,
-            _input,
-            _gameObjects,
-            _tileIdMap,
-            _currentLevel,
-            _player);
+        IGameState startState = new MainMenuState(null, _renderer, _input);
         startState.OnStateChange += HandleStateChangeRequest;
         _gameStateManager.PushState(startState);
     }
@@ -98,13 +89,12 @@ public class Engine
         _lastUpdate = currentTime;
 
         _gameStateManager.Update(msSinceLastFrame);
-        
-        if (_gameStateManager.GameStateType == GameStateType.Paused)
+
+        // Bandaid fix
+        if (_gameStateManager.GameStateType == GameStateType.Playing)
         {
-            return;
+            _scriptEngine.ExecuteAll(this);
         }
-        
-        _scriptEngine.ExecuteAll(this);
     }
 
     public void RenderFrame()
@@ -141,6 +131,7 @@ public class Engine
                                         _currentLevel,
                                         _player!),
             GameStateType.Paused => new PausedState(parent, _renderer, _input),
+            GameStateType.MainMenu => new MainMenuState(parent, _renderer, _input),
             _ => throw new Exception($"Unknown game state type: {stateType}")
         };
     }
@@ -154,7 +145,7 @@ public class Engine
                 IGameState gameState = CreateState(info.NewState!.Value, _gameStateManager.TopGameState);
                 gameState.OnStateChange += HandleStateChangeRequest;
                 _gameStateManager.PushState(gameState);
-                _gameStateManager.GameStateType = info.NewState.Value;
+                _gameStateManager.GameStateType = info.NewState!.Value;
                 break;
             }
             case StateChangeRequest.ChangeTypeEnum.Pop:
@@ -170,6 +161,15 @@ public class Engine
                 gameState.OnStateChange += HandleStateChangeRequest;
                 _gameStateManager.PushState(gameState);
                 _gameStateManager.GameStateType = info.NewState.Value;
+                break;
+            }
+            case StateChangeRequest.ChangeTypeEnum.PopAll:
+            {
+                _gameStateManager.PopAllStates();
+                IGameState gameState = CreateState(info.NewState!.Value);
+                gameState.OnStateChange += HandleStateChangeRequest;
+                _gameStateManager.PushState(gameState);
+                _gameStateManager.GameStateType = info.NewState!.Value;
                 break;
             }
         }

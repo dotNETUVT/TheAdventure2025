@@ -6,12 +6,12 @@ using Button = TheAdventure.UI.Button;
 
 namespace TheAdventure.GameState;
 
-public class PausedState : IGameState
+public class MainMenuState : IGameState
 {
     private readonly GameRenderer _renderer;
     private readonly Input _input;
     private FontRenderer _fontRenderer;
-    private Button _resumeButton;
+    private Button _playButton;
     private Button _quitButton;
     private bool _isButtonClicked = false;
     
@@ -22,7 +22,7 @@ public class PausedState : IGameState
     public UpdateCallback? UpdateCallback { get; set; }
     public DrawCallback? DrawCallback { get; set; }
 
-    public PausedState(
+    public MainMenuState(
         IGameState? parent, // TODO: Use concrete type to limit possible parent states
         GameRenderer renderer,
         Input input)
@@ -33,40 +33,36 @@ public class PausedState : IGameState
         _input.OnMouseClick += OnMouseClick;
         
         UpdateCallback = null;
-        DrawCallback = parent != null ? parent.Draw : null;
+        DrawCallback = null;
         
-        // Create the font renderer
+
         _fontRenderer = new FontRenderer(new Sdl(new SdlContext()));
         _fontRenderer.LoadFont("Assets/Fonts/Arial.ttf", 24);
-        
-        // Set up UI
+
         var (windowWidth, windowHeight) = _renderer.GetWindowSize();
         int buttonWidth = 200;
         int buttonHeight = 50;
         int buttonSpacing = 30;
-        
-        // Center the buttons horizontally
+
         int centerX = windowWidth / 2;
-        
-        // Position buttons vertically
+
         int resumeY = windowHeight / 2 - buttonHeight - buttonSpacing / 2;
         int quitY = windowHeight / 2 + buttonSpacing / 2;
         
-        _resumeButton = new Button("Resume", centerX - buttonWidth / 2, resumeY, buttonWidth, buttonHeight);
+        _playButton = new Button("Play", centerX - buttonWidth / 2, resumeY, buttonWidth, buttonHeight);
         _quitButton = new Button("Quit", centerX - buttonWidth / 2, quitY, buttonWidth, buttonHeight);
         
-        _resumeButton.OnClick = () => 
+        _playButton.OnClick = () => 
         {
             OnStateChange?.Invoke(new StateChangeRequest(
-                StateChangeRequest.ChangeTypeEnum.Pop,
+                StateChangeRequest.ChangeTypeEnum.Push,
                 GameStateType.Playing));
         };
         
         _quitButton.OnClick = () => 
         {
-           OnStateChange?.Invoke(new StateChangeRequest(
-                StateChangeRequest.ChangeTypeEnum.PopAll,
-                GameStateType.MainMenu)); // TODO: Refactorize this
+            // Quit the game
+            Environment.Exit(0);
         };
     }
     
@@ -77,49 +73,37 @@ public class PausedState : IGameState
     
     public void Enter()
     {
-        Console.WriteLine("Entering PausedState");
-        GameTime.Instance.Pause();
+        Console.WriteLine("Entering MainMenuState");
     }
 
     public void Exit()
     {
-        Console.WriteLine("Exiting PausedState");
+        Console.WriteLine("Exiting MainMenuState");
         _input.OnMouseClick -= OnMouseClick;
-        GameTime.Instance.Resume();
     }
 
     public void Update(double deltaTime)
     {
-        if (_input.IsEscapePressed())
-        {
-            OnStateChange?.Invoke(new StateChangeRequest(
-                StateChangeRequest.ChangeTypeEnum.Pop,
-                GameStateType.Playing)); // TODO: Refactorize this
-            return;
-        }
-        
         var mousePosition = _input.GetMousePosition();
         bool isClicked = _isButtonClicked;
         _isButtonClicked = false;
         
         // Update buttons
-        _resumeButton.Update(mousePosition.x, mousePosition.y, isClicked);
+        _playButton.Update(mousePosition.x, mousePosition.y, isClicked);
         _quitButton.Update(mousePosition.x, mousePosition.y, isClicked);
     }
 
     public void Draw()
     {
-        DrawCallback?.Invoke();
-
-        _renderer.SetDrawColor(20, 20, 20, 128);
+        _renderer.SetDrawColor(102, 204, 255, 255);
         var (width, height) = _renderer.GetWindowSize();
         var overlay = new Rectangle<int>(0, 0, width, height);
         _renderer.FillRect(overlay);
 
         int titleY = height / 5;
-        _fontRenderer.RenderText(_renderer.GetRawRenderer(), "PAUSED", width / 2, titleY, 255, 255, 255, TextAlign.Center);
-
-        _resumeButton.Draw(_renderer, _fontRenderer);
+        _fontRenderer.RenderText(_renderer.GetRawRenderer(), "The Adventure", width / 2, titleY, 255, 255, 255, TextAlign.Center);
+        
+        _playButton.Draw(_renderer, _fontRenderer);
         _quitButton.Draw(_renderer, _fontRenderer);
     }
 

@@ -17,6 +17,12 @@ public static class Program
             throw new InvalidOperationException("Failed to initialize SDL.");
         }
 
+        // Initialize TTF
+        if (Ttf.TTF_Init() != 0)
+        {
+            Console.WriteLine("Warning: TTF initialization failed!");
+        }
+
         using (var gameWindow = new GameWindow(sdl))
         {
             var input = new Input(sdl);
@@ -38,6 +44,8 @@ public static class Program
             }
         }
 
+        // Quit TTF
+        Ttf.TTF_Quit();
         sdl.Quit();
     }
 }

@@ -25,6 +25,14 @@ public class GameStateManager
         state.Enter();
     }
 
+    public void PopAllStates()
+    {
+        while (_gameStates.Count > 0)
+        {
+            _gameStates.Pop().Exit();
+        }
+    }
+
     public void OnlyPopTopState()
     {
         if (_gameStates.Count > 0)

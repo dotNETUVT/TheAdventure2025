@@ -120,4 +120,14 @@ public unsafe class GameRenderer
     {
         _sdl.RenderFillRect(_renderer, in rect);
     }
+
+    public void DrawRect(Rectangle<int> rect)
+    {
+        _sdl.RenderDrawRect(_renderer, in rect);
+    }
+
+    public IntPtr GetRawRenderer()
+    {
+        return (IntPtr)_renderer;
+    }
 }

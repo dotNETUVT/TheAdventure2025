@@ -40,15 +40,35 @@ public class PlayingState : IGameState
         // No use case yet for UpdateCallback and RenderCallback
     }
 
+    private void OnMouseClick(object? sender, (int x, int y) mousePosition)
+    {
+        AddBomb(mousePosition.x, mousePosition.y);
+    }
+
     public void Enter()
     {
         Console.WriteLine("Entering PlayingState");
+
+        // Bandaid fix
+        _player.SetState(PlayerObject.PlayerState.Idle, PlayerObject.PlayerStateDirection.Down);
         // _player.Position = (100, 100);
+
+        // Subscribe to onClick for adding bombs after a very short delay
+        // Workaround to prevent immediately placing a bomb after pressing Back button
+        var timer = new System.Timers.Timer(50) { AutoReset = false };
+        timer.Elapsed += (sender, e) =>
+        {
+            _input.OnMouseClick += OnMouseClick;
+            timer.Dispose();
+        };
+
+        timer.Start();
     }
 
     public void Exit()
     {
         Console.WriteLine("Exiting PlayingState");
+        _input.OnMouseClick -= OnMouseClick;
     }
 
     public void Update(double deltaTime)
@@ -60,6 +80,7 @@ public class PlayingState : IGameState
 
         if (_input.IsEscapePressed())
         {
+            _input.OnMouseClick -= OnMouseClick;
             OnStateChange?.Invoke(new StateChangeRequest(
                 StateChangeRequest.ChangeTypeEnum.Push,
                 GameStateType.Paused));

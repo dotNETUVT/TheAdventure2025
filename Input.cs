@@ -181,4 +181,12 @@ public unsafe class Input
 
         return false;
     }
+
+    public (int x, int y) GetMousePosition()
+    {
+        int x = 0;
+        int y = 0;
+        _sdl.GetMouseState(&x, &y);
+        return (x, y);
+    }
 }
