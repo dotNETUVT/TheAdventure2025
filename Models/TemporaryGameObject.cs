@@ -1,11 +1,12 @@
 using Silk.NET.SDL;
+using TheAdventure.GameState;
 
 namespace TheAdventure.Models;
 
 public class TemporaryGameObject : RenderableGameObject
 {
     public double Ttl { get; init; }
-    public bool IsExpired => (DateTimeOffset.Now - _spawnTime).TotalSeconds >= Ttl;
+    public bool IsExpired => (GameTime.Instance.Now - _spawnTime).TotalSeconds >= Ttl;
     
     private DateTimeOffset _spawnTime;
     
@@ -13,6 +14,6 @@ public class TemporaryGameObject : RenderableGameObject
         : base(spriteSheet, position, angle, rotationCenter)
     {
         Ttl = ttl;
-        _spawnTime = DateTimeOffset.Now;
+        _spawnTime = GameTime.Instance.Now;
     }
 }

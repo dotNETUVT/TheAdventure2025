@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Silk.NET.Maths;
 using Silk.NET.SDL;
+using TheAdventure.GameState;
 
 namespace TheAdventure.Models;
 
@@ -93,7 +94,7 @@ public class SpriteSheet
         if (!Animations.TryGetValue(name, out var animation)) return;
 
         ActiveAnimation = animation;
-        _animationStart = DateTimeOffset.Now;
+        _animationStart = GameTime.Instance.Now;
         AnimationFinished = false;
     }
 
@@ -109,15 +110,18 @@ public class SpriteSheet
         {
             var totalFrames = (ActiveAnimation.EndFrame.Row - ActiveAnimation.StartFrame.Row) * ColumnCount +
                 ActiveAnimation.EndFrame.Col - ActiveAnimation.StartFrame.Col;
-            var currentFrame = (int)((DateTimeOffset.Now - _animationStart).TotalMilliseconds /
+                
+            DateTimeOffset currentTime = GameTime.Instance.Now;
+            var currentFrame = (int)((currentTime - _animationStart).TotalMilliseconds /
                                      (ActiveAnimation.DurationMs / (double)totalFrames));
+            
             if (currentFrame > totalFrames)
             {
                 AnimationFinished = true;
                 
                 if (ActiveAnimation.Loop)
                 {
-                    _animationStart = DateTimeOffset.Now;
+                    _animationStart = currentTime;
                     currentFrame = 0;
                 }
                 else
