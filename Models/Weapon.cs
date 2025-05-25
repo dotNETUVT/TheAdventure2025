@@ -1,4 +1,4 @@
-// In TheAdventure2025/Models/Weapon.cs
+
 namespace TheAdventure.Models;
 
 public class Weapon : Item 

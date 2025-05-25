@@ -1,4 +1,4 @@
-// In TheAdventure2025/Systems/ItemDatabase.cs
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -10,13 +10,11 @@ namespace TheAdventure.Systems;
 public static class ItemDatabase
 {
     public static List<Weapon> AllWeapons { get; private set; } = new List<Weapon>();
-    // Add List<Clothing> later
-
-    // Now requires GameRenderer to load textures
+   
     public static void LoadAllItems(GameRenderer renderer, string assetsBasePath = "Assets")
     {
         LoadWeapons(renderer, Path.Combine(assetsBasePath, "Data", "weapons.json"));
-        // Call LoadClothes(renderer, ...) here later
+        
     }
 
     private static void LoadWeapons(GameRenderer renderer, string filePath)
@@ -32,7 +30,7 @@ public static class ItemDatabase
                 Console.WriteLine($"Loaded {AllWeapons.Count} weapons:");
                 foreach (var weapon in AllWeapons)
                 {
-                    // Load textures and store their IDs
+                    
                     if (!string.IsNullOrEmpty(weapon.SpriteIconPath))
                     {
                         weapon.IconTextureId = renderer.LoadTexture(weapon.SpriteIconPath, out _);
@@ -44,8 +42,8 @@ public static class ItemDatabase
                     if (!string.IsNullOrEmpty(weapon.SpriteEquippedPath))
 {
     weapon.EquippedTextureId = renderer.LoadTexture(weapon.SpriteEquippedPath, out TextureData equippedTextureData);
-    weapon.EquippedSpriteWidth = equippedTextureData.Width;   // Store width
-    weapon.EquippedSpriteHeight = equippedTextureData.Height;  // Store height
+    weapon.EquippedSpriteWidth = equippedTextureData.Width;   
+    weapon.EquippedSpriteHeight = equippedTextureData.Height;  
 }
                     Console.WriteLine($"- {weapon.Name} (IconID: {weapon.IconTextureId}, EquipID: {weapon.EquippedTextureId})");
                 }
