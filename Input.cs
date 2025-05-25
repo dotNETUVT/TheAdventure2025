@@ -13,6 +13,33 @@ public unsafe class Input
         _sdl = sdl;
     }
 
+    
+    // In TheAdventure2025/Input.cs
+
+public bool IsKey1Pressed()
+{
+    ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
+    return keyboardState[(int)KeyCode.One] == 1; //
+}
+
+public bool IsKey2Pressed()
+{
+    ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
+    return keyboardState[(int)KeyCode.Two] == 1; //
+}
+
+public bool IsKey3Pressed()
+{
+    ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
+    return keyboardState[(int)KeyCode.Three] == 1; //
+}
+
+public bool IsKey4Pressed()
+{
+    ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);
+    return keyboardState[(int)KeyCode.Four] == 1; //
+} 
+
     public bool IsLeftPressed()
     {
         ReadOnlySpan<byte> keyboardState = new(_sdl.GetKeyboardState(null), (int)KeyCode.Count);

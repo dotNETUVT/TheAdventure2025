@@ -1,9 +1,12 @@
+using TheAdventure.Systems;
 using System.Reflection;
 using System.Text.Json;
 using Silk.NET.Maths;
 using TheAdventure.Models;
 using TheAdventure.Models.Data;
 using TheAdventure.Scripting;
+using System; // Added for StringComparison
+using System.Linq; // Added for Where clause
 
 namespace TheAdventure;
 
@@ -69,12 +72,36 @@ public class Engine
             throw new Exception("Invalid tile dimensions");
         }
 
-        _renderer.SetWorldBounds(new Rectangle<int>(0, 0, level.Width.Value * level.TileWidth.Value,
-            level.Height.Value * level.TileHeight.Value));
+        _renderer.SetWorldBounds(new Rectangle<int>(0, 0, level.Width.Value * level.TileWidth.Value, //
+            level.Height.Value * level.TileHeight.Value)); //
 
         _currentLevel = level;
 
         _scriptEngine.LoadAll(Path.Combine("Assets", "Scripts"));
+
+        ItemDatabase.LoadAllItems(_renderer, "Assets");
+
+        if (_player != null && ItemDatabase.AllWeapons.Count > 0)
+        {
+            var meleeWeapons = ItemDatabase.AllWeapons
+                .Where(w => w.WeaponType != null && ( 
+                            w.WeaponType.Contains("Melee", StringComparison.OrdinalIgnoreCase) || 
+                            w.WeaponType.Contains("Sword", StringComparison.OrdinalIgnoreCase) ||
+                            w.WeaponType.Contains("Dagger", StringComparison.OrdinalIgnoreCase) ||
+                            w.WeaponType.Contains("Axe", StringComparison.OrdinalIgnoreCase) ||
+                            w.WeaponType.Contains("Spear", StringComparison.OrdinalIgnoreCase))
+                        ) 
+                .ToList();
+
+            Console.WriteLine($"Found {meleeWeapons.Count} melee weapons to assign to player.");
+
+            for(int i = 0; i < Math.Min(meleeWeapons.Count, 4); ++i)
+            {
+                _player.AddKnownWeapon(meleeWeapons[i]);
+                Console.WriteLine($"Player added known weapon: {meleeWeapons[i].Name}");
+            }
+        }
+        Console.WriteLine("Engine: World setup complete.");
     }
 
     public void ProcessFrame()
@@ -83,107 +110,128 @@ public class Engine
         var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
         _lastUpdate = currentTime;
 
-        if (_player == null)
+        if (_player == null) // This check should prevent null issues for _player below
         {
             return;
         }
 
+        // Weapon Switching Logic
+        if (_input.IsKey1Pressed()) { _player.EquipWeaponByIndex(0); }
+        else if (_input.IsKey2Pressed()) { _player.EquipWeaponByIndex(1); }
+        else if (_input.IsKey3Pressed()) { _player.EquipWeaponByIndex(2); }
+        else if (_input.IsKey4Pressed()) { _player.EquipWeaponByIndex(3); }
+        
+        // Player Actions and Movement
         double up = _input.IsUpPressed() ? 1.0 : 0.0;
         double down = _input.IsDownPressed() ? 1.0 : 0.0;
         double left = _input.IsLeftPressed() ? 1.0 : 0.0;
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
         bool isAttacking = _input.IsKeyAPressed() && (up + down + left + right <= 1);
-        bool addBomb = _input.IsKeyBPressed();
+        bool addBombInput = _input.IsKeyBPressed(); // Renamed to avoid conflict with AddBomb method
 
-        _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame);
+        // The line that was causing the warning (line 135 in your previous error)
+        _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame); //
+        
         if (isAttacking)
         {
-            _player.Attack();
+            _player.Attack(); //
         }
         
-        _scriptEngine.ExecuteAll(this);
+        _scriptEngine.ExecuteAll(this); //
 
-        if (addBomb)
+        if (addBombInput)
         {
-            AddBomb(_player.Position.X, _player.Position.Y, false);
+            AddBomb(_player.Position.X, _player.Position.Y, false); //
         }
     }
 
     public void RenderFrame()
     {
-        _renderer.SetDrawColor(0, 0, 0, 255);
-        _renderer.ClearScreen();
+        _renderer.SetDrawColor(0, 0, 0, 255); //
+        _renderer.ClearScreen(); //
 
-        var playerPosition = _player!.Position;
-        _renderer.CameraLookAt(playerPosition.X, playerPosition.Y);
+        if (_player != null) // Added null check for safety before dereferencing _player for its position
+        {
+            var playerPosition = _player.Position; // No "!" needed here due to the check
+            _renderer.CameraLookAt(playerPosition.X, playerPosition.Y); //
+        }
 
-        RenderTerrain();
-        RenderAllObjects();
+        RenderTerrain(); //
+        RenderAllObjects(); //
 
-        _renderer.PresentFrame();
+        _renderer.PresentFrame(); //
     }
 
     public void RenderAllObjects()
     {
-        var toRemove = new List<int>();
-        foreach (var gameObject in GetRenderables())
+        var toRemove = new List<int>(); //
+        foreach (var gameObject in GetRenderables()) //
         {
-            gameObject.Render(_renderer);
-            if (gameObject is TemporaryGameObject { IsExpired: true } tempGameObject)
+            gameObject.Render(_renderer); //
+            if (gameObject is TemporaryGameObject { IsExpired: true } tempGameObject) //
             {
-                toRemove.Add(tempGameObject.Id);
+                toRemove.Add(tempGameObject.Id); //
             }
         }
 
-        foreach (var id in toRemove)
+        foreach (var id in toRemove) //
         {
-            _gameObjects.Remove(id, out var gameObject);
+            _gameObjects.Remove(id, out var gameObject); //
 
-            if (_player == null)
+            if (_player == null) //
             {
-                continue;
+                continue; //
             }
 
-            var tempGameObject = (TemporaryGameObject)gameObject!;
-            var deltaX = Math.Abs(_player.Position.X - tempGameObject.Position.X);
-            var deltaY = Math.Abs(_player.Position.Y - tempGameObject.Position.Y);
-            if (deltaX < 32 && deltaY < 32)
+            var tempGameObject = (TemporaryGameObject)gameObject!; //
+            var deltaX = Math.Abs(_player.Position.X - tempGameObject.Position.X); //
+            var deltaY = Math.Abs(_player.Position.Y - tempGameObject.Position.Y); //
+            if (deltaX < 32 && deltaY < 32) //
             {
-                _player.GameOver();
+                _player.GameOver(); //
             }
         }
 
-        _player?.Render(_renderer);
+        _player?.Render(_renderer); // Use null-conditional for safety
     }
 
     public void RenderTerrain()
     {
-        foreach (var currentLayer in _currentLevel.Layers)
+        foreach (var currentLayer in _currentLevel.Layers) //
         {
-            for (int i = 0; i < _currentLevel.Width; ++i)
+            if (currentLayer.Width == null || _currentLevel.Width == null || _currentLevel.Height == null) continue; // Safety check
+
+            for (int i = 0; i < _currentLevel.Width.Value; ++i) //
             {
-                for (int j = 0; j < _currentLevel.Height; ++j)
+                for (int j = 0; j < _currentLevel.Height.Value; ++j) //
                 {
-                    int? dataIndex = j * currentLayer.Width + i;
-                    if (dataIndex == null)
+                    int dataIndex = j * currentLayer.Width.Value + i; //
+                    if (dataIndex >= currentLayer.Data.Count) continue; // Boundary check
+
+                    var currentTileGid = currentLayer.Data[dataIndex]; //
+                    if (currentTileGid == null || currentTileGid.Value == 0) // Tiled uses 0 for empty tile
                     {
-                        continue;
+                        continue; //
                     }
+                    
+                    // In Tiled, GID is 1-based. If you map directly, make sure your _tileIdMap uses 1-based keys
+                    // or adjust here. The original code subtracts 1.
+                    var currentTileId = currentTileGid.Value -1;
 
-                    var currentTileId = currentLayer.Data[dataIndex.Value] - 1;
-                    if (currentTileId == null)
+
+                    if (!_tileIdMap.TryGetValue(currentTileId, out var currentTile)) //
                     {
-                        continue;
+                        continue; 
                     }
+                    
+                    var tileWidth = currentTile.ImageWidth ?? 0; //
+                    var tileHeight = currentTile.ImageHeight ?? 0; //
 
-                    var currentTile = _tileIdMap[currentTileId.Value];
+                    if (tileWidth == 0 || tileHeight == 0) continue;
 
-                    var tileWidth = currentTile.ImageWidth ?? 0;
-                    var tileHeight = currentTile.ImageHeight ?? 0;
-
-                    var sourceRect = new Rectangle<int>(0, 0, tileWidth, tileHeight);
-                    var destRect = new Rectangle<int>(i * tileWidth, j * tileHeight, tileWidth, tileHeight);
-                    _renderer.RenderTexture(currentTile.TextureId, sourceRect, destRect);
+                    var sourceRect = new Rectangle<int>(0, 0, tileWidth, tileHeight); //
+                    var destRect = new Rectangle<int>(i * tileWidth, j * tileHeight, tileWidth, tileHeight); //
+                    _renderer.RenderTexture(currentTile.TextureId, sourceRect, destRect); //
                 }
             }
         }
@@ -191,28 +239,29 @@ public class Engine
 
     public IEnumerable<RenderableGameObject> GetRenderables()
     {
-        foreach (var gameObject in _gameObjects.Values)
+        foreach (var gameObject in _gameObjects.Values) //
         {
-            if (gameObject is RenderableGameObject renderableGameObject)
+            if (gameObject is RenderableGameObject renderableGameObject) //
             {
-                yield return renderableGameObject;
+                yield return renderableGameObject; //
             }
         }
     }
 
     public (int X, int Y) GetPlayerPosition()
     {
-        return _player!.Position;
+        if (_player == null) return (0,0); // Handle case where player might be null
+        return _player.Position; // No "!" needed due to the check
     }
 
     public void AddBomb(int X, int Y, bool translateCoordinates = true)
     {
-        var worldCoords = translateCoordinates ? _renderer.ToWorldCoordinates(X, Y) : new Vector2D<int>(X, Y);
+        var worldCoords = translateCoordinates ? _renderer.ToWorldCoordinates(X, Y) : new Vector2D<int>(X, Y); //
 
-        SpriteSheet spriteSheet = SpriteSheet.Load(_renderer, "BombExploding.json", "Assets");
-        spriteSheet.ActivateAnimation("Explode");
+        SpriteSheet spriteSheet = SpriteSheet.Load(_renderer, "BombExploding.json", "Assets"); //
+        spriteSheet.ActivateAnimation("Explode"); //
 
-        TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
-        _gameObjects.Add(bomb.Id, bomb);
+        TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y)); //
+        _gameObjects.Add(bomb.Id, bomb); //
     }
 }

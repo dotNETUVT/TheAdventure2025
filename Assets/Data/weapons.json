@@ -1,0 +1,46 @@
+[
+  {
+    "Id": "wpn_training_dagger",
+    "Name": "Training Dagger",
+    "Description": "A dull dagger, mostly for practice. Quick but not very strong.",
+    "SpriteIconPath": "Assets/Sprites/Icons/Weapons/dagger_02.png",
+    "WeaponType": "Dagger",
+    "Damage": 8,
+    "AttackSpeed": 2.5,
+    "Range": 1.2,
+    "SpriteEquippedPath": "Assets/Sprites/Equipped/Weapons/dagger_02.png"
+  },
+  {
+    "Id": "wpn_warriors_shortsword",
+    "Name": "Warrior's Shortsword",
+    "Description": "A reliable and balanced shortsword, fit for a budding warrior.",
+    "SpriteIconPath": "Assets/Sprites/Icons/Weapons/short_sword_08.png",
+    "WeaponType": "Sword",
+    "Damage": 15,
+    "AttackSpeed": 1.8,
+    "Range": 1.5,
+    "SpriteEquippedPath": "Assets/Sprites/Equipped/Weapons/short_sword_08.png"
+  },
+  {
+    "Id": "wpn_warriors_triplesword",
+    "Name": "Triple Sword",
+    "Description": "3xSword",
+    "SpriteIconPath": "Assets/Sprites/Icons/Weapons/triple_sword_04.png",
+    "WeaponType": "Sword",
+    "Damage": 25,
+    "AttackSpeed": 1.0,
+    "Range": 1.4,
+    "SpriteEquippedPath": "Assets/Sprites/Equipped/Weapons/triple_sword_04.png"
+  },
+  {
+    "Id": "wpn_double_sword",
+    "Name": "Double Sword",
+    "Description": "2xSword",
+    "SpriteIconPath": "Assets/Sprites/Icons/Weapons/double_sword_04.png",
+    "WeaponType": "Sword",
+    "Damage": 18,
+    "AttackSpeed": 1.5,
+    "Range": 2.5,
+    "SpriteEquippedPath": "Assets/Sprites/Equipped/Weapons/double_sword_04.png"
+  }
+]
