@@ -39,6 +39,7 @@ public class GameStateManager
             _gameStates.Pop().Exit();
     }
 
+
     public void PopState()
     {
         if (_gameStates.Count == 0)
@@ -49,6 +50,12 @@ public class GameStateManager
             _gameStates.Peek().Enter();
     }
 
+    public void OnlyPushTopState(IGameState state)
+    {
+        _gameStates.Push(state);
+        state.Enter();
+    }
+
     public void PushState(IGameState state)
     {
         if (_gameStates.Count > 0)
@@ -56,7 +63,7 @@ public class GameStateManager
             if (_gameStates.Peek().GetType() == state.GetType())
                 return;
 
-            // _gameStates.Peek().Exit();
+            _gameStates.Peek().Exit();
         }
 
         _gameStates.Push(state);

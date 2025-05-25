@@ -1,6 +1,8 @@
+using System.Reflection.Metadata;
 using Silk.NET.Maths;
 using TheAdventure.Models;
 using TheAdventure.Models.Data;
+using TheAdventure.Scripting;
 
 namespace TheAdventure.GameState;
 
@@ -8,12 +10,14 @@ public class PlayingState : IGameState
 {
     private readonly GameRenderer _renderer;
     private readonly Input _input;
+    private readonly ScriptEngine _scriptEngine;
 
     private readonly Dictionary<int, GameObject> _gameObjects;
     private readonly Dictionary<int, Tile> _tileIdMap;
     
     private Level _currentLevel;
     private PlayerObject _player;
+    private bool _isGameOver = false; // Bandaid fix
 
     public event Action<StateChangeRequest>? OnStateChange;
     // public IGameState? Parent { get; set; } // TODO: Maybese concrete type to limit possible parent states
@@ -25,6 +29,7 @@ public class PlayingState : IGameState
         IGameState? parent, // TODO: Use concrete type to limit possible parent states
         GameRenderer renderer,
         Input input,
+        ScriptEngine scriptEngine,
         Dictionary<int, GameObject> gameObjects,
         Dictionary<int, Tile> tileIdMap,
         Level currentLevel,
@@ -32,6 +37,7 @@ public class PlayingState : IGameState
     {
         _renderer = renderer;
         _input = input;
+        _scriptEngine = scriptEngine;
         _gameObjects = gameObjects;
         _tileIdMap = tileIdMap;
         _currentLevel = currentLevel;
@@ -49,9 +55,11 @@ public class PlayingState : IGameState
     {
         Console.WriteLine("Entering PlayingState");
 
-        // Bandaid fix
-        _player.SetState(PlayerObject.PlayerState.Idle, PlayerObject.PlayerStateDirection.Down);
-        // _player.Position = (100, 100);
+        _isGameOver = false;
+        _gameObjects.Clear();
+        _player.RestartToIdleState();
+        _player.Position = (100, 100);
+        _renderer.CameraLookAt(100, 100);
 
         // Subscribe to onClick for adding bombs after a very short delay
         // Workaround to prevent immediately placing a bomb after pressing Back button
@@ -73,16 +81,17 @@ public class PlayingState : IGameState
 
     public void Update(double deltaTime)
     {
-        if (_player == null)
+        if (_player == null || _player.State.State == PlayerObject.PlayerState.GameOver)
         {
             return;
         }
 
         if (_input.IsEscapePressed())
         {
+
             _input.OnMouseClick -= OnMouseClick;
             OnStateChange?.Invoke(new StateChangeRequest(
-                StateChangeRequest.ChangeTypeEnum.Push,
+                StateChangeRequest.ChangeTypeEnum.OnlyPush,
                 GameStateType.Paused));
             return;
         }
@@ -104,6 +113,8 @@ public class PlayingState : IGameState
         {
             AddBomb(_player.Position.X, _player.Position.Y, false);
         }
+
+        _scriptEngine.ExecuteAll(this);
     }
 
     public void Render()
@@ -152,7 +163,23 @@ public class PlayingState : IGameState
             var deltaY = Math.Abs(_player.Position.Y - tempGameObject.Position.Y);
             if (deltaX < 32 && deltaY < 32)
             {
+                if (_isGameOver)
+                {
+                    continue;
+                }
                 _player.GameOver();
+
+                var timer = new System.Timers.Timer(1000) { AutoReset = false };
+                timer.Elapsed += (sender, e) =>
+                {
+                    OnStateChange?.Invoke(new StateChangeRequest(
+                        StateChangeRequest.ChangeTypeEnum.Push,
+                        GameStateType.GameOver));
+                    timer.Dispose();
+                };
+
+                timer.Start();
+                _isGameOver = true; // Prevent further game over triggers
             }
         }
 
@@ -201,6 +228,11 @@ public class PlayingState : IGameState
                 yield return renderableGameObject;
             }
         }
+    }
+
+    public (int X, int Y) GetPlayerPosition()
+    {
+        return _player!.Position;
     }
 
     public void AddBomb(int X, int Y, bool translateCoordinates = true)

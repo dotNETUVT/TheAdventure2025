@@ -1,18 +1,19 @@
 using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.SDL;
+using TheAdventure.Models;
 using TheAdventure.UI;
 using Button = TheAdventure.UI.Button;
 
 namespace TheAdventure.GameState;
 
-public class PausedState : IGameState
+public class GameOverState : IGameState
 {
     private readonly GameRenderer _renderer;
     private readonly Input _input;
-
     private FontRenderer _fontRenderer;
-    private Button _resumeButton;
+
+    private Button _respawnButton;
     private Button _quitButton;
 
     private bool _isButtonClicked = false;
@@ -22,7 +23,7 @@ public class PausedState : IGameState
     public UpdateCallback? UpdateCallback { get; set; }
     public DrawCallback? DrawCallback { get; set; }
 
-    public PausedState(
+    public GameOverState(
         IGameState? parent, // TODO: Use concrete type to limit possible parent states
         GameRenderer renderer,
         Input input)
@@ -52,13 +53,13 @@ public class PausedState : IGameState
         int resumeY = windowHeight / 2 - buttonHeight - buttonSpacing / 2;
         int quitY = windowHeight / 2 + buttonSpacing / 2;
         
-        _resumeButton = new Button("Resume", centerX - buttonWidth / 2, resumeY, buttonWidth, buttonHeight);
+        _respawnButton = new Button("Respawn", centerX - buttonWidth / 2, resumeY, buttonWidth, buttonHeight);
         _quitButton = new Button("Quit", centerX - buttonWidth / 2, quitY, buttonWidth, buttonHeight);
         
-        _resumeButton.OnClick = () => 
+        _respawnButton.OnClick = () => 
         {
             OnStateChange?.Invoke(new StateChangeRequest(
-                StateChangeRequest.ChangeTypeEnum.OnlyPop,
+                StateChangeRequest.ChangeTypeEnum.Pop,
                 GameStateType.Playing));
         };
         
@@ -77,33 +78,23 @@ public class PausedState : IGameState
     
     public void Enter()
     {
-        Console.WriteLine("Entering PausedState");
-        GameTime.Instance.Pause();
+        Console.WriteLine("Entering GameOverState");
     }
 
     public void Exit()
     {
-        Console.WriteLine("Exiting PausedState");
+        Console.WriteLine("Exiting GameOverState");
         _input.OnMouseClick -= OnMouseClick;
-        GameTime.Instance.Resume();
     }
 
     public void Update(double deltaTime)
-    {
-        if (_input.IsEscapePressed())
-        {
-            OnStateChange?.Invoke(new StateChangeRequest(
-                StateChangeRequest.ChangeTypeEnum.OnlyPop,
-                GameStateType.Playing)); // TODO: Refactorize this
-            return;
-        }
-        
+    { 
         var mousePosition = _input.GetMousePosition();
         bool isClicked = _isButtonClicked;
         _isButtonClicked = false;
         
         // Update buttons
-        _resumeButton.Update(mousePosition.x, mousePosition.y, isClicked);
+        _respawnButton.Update(mousePosition.x, mousePosition.y, isClicked);
         _quitButton.Update(mousePosition.x, mousePosition.y, isClicked);
     }
 
@@ -117,9 +108,9 @@ public class PausedState : IGameState
         _renderer.FillRect(overlay);
 
         int titleY = height / 5;
-        _fontRenderer.RenderText(_renderer.GetRawRenderer(), "PAUSED", width / 2, titleY, 255, 255, 255, TextAlign.Center);
+        _fontRenderer.RenderText(_renderer.GetRawRenderer(), "GAME OVER", width / 2, titleY, 255, 255, 255, TextAlign.Center);
 
-        _resumeButton.Draw(_renderer, _fontRenderer);
+        _respawnButton.Draw(_renderer, _fontRenderer);
         _quitButton.Draw(_renderer, _fontRenderer);
     }
 

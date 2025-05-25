@@ -1,6 +1,7 @@
 using System.Reflection;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using TheAdventure.GameState;
 
 namespace TheAdventure.Scripting;
 
@@ -71,11 +72,11 @@ public class ScriptEngine
         }
     }
 
-    public void ExecuteAll(Engine engine)
+    public void ExecuteAll(IGameState gameState)
     {
         foreach (var script in _scripts)
         {
-            script.Value.Execute(engine);
+            script.Value.Execute(gameState);
         }
     }
 

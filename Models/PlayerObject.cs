@@ -71,6 +71,12 @@ public class PlayerObject : RenderableGameObject
         SetState(PlayerState.GameOver, PlayerStateDirection.None);
     }
 
+    public void RestartToIdleState()
+    {
+        State = (PlayerState.Idle, PlayerStateDirection.Down);
+        SpriteSheet.ActivateAnimation(Enum.GetName(PlayerState.Idle) + Enum.GetName(PlayerStateDirection.Down));
+    }
+
     public void Attack()
     {
         if (State.State == PlayerState.GameOver)

@@ -89,33 +89,11 @@ public class Engine
         _lastUpdate = currentTime;
 
         _gameStateManager.Update(msSinceLastFrame);
-
-        // Bandaid fix
-        if (_gameStateManager.GameStateType == GameStateType.Playing)
-        {
-            _scriptEngine.ExecuteAll(this);
-        }
     }
 
     public void RenderFrame()
     {
         _gameStateManager.Render();
-    }
-
-    public (int X, int Y) GetPlayerPosition()
-    {
-        return _player!.Position;
-    }
-
-    public void AddBomb(int X, int Y, bool translateCoordinates = true)
-    {
-        var worldCoords = translateCoordinates ? _renderer.ToWorldCoordinates(X, Y) : new Vector2D<int>(X, Y);
-
-        SpriteSheet spriteSheet = SpriteSheet.Load(_renderer, "BombExploding.json", "Assets");
-        spriteSheet.ActivateAnimation("Explode");
-
-        TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
-        _gameObjects.Add(bomb.Id, bomb);
     }
 
     private IGameState CreateState(GameStateType stateType, IGameState? parent = null)
@@ -126,12 +104,14 @@ public class Engine
                                         null,
                                         _renderer,
                                         _input,
+                                        _scriptEngine,
                                         _gameObjects,
                                         _tileIdMap,
                                         _currentLevel,
                                         _player!),
             GameStateType.Paused => new PausedState(parent, _renderer, _input),
             GameStateType.MainMenu => new MainMenuState(parent, _renderer, _input),
+            GameStateType.GameOver => new GameOverState(parent, _renderer, _input),
             _ => throw new Exception($"Unknown game state type: {stateType}")
         };
     }
@@ -148,9 +128,23 @@ public class Engine
                 _gameStateManager.GameStateType = info.NewState!.Value;
                 break;
             }
+            case StateChangeRequest.ChangeTypeEnum.OnlyPush:
+            {
+                IGameState gameState = CreateState(info.NewState!.Value, _gameStateManager.TopGameState);
+                gameState.OnStateChange += HandleStateChangeRequest;
+                _gameStateManager.OnlyPushTopState(gameState);
+                _gameStateManager.GameStateType = info.NewState!.Value;
+                break;
+            }
             case StateChangeRequest.ChangeTypeEnum.Pop:
             {
                 _gameStateManager.PopState();
+                _gameStateManager.GameStateType = info.NewState!.Value;
+                break;
+            }
+            case StateChangeRequest.ChangeTypeEnum.OnlyPop:
+            {
+                _gameStateManager.OnlyPopTopState();
                 _gameStateManager.GameStateType = info.NewState!.Value;
                 break;
             }

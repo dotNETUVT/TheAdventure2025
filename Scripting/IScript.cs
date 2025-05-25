@@ -1,3 +1,5 @@
+using TheAdventure.GameState;
+
 namespace TheAdventure.Scripting;
 
 public interface IScript
@@ -7,7 +9,8 @@ public interface IScript
     /// </summary>
     public void Initialize();
     /// <summary>
-    /// Method containing the actual script code, to be executed every time <see cref="Engine.ProcessFrame"/> is called.
+    /// <para> Method containing the actual script code. </para> 
+    /// <para>Only call in child implementations of <see cref="IGameState.Update"/> </para>
     /// </summary>
-    public void Execute(Engine engine);
+    public void Execute(IGameState state);
 }
